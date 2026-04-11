@@ -59,6 +59,11 @@
         #main-view { display: flex; flex-direction: column; }
         #map { flex-grow: 1; filter: grayscale(0.2); }
         #chart-area { height: 260px; background: #fff; border-top: 1px solid #e2e8f0; padding: 20px; }
+        
+        /* Popup Detalle de Cultivo */
+        .popup-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 12px; color: #475569; margin-top: 8px; }
+        .popup-detail-grid div { display: flex; justify-content: space-between; }
+        .popup-detail-grid b { color: #0f172a; }
     </style>
 </head>
 <body>
@@ -159,40 +164,54 @@
 
     function procesar(data) {
         const grouped = {};
-        let tGen = 0, tM = 0, tS = 0, tT = 0, tG = 0;
-
-        const dates = [...new Set(data.map(d => d.fecha))].sort((a,b) => new Date(b) - new Date(a));
-        const today = dates[0];
-
+        
+        // Agrupar todo el historial por terminal
         data.forEach(item => {
-            const rowSum = (item.soja || 0) + (item.maiz || 0) + (item.trigo || 0) + (item.girasol || 0);
-            
-            // Suma del Total General de todas las terminales
-            if (item.fecha === today) {
-                tGen += rowSum;
-                tM += (item.maiz || 0); tS += (item.soja || 0); 
-                tT += (item.trigo || 0); tG += (item.girasol || 0);
-            }
-
             if (!grouped[item.terminal]) grouped[item.terminal] = { history: [] };
-            grouped[item.terminal].history.push({ fecha: item.fecha, total: rowSum });
+            grouped[item.terminal].history.push(item);
         });
 
-        // Totales UI
+        let tGen = 0, tM = 0, tS = 0, tT = 0, tG = 0;
+
+        // Calcular los datos finales para el ranking y sumarizar
+        const ranking = Object.keys(grouped).map(name => {
+            // Ordenar el historial de más antiguo a más reciente
+            const h = grouped[name].history.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+            
+            // Tomar el último registro disponible (Hoy) y el anterior (Ayer)
+            const last = h[h.length - 1];
+            const prev = h[h.length - 2];
+
+            const curTotal = (last.soja || 0) + (last.maiz || 0) + (last.trigo || 0) + (last.girasol || 0);
+            const preTotal = prev ? ((prev.soja || 0) + (prev.maiz || 0) + (prev.trigo || 0) + (prev.girasol || 0)) : 0;
+            
+            // Sumar al Acumulado General del país (Solo la última foto de cada puerto)
+            tGen += curTotal;
+            tM += (last.maiz || 0);
+            tS += (last.soja || 0);
+            tT += (last.trigo || 0);
+            tG += (last.girasol || 0);
+
+            const v = preTotal === 0 ? 0 : (((curTotal - preTotal) / preTotal) * 100).toFixed(1);
+
+            return { 
+                name, 
+                cur: curTotal, 
+                v, 
+                hVal: h.map(x => (x.soja || 0) + (x.maiz || 0) + (x.trigo || 0) + (x.girasol || 0)), 
+                hLab: h.map(x => x.fecha), 
+                gps: GPS[name],
+                // Guardamos el detalle del último día para mostrar en el mapa
+                detail: { m: last.maiz || 0, s: last.soja || 0, t: last.trigo || 0, g: last.girasol || 0 }
+            };
+        }).sort((a, b) => b.cur - a.cur); // Ordenar de mayor a menor ingreso
+
+        // Actualizar UI de Totales
         document.getElementById('total-gen').innerText = tGen.toLocaleString();
         document.getElementById('sum-maiz').innerText = tM.toLocaleString();
         document.getElementById('sum-soja').innerText = tS.toLocaleString();
         document.getElementById('sum-trigo').innerText = tT.toLocaleString();
         document.getElementById('sum-girasol').innerText = tG.toLocaleString();
-
-        const ranking = Object.keys(grouped).map(name => {
-            const h = grouped[name].history.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
-            const cur = h[h.length - 1]?.total || 0;
-            const pre = h[h.length - 2]?.total || 0;
-            const v = pre === 0 ? 0 : (((cur - pre) / pre) * 100).toFixed(1);
-
-            return { name, cur, v, hVal: h.map(x => x.total), hLab: h.map(x => x.fecha), gps: GPS[name] };
-        }).sort((a, b) => b.cur - a.cur);
 
         render(ranking);
     }
@@ -200,13 +219,30 @@
     function render(data) {
         const body = document.getElementById('ranking-body');
         body.innerHTML = '';
-        document.getElementById('last-update').innerText = `Sincronizado: ${new Date().toLocaleTimeString()}`;
+        document.getElementById('last-update').innerText = `Actualizado: ${new Date().toLocaleTimeString()}`;
 
         data.forEach(p => {
             if (!p.gps) return;
             const color = p.v >= 0 ? '#10b981' : '#ef4444';
             const m = L.circleMarker(p.gps, { radius: 9, fillColor: color, color: '#fff', weight: 2, fillOpacity: 0.8 }).addTo(map);
             
+            // Estructura del Popup de Detalle de Cultivo
+            const popupContent = `
+                <div style="font-family: Inter, sans-serif; min-width: 160px;">
+                    <strong style="color: #0f172a; font-size: 14px;">${p.name}</strong>
+                    <div style="font-size: 20px; font-weight: 800; color: #2563eb; margin: 4px 0;">
+                        ${p.cur} <span style="font-size: 12px; font-weight: 500; color: #64748b;">camiones</span>
+                    </div>
+                    <div class="popup-detail-grid">
+                        <div><span>🌽 Maíz</span> <b>${p.detail.m}</b></div>
+                        <div><span>🌱 Soja</span> <b>${p.detail.s}</b></div>
+                        <div><span>🌾 Trigo</span> <b>${p.detail.t}</b></div>
+                        <div><span>🌻 Gira.</span> <b>${p.detail.g}</b></div>
+                    </div>
+                </div>
+            `;
+
+            // Fila de la tabla
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><b style="color:#334155">${p.name}</b></td>
@@ -214,14 +250,16 @@
                 <td style="text-align:center"><span class="badge ${p.v >= 0 ? 'up' : 'down'}">${p.v >= 0 ? '▲' : '▼'} ${Math.abs(p.v)}%</span></td>
             `;
 
+            // Acciones al hacer clic en la fila
             tr.onclick = () => {
                 map.flyTo(p.gps, 12, { duration: 1.5 });
-                m.bindPopup(`<b>${p.name}</b><br>Hoy: ${p.cur} camiones`).openPopup();
+                m.bindPopup(popupContent).openPopup();
                 chart(p.name, p.hVal, p.hLab);
             };
             body.appendChild(tr);
         });
 
+        // Simular clic en el primero para llenar el gráfico al inicio
         if (data.length > 0) chart(data[0].name, data[0].hVal, data[0].hLab);
     }
 
@@ -254,7 +292,7 @@
         });
     }
 
-    // Inicializar carga manual (sin refresco automático)
+    // Inicializar carga manual
     fetchData();
 </script>
 </body>
