@@ -167,6 +167,7 @@
         data.forEach(item => {
             const rowSum = (item.soja || 0) + (item.maiz || 0) + (item.trigo || 0) + (item.girasol || 0);
             
+            // Suma del Total General de todas las terminales
             if (item.fecha === today) {
                 tGen += rowSum;
                 tM += (item.maiz || 0); tS += (item.soja || 0); 
@@ -253,9 +254,8 @@
         });
     }
 
+    // Inicializar carga manual (sin refresco automático)
     fetchData();
-    // Auto-refresh cada 5 minutos
-    setInterval(fetchData, 300000);
 </script>
 </body>
 </html>
