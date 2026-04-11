@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Portuario | Control de Ingresos</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { 
+            --dark: #0f172a; 
+            --accent: #3b82f6; 
+            --success: #10b981; 
+            --danger: #ef4444; 
+            --bg: #f8fafc;
+            --border: #e2e8f0; 
+            --maiz: #fbbf24;
+            --soja: #34d399;
+            --trigo: #a78bfa;
+            --girasol: #f472b6;
+        }
+        
+        body { margin: 0; display: grid; grid-template-columns: 420px 1fr; height: 100vh; font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); color: #1e293b; }
+        
+        /* Sidebar */
+        #sidebar { background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; box-shadow: 4px 0 15px rgba(0,0,0,0.05); }
+        
+        .header { padding: 25px 20px; background: var(--dark); color: white; }
+        .header h2 { margin: 0; font-size: 1.1rem; letter-spacing: 0.5px; font-weight: 600; }
+        
+        /* Resumen General */
+        .summary-container { padding: 20px; background: #fff; border-bottom: 1px solid var(--border); }
+        .total-box { background: #f1f5f9; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center; border: 1px solid var(--border); }
+        .total-number { display: block; font-size: 2rem; font-weight: 800; color: var(--dark); }
+        .total-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+
+        .crops-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .crop-card { padding: 10px; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; }
+        .crop-card span { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
+        .crop-card b { font-size: 16px; }
+        .c-maiz { border-left: 4px solid var(--maiz); }
+        .c-soja { border-left: 4px solid var(--soja); }
+        .c-trigo { border-left: 4px solid var(--trigo); }
+        .c-girasol { border-left: 4px solid var(--girasol); }
+
+        /* Ranking Table */
+        .ranking-container { flex-grow: 1; overflow-y: auto; }
+        .ranking-table { width: 100%; border-collapse: collapse; }
+        .ranking-table th { text-align: left; padding: 12px 15px; border-bottom: 1px solid var(--border); background: #f8fafc; font-size: 11px; text-transform: uppercase; color: #64748b; position: sticky; top: 0; z-index: 10; }
+        .ranking-table td { padding: 14px 15px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .ranking-table tr:hover { background: #f1f5f9; }
+
+        .var-badge { padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; display: inline-flex; align-items: center; gap: 3px; }
+        .pos { background: #dcfce7; color: #166534; }
+        .neg { background: #fee2e2; color: #991b1b; }
+
+        /* Mapa y Gráfico */
+        #main-view { display: flex; flex-direction: column; height: 100vh; }
+        #map { flex-grow: 1; z-index: 1; }
+        #chart-container { height: 260px; background: white; border-top: 1px solid var(--border); padding: 20px; box-sizing: border-box; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="header">
+        <h2>🚚 CONTROL LOGÍSTICO</h2>
+        <div id="fecha-actual" style="opacity: 0.7; font-size: 12px; margin-top: 5px;">Conectando...</div>
+    </div>
+
+    <div class="summary-container">
+        <div class="total-box">
+            <span class="total-label">Total Camiones Hoy</span>
+            <span class="total-number" id="gen-total">0</span>
+        </div>
+        <div class="crops-grid">
+            <div class="crop-card c-maiz"><span>🌽 Maíz</span><b id="gen-maiz">0</b></div>
+            <div class="crop-card c-soja"><span>🌱 Soja</span><b id="gen-soja">0</b></div>
+            <div class="crop-card c-trigo"><span>🌾 Trigo</span><b id="gen-trigo">0</b></div>
+            <div class="crop-card c-girasol"><span>🌻 Girasol</span><b id="gen-girasol">0</b></div>
+        </div>
+    </div>
+
+    <div class="ranking-container">
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th>Terminal</th>
+                    <th style="text-align:right">Hoy</th>
+                    <th style="text-align:center">Var.%</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<div id="main-view">
+    <div id="map"></div>
+    <div id="chart-container">
+        <canvas id="mainChart"></canvas>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    const GPS = {
+        "ACA - SAN LORENZO": [-32.7335, -60.7301], "ACA - TIMBUES": [-32.6661, -60.7315],
+        "ACEITERA CHABAS": [-33.3285, -61.1685], "ADM AGRO S.R.L. - ARROYO SECO": [-33.1558, -60.4852],
+        "ADM AGRO S.R.L. - PTO GRAL SAN MARTIN": [-32.7165, -60.7310], "AGD TIMBUES": [-32.6742, -60.7268],
+        "BARADERO": [-33.8058, -59.5052], "BUNGE - PGSM": [-32.7231, -60.7305],
+        "BUNGE - RAMALLO": [-33.4795, -60.0125], "CARGILL - ALVEAR": [-33.0561, -60.5985],
+        "CARGILL QUEBRACHO - PGSM": [-32.7042, -60.7338], "COFCO - LIMA": [-33.9782, -59.1895],
+        "COFCO - PGSM": [-32.7305, -60.7288], "COFCO - TIMBUES": [-32.6595, -60.7345],
+        "DREYFUS - GRAL. LAGOS": [-33.1095, -60.5285], "DREYFUS - TIMBUES": [-32.6510, -60.7380],
+        "FCA. VICENTIN": [-32.7652, -60.7610], "MOLINO CHABAS SA": [-33.3285, -61.1685],
+        "MOLINOS AGRO - SAN LORENZO": [-32.7485, -60.7255], "RENOVA S.A.": [-32.6850, -60.7225],
+        "SEMINO MOLINOS": [-32.8550, -61.1455], "SERV. PORT. (VILLA C.)": [-33.2265, -60.3245],
+        "TERMINAL 6": [-32.6955, -60.7325], "TERMINAL PUERTO SAN PEDRO": [-33.6745, -59.6610],
+        "U6 - SERVICIOS PORTUARIOS S.A.": [-32.9690, -60.6255]
+    };
+
+    let map = L.map('map').setView([-32.90, -60.60], 9);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+    let myChart;
+
+    async function fetchData() {
+        const WEBHOOK_URL = 'https://primary-production-110d9.up.railway.app/webhook/ba8cbdca-5db1-47fb-9ad0-bec7b195ecdf';
+        try {
+            const response = await fetch(WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ request: "get_historical_data", days: 30 })
+            });
+            const rawData = await response.json();
+            procesarInformacion(rawData);
+        } catch (error) {
+            console.error("Error n8n:", error);
+            document.getElementById('fecha-actual').innerText = "⚠️ Error de conexión";
+        }
+    }
+
+    function procesarInformacion(data) {
+        const agrupado = {};
+        let tTotal = 0, tMaiz = 0, tSoja = 0, tTrigo = 0, tGirasol = 0;
+
+        // Identificar la fecha más reciente en los datos
+        const fechasDisponibles = [...new Set(data.map(d => d.fecha))].sort((a,b) => new Date(b) - new Date(a));
+        const fechaHoy = fechasDisponibles[0];
+
+        data.forEach(item => {
+            const totalRow = (item.soja || 0) + (item.maiz || 0) + (item.trigo || 0) + (item.girasol || 0);
+            
+            // Sumar para el total general solo si es la fecha más reciente
+            if (item.fecha === fechaHoy) {
+                tTotal += totalRow;
+                tMaiz += (item.maiz || 0);
+                tSoja += (item.soja || 0);
+                tTrigo += (item.trigo || 0);
+                tGirasol += (item.girasol || 0);
+            }
+
+            if (!agrupado[item.terminal]) agrupado[item.terminal] = { history: [] };
+            agrupado[item.terminal].history.push({ fecha: item.fecha, total: totalRow });
+        });
+
+        // Actualizar UI de totales
+        document.getElementById('gen-total').innerText = tTotal.toLocaleString();
+        document.getElementById('gen-maiz').innerText = tMaiz.toLocaleString();
+        document.getElementById('gen-soja').innerText = tSoja.toLocaleString();
+        document.getElementById('gen-trigo').innerText = tTrigo.toLocaleString();
+        document.getElementById('gen-girasol').innerText = tGirasol.toLocaleString();
+
+        const ranking = Object.keys(agrupado).map(name => {
+            const h = agrupado[name].history.sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+            const hoy = h[h.length - 1]?.total || 0;
+            const ayer = h[h.length - 2]?.total || 0;
+            const variacion = ayer === 0 ? 0 : (((hoy - ayer) / ayer) * 100).toFixed(1);
+
+            return { name, hoy, variacion, histValores: h.map(x => x.total), histFechas: h.map(x => x.fecha), gps: GPS[name] };
+        }).sort((a, b) => b.hoy - a.hoy);
+
+        renderDashboard(ranking);
+    }
+
+    function renderDashboard(data) {
+        const tbody = document.getElementById('ranking-body');
+        tbody.innerHTML = '';
+        document.getElementById('fecha-actual').innerText = `Actualizado: ${new Date().toLocaleDateString()}`;
+
+        data.forEach(p => {
+            if (!p.gps) return;
+            const color = p.variacion >= 0 ? '#10b981' : '#ef4444';
+            const marker = L.circleMarker(p.gps, { radius: 10, fillColor: color, color: 'white', weight: 2, fillOpacity: 0.8 }).addTo(map);
+            marker.bindPopup(`<b>${p.name}</b><br>Hoy: ${p.hoy}`);
+
+            const tr = document.createElement('tr');
+            const varCls = p.variacion >= 0 ? 'pos' : 'neg';
+            const icon = p.variacion >= 0 ? '▲' : '▼';
+
+            tr.innerHTML = `
+                <td><b>${p.name}</b></td>
+                <td style="text-align:right; font-weight:bold">${p.hoy}</td>
+                <td style="text-align:center"><span class="var-badge ${varCls}">${icon} ${Math.abs(p.variacion)}%</span></td>
+            `;
+
+            tr.onclick = () => {
+                map.flyTo(p.gps, 12);
+                marker.openPopup();
+                actualizarGrafico(p.name, p.histValores, p.histFechas);
+            };
+            tbody.appendChild(tr);
+        });
+
+        if (data.length > 0) actualizarGrafico(data[0].name, data[0].histValores, data[0].histFechas);
+    }
+
+    function actualizarGrafico(nombre, valores, etiquetas) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: etiquetas,
+                datasets: [{
+                    label: '30 días',
+                    data: valores,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    title: { display: true, text: 'HISTORIAL: ' + nombre, align: 'start', color: '#1e293b', font: { size: 13, weight: '600' } }
+                },
+                scales: { x: { display: false }, y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    fetchData();
+</script>
+</body>
+</html>
