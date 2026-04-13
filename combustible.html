@@ -156,7 +156,10 @@
     <script>
     // ==================== CONFIG ====================
 
-    const CSV_URL = 'http://datos.energia.gob.ar/dataset/1c181390-5045-475e-94dc-410429be4b17/resource/80ac25de-a44a-4445-9215-090cf55cfda5/download/precios-en-surtidor-resolucin-3142016.csv';
+    // CKAN Datastore API — JSON liviano, ruta por proxy (cert SSL inválido en el dominio .gob.ar)
+    const RESOURCE_ID = '80ac25de-a44a-4445-9215-090cf55cfda5';
+    const CKAN_BASE   = 'http://datos.energia.gob.ar/api/3/action/datastore_search';
+    const PAGE_SIZE   = 10000;
 
     // Province centroids [lat, lng]
     const PROVINCE_COORDS = {
@@ -225,24 +228,42 @@
         } finally { clearTimeout(timer); }
     }
 
-    async function fetchCSVText(url) {
-        setProgress(10, 'Conectando con la fuente de datos...');
+    // Fetch JSON via proxy (CKAN API, domain has invalid SSL cert)
+    async function fetchViaProxy(url) {
+        const proxies = [
+            `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+        ];
+        for (const proxyUrl of proxies) {
+            try {
+                const r = await fetchWithTimeout(proxyUrl, 20000);
+                if (r.ok) return await r.json();
+            } catch(e) { /* try next */ }
+        }
+        throw new Error('No se pudo conectar con la API de Secretaría de Energía.');
+    }
 
-        // 1. corsproxy.io
+    async function fetchAllRecords() {
+        setProgress(10, 'Consultando API de Secretaría de Energía...');
+
+        // 1. Get total record count
+        const countUrl = `${CKAN_BASE}?resource_id=${RESOURCE_ID}&limit=1`;
+        let total = 0;
         try {
-            setProgress(20, 'Descargando via corsproxy.io...');
-            const r = await fetchWithTimeout(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 30000);
-            if (r.ok) { setProgress(60, 'Procesando CSV...'); return await r.text(); }
-        } catch(e) {}
+            const j = await fetchViaProxy(countUrl);
+            total = j.result?.total || 0;
+        } catch(e) {
+            throw new Error('No se pudo conectar: ' + e.message);
+        }
 
-        // 2. allorigins raw
-        try {
-            setProgress(30, 'Descargando via allorigins...');
-            const r = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 30000);
-            if (r.ok) { setProgress(60, 'Procesando CSV...'); return await r.text(); }
-        } catch(e) {}
+        // 2. Fetch latest PAGE_SIZE records (offset to end of dataset)
+        const offset = Math.max(0, total - PAGE_SIZE);
+        setProgress(35, `Descargando ${Math.min(PAGE_SIZE, total).toLocaleString()} registros recientes de ${total.toLocaleString()} totales...`);
 
-        throw new Error('No se pudo acceder al CSV de la Secretaría de Energía.');
+        const dataUrl = `${CKAN_BASE}?resource_id=${RESOURCE_ID}&limit=${PAGE_SIZE}&offset=${offset}`;
+        const j = await fetchViaProxy(dataUrl);
+        setProgress(70, 'Procesando datos...');
+        return j.result?.records || [];
     }
 
     // ==================== INIT ====================
@@ -251,20 +272,10 @@
         initMap();
 
         try {
-            const csvText = await fetchCSVText(CSV_URL);
-            setProgress(70, 'Parseando datos...');
-
-            Papa.parse(csvText, {
-                header: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    setProgress(90, 'Analizando precios...');
-                    processData(results.data);
-                    hideProgress();
-                },
-                error: (err) => { showError('Error parseando CSV: ' + err.message); }
-            });
-
+            const records = await fetchAllRecords();
+            setProgress(85, 'Analizando precios...');
+            processData(records);
+            hideProgress();
         } catch(e) {
             hideProgress();
             showError(e.message);
@@ -283,34 +294,28 @@
     function fmtNum(n,d=2) { return Number(n).toLocaleString('es-AR', { maximumFractionDigits: d }); }
 
     function processData(rows) {
-        if (!rows || !rows.length) { showError('El CSV no contiene datos.'); return; }
+        if (!rows || !rows.length) { showError('No se recibieron datos de la API.'); return; }
 
-        const cols = Object.keys(rows[0]);
-
-        // Detect column names (flexible)
-        const colFecha    = cols.find(c => /fecha|indice.*tiempo|date/i.test(c));
-        const colProv     = cols.find(c => /provincia/i.test(c));
-        const colEmpresa  = cols.find(c => /empresa|bandera|raz[oó]n/i.test(c));
-        const colProducto = cols.find(c => /producto|combustible|tipo/i.test(c));
-        const colPrecio   = cols.find(c => /precio/i.test(c));
-
-        if (!colPrecio) { showError('No se encontró columna de precios en el CSV.'); return; }
-
-        // Parse and get latest date's records
+        // Use exact CKAN field names (confirmed from API response)
         const parsed = rows.map(r => ({
-            fecha:    (r[colFecha]    || '').trim(),
-            prov:     (r[colProv]     || 'Sin dato').trim(),
-            empresa:  (r[colEmpresa]  || 'Sin dato').trim(),
-            producto: (r[colProducto] || 'Sin dato').trim(),
-            precio:   parseFloat((r[colPrecio] || '0').replace(',', '.')) || 0
-        })).filter(r => r.precio > 0 && r.prov && r.producto);
+            fecha:    String(r.indice_tiempo || r.fecha_vigencia || '').substring(0, 7), // "2026-04"
+            prov:     String(r.provincia     || 'Sin dato').trim().toUpperCase(),
+            empresa:  String(r.empresabandera || r.empresa || 'Sin dato').trim(),
+            producto: String(r.producto      || 'Sin dato').trim(),
+            precio:   typeof r.precio === 'number' ? r.precio : parseFloat(String(r.precio || '0').replace(',', '.')) || 0,
+            lat:      typeof r.latitud  === 'number' ? r.latitud  : parseFloat(r.latitud)  || null,
+            lng:      typeof r.longitud === 'number' ? r.longitud : parseFloat(r.longitud) || null,
+            region:   String(r.region   || '').trim(),
+            localidad:String(r.localidad|| '').trim()
+        })).filter(r => r.precio > 100 && r.prov && r.producto); // precio > 100 filtra datos inválidos
 
-        // Get latest date
-        const fechas = parsed.map(r => r.fecha).filter(Boolean).sort();
+        if (!parsed.length) { showError('Los datos no contienen precios válidos (esperado > $100/L).'); return; }
+
+        // Use latest period available
+        const fechas = [...new Set(parsed.map(r => r.fecha).filter(Boolean))].sort();
         const latestDate = fechas[fechas.length - 1];
-        allData = parsed.filter(r => !latestDate || r.fecha === latestDate);
-
-        if (!allData.length) allData = parsed; // fallback to all data
+        allData = latestDate ? parsed.filter(r => r.fecha === latestDate) : parsed;
+        if (!allData.length) allData = parsed;
 
         // Unique fuel types sorted by frequency
         const fuelCount = {};
@@ -468,16 +473,36 @@
     }
 
     function updateMap(provStats, globalMin, globalMax) {
-        // Clear old layers
         mapLayers.forEach(l => mapInstance.removeLayer(l));
         mapLayers = [];
 
         const pMin = provStats.length ? provStats[0].avg : globalMin;
         const pMax = provStats.length ? provStats[provStats.length-1].avg : globalMax;
 
+        // Build province centroid from actual station coordinates
+        const filtered = allData.filter(r => r.producto === activeFuel);
+        const provCoords = {};
+        filtered.forEach(r => {
+            if (!r.lat || !r.lng) return;
+            if (!provCoords[r.prov]) provCoords[r.prov] = { lats: [], lngs: [] };
+            provCoords[r.prov].lats.push(r.lat);
+            provCoords[r.prov].lngs.push(r.lng);
+        });
+
         provStats.forEach(({ prov, avg, min, max, n }) => {
-            const key = normalizeProv(prov);
-            const coords = PROVINCE_COORDS[key];
+            // Use computed centroid from station coordinates, fallback to hardcoded
+            let coords;
+            if (provCoords[prov]?.lats.length) {
+                const lats = provCoords[prov].lats;
+                const lngs = provCoords[prov].lngs;
+                coords = [
+                    lats.reduce((a,b)=>a+b,0)/lats.length,
+                    lngs.reduce((a,b)=>a+b,0)/lngs.length
+                ];
+            } else {
+                const key = normalizeProv(prov);
+                coords = PROVINCE_COORDS[key];
+            }
             if (!coords) return;
 
             const color = priceColor(avg, pMin, pMax);
