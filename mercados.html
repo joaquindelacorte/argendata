@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mercados Agropecuarios</title>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .section-title { font-size: 1.15rem; }
+        }
+
+        .section-title { font-family:'Outfit',sans-serif; font-size:1.25rem; margin:0 0 16px 0; padding-bottom:8px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; }
+
+        /* Filters */
+        .filters-bar { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px; align-items:flex-end; padding:16px; background:rgba(30,41,59,0.5); border-radius:12px; border:1px solid var(--border-color); }
+        .filter-group { display:flex; flex-direction:column; gap:4px; }
+        .filter-group label { font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; }
+        .filter-group select, .filter-group input { background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color); padding:8px 12px; border-radius:8px; font-family:'Inter',sans-serif; font-size:0.85rem; outline:none; }
+        .btn-action { background:var(--accent); color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:600; cursor:pointer; transition:all 0.2s; font-size:0.85rem; }
+        .btn-action:hover { background:var(--accent-hover); transform:translateY(-1px); }
+        .btn-action:disabled { opacity:0.5; cursor:not-allowed; }
+
+        /* Animal cards */
+        .animal-card { background:rgba(255,255,255,0.03); border-radius:8px; padding:16px; display:flex; justify-content:space-between; align-items:center; border-left:4px solid var(--accent); margin-bottom:10px; transition:background 0.2s; }
+        .animal-card:hover { background:rgba(255,255,255,0.06); }
+        .animal-title { font-weight:600; font-size:0.9rem; color:var(--text-primary); }
+        .animal-cabeza { font-size:0.75rem; color:var(--text-muted); margin-top:4px; }
+        .animal-val { font-family:'Outfit',sans-serif; font-weight:800; font-size:1.2rem; }
+
+        .chart-wrapper { position:relative; height:300px; width:100%; margin-bottom:16px; }
+
+        /* ROFEX table */
+        .rofex-table { width:100%; border-collapse:separate; border-spacing:0; margin-top:12px; }
+        .rofex-table th { text-align:left; padding:10px 12px; color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; font-weight:600; border-bottom:1px solid var(--border-color); position:sticky; top:0; background:rgba(30,41,59,0.95); z-index:2; }
+        .rofex-table td { padding:10px 12px; color:var(--text-primary); font-weight:500; font-size:0.85rem; border-bottom:1px solid rgba(255,255,255,0.03); }
+        .rofex-table tr:hover td { background:rgba(255,255,255,0.03); }
+
+        .rofex-scroll { max-height: 400px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border-color); }
+        
+        .kpi-row { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+        .kpi-card { background:rgba(30,41,59,0.7); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:14px; text-align:center; }
+        .kpi-label { font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; }
+        .kpi-value { font-family:'Outfit',sans-serif; font-weight:800; font-size:1.4rem; color:#fff; margin-top:4px; }
+
+        .error-box { background:rgba(239,68,68,0.1); color:#ef4444; padding:16px; border-radius:8px; font-size:0.85rem; text-align:center; }
+        .info-box { background:rgba(59,130,246,0.1); color:#60a5fa; padding:12px; border-radius:8px; font-size:0.85rem; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">Mercados Físicos & Futuros</h1>
+        <p class="page-subtitle">Cierres ROFEX en tiempo real y precios SIO Carnes con análisis gráfico.</p>
+    </div>
+
+    <!-- ============ ROFEX SECTION ============ -->
+    <h2 class="section-title stagger-2 fade-in">📈 MATBA-ROFEX | Precios de Cierre</h2>
+
+    <div class="filters-bar stagger-2 fade-in">
+        <div class="filter-group">
+            <label>Segmento</label>
+            <select id="rofex-segment" onchange="loadRofex()">
+                <option value="Agropecuario">Agropecuario (Soja, Maíz, Trigo)</option>
+                <option value="Monedas">Financiero (Monedas)</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Fecha Desde</label>
+            <input type="date" id="rofex-from" />
+        </div>
+        <div class="filter-group">
+            <label>Fecha Hasta</label>
+            <input type="date" id="rofex-to" />
+        </div>
+        <button class="btn-action" id="btn-rofex" onclick="loadRofex()">📥 Cargar Datos</button>
+    </div>
+
+    <div id="rofex-kpis" class="kpi-row stagger-2 fade-in"></div>
+
+    <div class="grid-2 stagger-3 fade-in">
+        <div class="glass-card">
+            <h3 style="font-size:1rem; margin-bottom:12px; color:var(--text-secondary);">Distribución por Producto</h3>
+            <div class="chart-wrapper"><canvas id="rofexChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h3 style="font-size:1rem; margin-bottom:12px; color:var(--text-secondary);">Tabla de Contratos</h3>
+            <div class="rofex-scroll" id="rofex-table-container">
+                <div class="info-box">Seleccioná fechas y hacé clic en "Cargar Datos"</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ CARNES SECTION ============ -->
+    <h2 class="section-title stagger-4 fade-in" style="margin-top:40px;">🥩 SIO Carnes | Precios de Referencia</h2>
+
+    <div class="filters-bar stagger-4 fade-in">
+        <div class="filter-group">
+            <label>Animal</label>
+            <select id="carnes-animal" onchange="loadCarnes()">
+                <option value="1">🐂 Bovino</option>
+                <option value="2">🐖 Porcino</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label>Fecha Desde</label>
+            <input type="date" id="carnes-from" />
+        </div>
+        <div class="filter-group">
+            <label>Fecha Hasta</label>
+            <input type="date" id="carnes-to" />
+        </div>
+        <button class="btn-action" id="btn-carnes" onclick="loadCarnes()">🔍 Consultar</button>
+    </div>
+
+    <div id="carnes-kpis" class="kpi-row stagger-4 fade-in"></div>
+
+    <div class="grid-2 stagger-5 fade-in">
+        <div class="glass-card">
+            <h3 style="font-size:1rem; margin-bottom:12px; color:var(--text-secondary);">Precios por Categoría</h3>
+            <div class="chart-wrapper"><canvas id="carnesChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h3 style="font-size:1rem; margin-bottom:12px; color:var(--text-secondary);">Detalle de Categorías</h3>
+            <div id="carnes-list">
+                <div class="info-box">Seleccioná fechas y hacé clic en "Consultar"</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ======== DATE DEFAULTS ========
+        const today = new Date();
+        const pastWeek = new Date(today);
+        pastWeek.setDate(today.getDate() - 3);
+
+        function fmtDate(d) { return d.toISOString().split('T')[0]; }
+        function fmtDateAR(d) {
+            const dd = String(d.getDate()).padStart(2,'0');
+            const mm = String(d.getMonth()+1).padStart(2,'0');
+            return `${dd}/${mm}/${d.getFullYear()}`;
+        }
+
+        document.getElementById('rofex-from').value = fmtDate(pastWeek);
+        document.getElementById('rofex-to').value = fmtDate(today);
+        document.getElementById('carnes-from').value = fmtDate(pastWeek);
+        document.getElementById('carnes-to').value = fmtDate(today);
+
+        // ======== ROFEX ========
+        let rofexChartInst = null;
+
+        async function loadRofex() {
+            const segment = document.getElementById('rofex-segment').value;
+            const from = document.getElementById('rofex-from').value;
+            const to = document.getElementById('rofex-to').value;
+            const btn = document.getElementById('btn-rofex');
+
+            if (!from || !to) { alert('Seleccioná ambas fechas'); return; }
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Descargando CSV...';
+            document.getElementById('rofex-table-container').innerHTML = '<div class="loader-container"><div class="spinner"></div></div>';
+
+            const baseUrl = `https://apicem.matbarofex.com.ar/api/v2/downloads/closing-prices?segment=${segment}&type=FUT&from=${from}&to=${to}&format=CSV&market=ROFX&version=2`;
+            const url = `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const proxyData = await res.json();
+                if (!proxyData.contents) throw new Error("Respuesta vacía del servidor origen");
+                const csvText = proxyData.contents;
+
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                        if (!results.data || results.data.length === 0) {
+                            document.getElementById('rofex-table-container').innerHTML = '<div class="info-box">Sin datos para este rango de fechas.</div>';
+                            btn.disabled = false;
+                            btn.textContent = '📥 Cargar Datos';
+                            return;
+                        }
+                        renderRofex(results.data);
+                        btn.disabled = false;
+                        btn.textContent = '📥 Cargar Datos';
+                    },
+                    error: (err) => { throw new Error(err.message); }
+                });
+
+            } catch (e) {
+                console.error('ROFEX error:', e);
+                document.getElementById('rofex-table-container').innerHTML = `<div class="error-box">⚠️ No se pudo cargar ROFEX: ${e.message}<br><small>Posible bloqueo CORS. Probá descargar el CSV directo:</small><br><a href="${url}" target="_blank" style="color:#60a5fa;">📥 Descargar CSV</a></div>`;
+                btn.disabled = false;
+                btn.textContent = '📥 Cargar Datos';
+            }
+        }
+
+        function renderRofex(data) {
+            // Auto-detect columns
+            const cols = Object.keys(data[0]);
+            // Typically: Fecha, Contrato, Moneda, Ajuste, CierreAnterior, Apertura, Máximo, Mínimo, VlmOperado, IntAbierto...
+
+            // KPIs
+            const totalContratos = data.length;
+            const productos = [...new Set(data.map(r => {
+                const contrato = r['Contrato'] || r['Contract'] || r[cols[1]] || '';
+                return contrato.replace(/[0-9/.\-]+$/, '').trim();
+            }))];
+
+            let kpisHtml = `
+                <div class="kpi-card"><div class="kpi-label">Registros</div><div class="kpi-value">${totalContratos}</div></div>
+                <div class="kpi-card"><div class="kpi-label">Productos</div><div class="kpi-value">${productos.length}</div></div>
+            `;
+            // Try to find ajuste/settlement column
+            const ajusteCol = cols.find(c => c.toLowerCase().includes('ajuste') || c.toLowerCase().includes('settle'));
+            if (ajusteCol) {
+                const vals = data.map(r => parseFloat(String(r[ajusteCol]).replace(/,/g, ''))).filter(v => !isNaN(v));
+                const avg = vals.length > 0 ? (vals.reduce((a,b) => a+b, 0) / vals.length) : 0;
+                kpisHtml += `<div class="kpi-card"><div class="kpi-label">Ajuste Promedio</div><div class="kpi-value">${avg.toLocaleString('es-AR',{maximumFractionDigits:2})}</div></div>`;
+            }
+            document.getElementById('rofex-kpis').innerHTML = kpisHtml;
+
+            // Table
+            const preferredCols = ['PRODUCTO', 'TIPO CONTRATO', 'ANTERIOR', 'MINIMO', 'MAXIMO', 'ULTIMO', 'AJUSTE / PRIMA REF.', 'VAR %'];
+            let displayCols = preferredCols.filter(c => cols.includes(c));
+            if (displayCols.length < 3) displayCols = cols.slice(0, 8); // fallback
+
+            let tableHtml = '<table class="rofex-table"><thead><tr>';
+            displayCols.forEach(c => { tableHtml += `<th>${c.replace(/ /g, '<br>')}</th>`; });
+            tableHtml += '</tr></thead><tbody>';
+            data.slice(0, 50).forEach(row => {
+                tableHtml += '<tr>';
+                displayCols.forEach(c => { 
+                    let val = row[c] || '—';
+                    // Intentar formatear números amigables si no es texto
+                    if (val !== '—' && !isNaN(parseFloat(val.replace(/,/g, '.'))) && !c.includes('TIPO')) {
+                        const num = parseFloat(val.replace(/,/g, '.'));
+                        val = num.toLocaleString('es-AR', {maximumFractionDigits: 2});
+                        if (c === 'VAR %') {
+                            const color = num > 0 ? 'var(--success)' : (num < 0 ? 'var(--danger)' : 'inherit');
+                            val = `<span style="color:${color}; font-weight:600;">${num > 0 ? '+'+val : val}%</span>`;
+                        }
+                    }
+                    tableHtml += `<td>${val}</td>`; 
+                });
+                tableHtml += '</tr>';
+            });
+            if (data.length > 50) {
+                tableHtml += `<tr><td colspan="${displayCols.length}" style="text-align:center;color:var(--text-muted);font-size:0.8rem;padding:16px;">... y ${data.length - 50} registros más. Exportá para ver todo.</td></tr>`;
+            }
+            tableHtml += '</tbody></table>';
+            document.getElementById('rofex-table-container').innerHTML = tableHtml;
+
+            // Chart: group by producto, sum/avg ajuste
+            if (ajusteCol) {
+                const grouped = {};
+                data.forEach(r => {
+                    const contrato = r['Contrato'] || r['Contract'] || r[cols[1]] || '';
+                    const producto = contrato.replace(/[0-9/.\-]+$/, '').trim();
+                    const val = parseFloat(String(r[ajusteCol]).replace(/,/g, ''));
+                    if (isNaN(val)) return;
+                    if (!grouped[producto]) grouped[producto] = { sum: 0, count: 0 };
+                    grouped[producto].sum += val;
+                    grouped[producto].count++;
+                });
+
+                const labels = Object.keys(grouped);
+                const avgs = labels.map(l => grouped[l].sum / grouped[l].count);
+                const colors = ['#10b981','#3b82f6','#f59e0b','#f43f5e','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+
+                const ctx = document.getElementById('rofexChart').getContext('2d');
+                if (rofexChartInst) rofexChartInst.destroy();
+                rofexChartInst = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Ajuste Promedio',
+                            data: avgs,
+                            backgroundColor: labels.map((_, i) => colors[i % colors.length] + 'AA'),
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { callbacks: { label: item => `Ajuste promedio: ${item.raw.toLocaleString('es-AR', {maximumFractionDigits:2})}` } } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { weight: '600' } } },
+                            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ======== CARNES ========
+        let carnesChartInst = null;
+
+        async function loadCarnes() {
+            const animal = document.getElementById('carnes-animal').value;
+            const from = new Date(document.getElementById('carnes-from').value);
+            const to = new Date(document.getElementById('carnes-to').value);
+            const btn = document.getElementById('btn-carnes');
+
+            if (isNaN(from) || isNaN(to)) { alert('Seleccioná ambas fechas'); return; }
+
+            btn.disabled = true;
+            btn.textContent = '⏳ Consultando...';
+            document.getElementById('carnes-list').innerHTML = '<div class="loader-container"><div class="spinner"></div></div>';
+
+            const desde = encodeURIComponent(fmtDateAR(from));
+            const hasta = encodeURIComponent(fmtDateAR(to));
+
+            const baseUrl = `https://siocarnes.magyp.gob.ar/GrillaSIOCarnes/GetResumenPrecios?order=asc&desde=${desde}&hasta=${hasta}&id_zona=-1&id_Animal=${animal}`;
+            const url = `https://api.allorigins.win/get?url=${encodeURIComponent(baseUrl)}`;
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const proxyData = await res.json();
+                if (!proxyData.contents) throw new Error("Respuesta vacía del servidor origen");
+                const json = JSON.parse(proxyData.contents);
+                const items = json.value || json || [];
+
+                if (items.length === 0) {
+                    document.getElementById('carnes-list').innerHTML = '<div class="info-box">Sin datos para este rango.</div>';
+                    document.getElementById('carnes-kpis').innerHTML = '';
+                    btn.disabled = false; btn.textContent = '🔍 Consultar';
+                    return;
+                }
+
+                renderCarnes(items, animal);
+            } catch (e) {
+                console.error('Carnes error:', e);
+                document.getElementById('carnes-list').innerHTML = `<div class="error-box">⚠️ Error SIO Carnes: ${e.message}<br><small>La API puede tener restricciones CORS desde el navegador.</small></div>`;
+                document.getElementById('carnes-kpis').innerHTML = '';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔍 Consultar';
+            }
+        }
+
+        function renderCarnes(items, animalId) {
+            const animalLabel = animalId === '1' ? '🐂 Bovino' : '🐖 Porcino';
+
+            // Parse prices (format "$  2.857,14" -> 2857.14)
+            function parsePrice(str) {
+                if (!str) return 0;
+                return parseFloat(str.replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+            }
+
+            // Process items
+            const processed = items.map(item => ({
+                ...item,
+                precio: parsePrice(item.PrecioPromedioKg),
+                cabezas: parseInt(String(item.CabezasComercializadas).replace(/\./g, '')) || 0,
+                nombre: item.Subcategoria || 'Sin categoría'
+            })).filter(i => i.precio > 0);
+
+            // Sort by cabezas (volume)
+            processed.sort((a, b) => b.cabezas - a.cabezas);
+
+            // KPIs
+            const totalCabezas = processed.reduce((s, i) => s + i.cabezas, 0);
+            const avgPrecio = processed.length > 0 ? processed.reduce((s, i) => s + i.precio, 0) / processed.length : 0;
+            const maxPrecio = Math.max(...processed.map(i => i.precio));
+            const minPrecio = Math.min(...processed.map(i => i.precio));
+
+            document.getElementById('carnes-kpis').innerHTML = `
+                <div class="kpi-card"><div class="kpi-label">${animalLabel} | Categorías</div><div class="kpi-value">${processed.length}</div></div>
+                <div class="kpi-card"><div class="kpi-label">Total Cabezas</div><div class="kpi-value">${totalCabezas.toLocaleString('es-AR')}</div></div>
+                <div class="kpi-card"><div class="kpi-label">Precio Promedio/kg</div><div class="kpi-value" style="color:#10b981;">$${avgPrecio.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
+                <div class="kpi-card"><div class="kpi-label">Rango Precios</div><div class="kpi-value" style="font-size:1rem;">$${minPrecio.toLocaleString('es-AR',{maximumFractionDigits:0})} — $${maxPrecio.toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
+            `;
+
+            // Chart
+            const top10 = processed.slice(0, 10);
+            const ctx = document.getElementById('carnesChart').getContext('2d');
+            if (carnesChartInst) carnesChartInst.destroy();
+
+            carnesChartInst = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: top10.map(i => {
+                        const n = i.nombre.replace(/^Bovino\s*/i, '').replace(/^Porcino\s*/i, '');
+                        return n.length > 25 ? n.substring(0, 23) + '…' : n;
+                    }),
+                    datasets: [{
+                        label: 'Precio $/kg',
+                        data: top10.map(i => i.precio),
+                        backgroundColor: top10.map((_, idx) => {
+                            const hue = 160 + idx * 18;
+                            return `hsla(${hue}, 70%, 50%, 0.7)`;
+                        }),
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: item => `$${item.raw.toLocaleString('es-AR',{maximumFractionDigits:2})}/kg` } }
+                    },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => '$'+v } },
+                        y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // List
+            let listHtml = '';
+            processed.forEach(item => {
+                const borderColor = item.precio >= avgPrecio ? '#10b981' : '#f59e0b';
+                const nombre = item.nombre.replace(/^Bovino\s*/i, '').replace(/^Porcino\s*/i, '');
+                listHtml += `
+                    <div class="animal-card" style="border-left-color:${borderColor}">
+                        <div>
+                            <div class="animal-title">${nombre}</div>
+                            <div class="animal-cabeza">📊 ${item.cabezas.toLocaleString('es-AR')} cabezas comercializadas</div>
+                        </div>
+                        <div class="animal-val" style="color:${borderColor}">$${item.precio.toLocaleString('es-AR',{maximumFractionDigits:0})}/kg</div>
+                    </div>`;
+            });
+            document.getElementById('carnes-list').innerHTML = listHtml;
+        }
+
+        // ======== AUTO-LOAD ========
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRofex();
+            loadCarnes();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanzas & BCRA</title>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+            .bcra-controls { flex-direction: column; align-items: stretch; }
+            .control-group select, .control-group input { min-width: 100%; }
+            .btn-fetch { width: 100%; margin-top: 8px; }
+            .section-title { font-size: 1.15rem; }
+        }
+
+        .dolar-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .dolar-prices { display: flex; gap: 24px; margin-top: 12px; width: 100%; }
+        .price-box { flex: 1; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
+        .price-box span { display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+        .price-box b { font-family: 'Outfit', sans-serif; font-size: 1.5rem; color: var(--accent); }
+
+        .chart-container { position: relative; height: 280px; width: 100%; margin-top: 16px; }
+
+        .section-title { font-family: 'Outfit', sans-serif; font-size: 1.25rem; margin: 32px 0 16px 0; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
+        .mini-trend { font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 8px; }
+
+        .indicator-hero { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+        .indicator-hero .data-value { margin: 0; }
+
+        /* BCRA Explorer */
+        .bcra-explorer { margin-top: 32px; }
+        .bcra-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: flex-end; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-group label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .control-group select, .control-group input {
+            background: rgba(30, 41, 59, 0.8); color: white; border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem; outline: none;
+        }
+        .control-group select { min-width: 240px; }
+        .btn-fetch {
+            background: var(--accent); color: #fff; border: none; padding: 10px 20px; border-radius: 8px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
+        }
+        .btn-fetch:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .bcra-result-card { margin-top: 16px; }
+        .bcra-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .stat-mini { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; text-align: center; }
+        .stat-mini .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-mini .val { font-family: 'Outfit', sans-serif; font-size: 1.3rem; font-weight: 700; color: #fff; margin-top: 4px; }
+
+        .compare-chart-container { position: relative; height: 350px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">Mercado Financiero & Indicadores</h1>
+        <p class="page-subtitle">Cotizaciones del dólar, riesgo país, inflación y análisis BCRA en tiempo real.</p>
+    </div>
+
+    <!-- MAIN VARIABLES TOP CARDS -->
+    <h2 class="section-title stagger-1 fade-in" style="margin-top: 0;">Cifras Clave BCRA</h2>
+    <div class="grid-4 stagger-1 fade-in" id="top-bcra-grid" style="margin-bottom: 32px;">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- Dolares Section -->
+    <h2 class="section-title stagger-2 fade-in">Cotizaciones Dólar (Hoy)</h2>
+    <div class="grid-3 stagger-2 fade-in" id="dolares-grid">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- Indicators Section -->
+    <h2 class="section-title stagger-3 fade-in">Indicadores Macroeconómicos</h2>
+    <div class="grid-2 stagger-3 fade-in">
+        <div class="glass-card">
+            <div class="data-label">Riesgo País (EMBI+)</div>
+            <div class="indicator-hero">
+                <div class="data-value" id="riesgo-val">---</div>
+                <span class="badge" id="riesgo-badge">---</span>
+            </div>
+            <div class="mini-trend" style="color:var(--text-muted);" id="riesgo-date">Cargando...</div>
+            <div class="chart-container"><canvas id="riesgoChart"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <div class="data-label">Inflación Mensual (IPC)</div>
+            <div class="indicator-hero">
+                <div class="data-value" id="inflacion-val">---</div>
+                <span class="badge" id="inflacion-badge">---</span>
+            </div>
+            <div class="mini-trend" style="color:var(--text-muted);" id="inflacion-date">Cargando...</div>
+            <div class="chart-container"><canvas id="inflacionChart"></canvas></div>
+        </div>
+    </div>
+
+    <!-- BCRA Explorer -->
+    <div class="bcra-explorer stagger-4 fade-in">
+        <h2 class="section-title">🏛️ Explorador BCRA — Estadísticas Monetarias v4</h2>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+            Seleccioná hasta 3 variables para comparar en un mismo gráfico. Datos directos de <code>api.bcra.gob.ar/estadisticas/v4.0</code>.
+        </p>
+
+        <div class="bcra-controls">
+            <div class="control-group">
+                <label>Variable 1</label>
+                <select id="bcra-var1"></select>
+            </div>
+            <div class="control-group">
+                <label>Variable 2 (opcional)</label>
+                <select id="bcra-var2"><option value="">— Ninguna —</option></select>
+            </div>
+            <div class="control-group">
+                <label>Variable 3 (opcional)</label>
+                <select id="bcra-var3"><option value="">— Ninguna —</option></select>
+            </div>
+            <div class="control-group">
+                <label>Últimos N datos</label>
+                <select id="bcra-limit">
+                    <option value="30">30 días</option>
+                    <option value="60" selected>60 días</option>
+                    <option value="120">120 días</option>
+                    <option value="250">1 año (~250)</option>
+                    <option value="500">2 años (~500)</option>
+                </select>
+            </div>
+            <button class="btn-fetch" id="btn-bcra" onclick="fetchBCRAExplorer()">📊 Consultar</button>
+        </div>
+
+        <div id="bcra-result" class="bcra-result-card"></div>
+    </div>
+
+    <script>
+        // ======== BCRA VARIABLE CATALOG ========
+        const BCRA_VARS = [
+            { id: 1, name: 'Reservas Internacionales (M USD)', cat: 'Reservas' },
+            { id: 4, name: 'TC Minorista (promedio vendedor)', cat: 'Tipo de Cambio' },
+            { id: 5, name: 'TC Mayorista de referencia', cat: 'Tipo de Cambio' },
+            { id: 7, name: 'Tasa BADLAR bancos privados', cat: 'Tasas' },
+            { id: 8, name: 'Tasa TM20 bancos privados', cat: 'Tasas' },
+            { id: 11, name: 'Tasa préstamos interbancarios (BAIBAR)', cat: 'Tasas' },
+            { id: 12, name: 'Tasa depósitos 30 días', cat: 'Tasas' },
+            { id: 13, name: 'Tasa adelantos en cta cte', cat: 'Tasas' },
+            { id: 14, name: 'Tasa préstamos personales', cat: 'Tasas' },
+            { id: 15, name: 'Base Monetaria', cat: 'Agregados' },
+            { id: 16, name: 'Circulación Monetaria', cat: 'Agregados' },
+            { id: 17, name: 'Billetes y monedas en poder del público', cat: 'Agregados' },
+            { id: 18, name: 'Efectivo en pesos en entidades financieras', cat: 'Agregados' },
+            { id: 19, name: 'Depósitos entidades en cta cte BCRA', cat: 'Agregados' },
+            { id: 21, name: 'Depósitos en efectivo en entidades', cat: 'Depósitos' },
+            { id: 22, name: 'Depósitos cta cte (neto FUCO)', cat: 'Depósitos' },
+            { id: 23, name: 'Depósitos caja de ahorro', cat: 'Depósitos' },
+            { id: 24, name: 'Depósitos a plazo (incl inversiones)', cat: 'Depósitos' },
+            { id: 25, name: 'Var. interanual M2 privado (prom 30d)', cat: 'Indicadores' },
+            { id: 26, name: 'Préstamos al sector privado', cat: 'Créditos' },
+            { id: 27, name: 'IPC variación mensual', cat: 'Precios' },
+            { id: 28, name: 'IPC variación interanual', cat: 'Precios' },
+            { id: 29, name: 'Expectativas IPC 12m (mediana REM)', cat: 'Precios' },
+            { id: 30, name: 'CER (base 2.2.02=1)', cat: 'Ajustes' },
+            { id: 31, name: 'UVA (base 31.3.16=14.05)', cat: 'Ajustes' },
+            { id: 32, name: 'UVI (base 31.3.16=14.05)', cat: 'Ajustes' },
+            { id: 35, name: 'Tasa BADLAR privados (otra serie)', cat: 'Tasas' },
+            { id: 40, name: 'ICL - Índice Contratos de Locación', cat: 'Ajustes' },
+            { id: 43, name: 'Tasa Com. P 14.290 (uso justicia)', cat: 'Tasas' },
+            { id: 44, name: 'Tasa TAMAR bancos privados', cat: 'Tasas' },
+        ];
+
+        const CHART_COLORS = ['#3b82f6', '#f59e0b', '#10b981'];
+
+        // Populate selectors
+        function populateSelectors() {
+            const selects = [document.getElementById('bcra-var1'), document.getElementById('bcra-var2'), document.getElementById('bcra-var3')];
+            let grouped = {};
+            BCRA_VARS.forEach(v => {
+                if (!grouped[v.cat]) grouped[v.cat] = [];
+                grouped[v.cat].push(v);
+            });
+
+            selects.forEach((sel, idx) => {
+                const hasNone = idx > 0;
+                if (hasNone) sel.innerHTML = '<option value="">— Ninguna —</option>';
+                else sel.innerHTML = '';
+
+                Object.keys(grouped).forEach(cat => {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = cat;
+                    grouped[cat].forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.textContent = `[${v.id}] ${v.name}`;
+                        optgroup.appendChild(opt);
+                    });
+                    sel.appendChild(optgroup);
+                });
+            });
+
+            // Default selections
+            selects[0].value = '1';  // Reservas
+        }
+
+        // ======== BCRA EXPLORER FETCH ========
+        let bcraChart = null;
+
+        async function fetchBCRAVariable(idVar, limit) {
+            const url = `https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/${idVar}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            
+            let data = [];
+            if (json.results && json.results.length > 0 && json.results[0].detalle) {
+                data = json.results[0].detalle;
+            } else if (json.detalle) {
+                data = json.detalle;
+            } else if (Array.isArray(json.results)) {
+                data = json.results; // Fallback
+            }
+            
+            // Limit to the newest N records, the API returns descending order (newest first)
+            data = data.slice(0, limit);
+            
+            // Return chronologically sorted data (oldest to newest)
+            return data.map(d => ({ fecha: d.fecha, valor: d.valor })).sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+        }
+
+        async function fetchTopBCRA() {
+            const topVars = [
+                { id: 1, label: 'Reservas (M USD)', icon: '💵' },
+                { id: 15, label: 'Base Monetaria (M ARS)', icon: '🏦' },
+                { id: 26, label: 'Créditos Privados', icon: '📈' },
+                { id: 7, label: 'Tasa BADLAR (%)', icon: '📊' }
+            ];
+            
+            const grid = document.getElementById('top-bcra-grid');
+            
+            try {
+                const results = await Promise.all(topVars.map(v => fetchBCRAVariable(v.id, 2)));
+                
+                grid.innerHTML = '';
+                results.forEach((data, index) => {
+                    const varInfo = topVars[index];
+                    if (data.length === 0) {
+                        grid.innerHTML += `<div class="glass-card"><div class="data-label">${varInfo.icon} ${varInfo.label}</div><p>Sin datos</p></div>`;
+                        return;
+                    }
+                    const last = data[data.length - 1]; // sorted chronologically, so last is newest
+                    const prev = data[0];
+                    const varPct = prev.valor !== 0 ? (((last.valor - prev.valor) / prev.valor) * 100).toFixed(1) : 0;
+                    
+                    const isPositive = parseFloat(varPct) >= 0;
+                    // For rates (BADLAR), decreasing might be considered positive in some contexts, or we just show as is
+                    const badgeClass = isPositive ? 'badge-up' : 'badge-down';
+                    const badgeIcon = isPositive ? '▲' : '▼';
+                    
+                    grid.innerHTML += `
+                        <div class="glass-card">
+                            <div class="data-label">${varInfo.icon} ${varInfo.label}</div>
+                            <div class="indicator-hero" style="margin-top: 12px; margin-bottom: 8px;">
+                                <div class="data-value" style="font-size: 1.6rem;">${Number(last.valor).toLocaleString('es-AR', {maximumFractionDigits:1})}</div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div class="mini-trend" style="color:var(--text-muted); margin:0;">${last.fecha}</div>
+                                <span class="badge ${badgeClass}" style="font-size:0.7rem;">${badgeIcon} ${Math.abs(varPct)}%</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Error fetching top variables', e);
+                grid.innerHTML = '<div style="color:var(--danger);padding:16px;">Error cargando cifras clave BCRA.</div>';
+            }
+        }
+
+        async function fetchBCRAExplorer() {
+            const btn = document.getElementById('btn-bcra');
+            btn.disabled = true;
+            btn.textContent = '⏳ Consultando...';
+
+            const var1 = document.getElementById('bcra-var1').value;
+            const var2 = document.getElementById('bcra-var2').value;
+            const var3 = document.getElementById('bcra-var3').value;
+            const limit = document.getElementById('bcra-limit').value;
+
+            const resultDiv = document.getElementById('bcra-result');
+            resultDiv.innerHTML = '<div class="loader-container"><div class="spinner"></div></div>';
+
+            const varsToFetch = [var1];
+            if (var2) varsToFetch.push(var2);
+            if (var3) varsToFetch.push(var3);
+
+            try {
+                const results = await Promise.all(varsToFetch.map(v => fetchBCRAVariable(v, limit)));
+
+                // Build stats + chart
+                let html = '<div class="glass-card">';
+
+                // Stats for each variable
+                html += '<div class="bcra-stats">';
+                results.forEach((data, i) => {
+                    const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
+                    const label = varInfo ? varInfo.name : `Variable ${varsToFetch[i]}`;
+                    if (data.length === 0) {
+                        html += `<div class="stat-mini"><div class="label" style="color:${CHART_COLORS[i]}">${label}</div><div class="val">Sin datos</div></div>`;
+                        return;
+                    }
+                    const last = data[data.length - 1];
+                    const first = data[0];
+                    const min = Math.min(...data.map(d => d.valor));
+                    const max = Math.max(...data.map(d => d.valor));
+                    const varPct = first.valor !== 0 ? (((last.valor - first.valor) / first.valor) * 100).toFixed(1) : 0;
+
+                    html += `
+                        <div class="stat-mini">
+                            <div class="label" style="color:${CHART_COLORS[i]}">${label}</div>
+                            <div class="val">${Number(last.valor).toLocaleString('es-AR', {maximumFractionDigits:2})}</div>
+                            <div style="font-size:0.7rem; color:var(--text-muted);">${last.fecha}</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Var. período</div>
+                            <div class="val" style="color:${parseFloat(varPct) >= 0 ? 'var(--success)' : 'var(--danger)'}; font-size:1.1rem;">${varPct}%</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Mínimo</div>
+                            <div class="val" style="font-size:1rem;">${Number(min).toLocaleString('es-AR', {maximumFractionDigits:2})}</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Máximo</div>
+                            <div class="val" style="font-size:1rem;">${Number(max).toLocaleString('es-AR', {maximumFractionDigits:2})}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                // Chart
+                html += '<div class="compare-chart-container"><canvas id="bcraCompareChart"></canvas></div>';
+                html += '</div>';
+
+                resultDiv.innerHTML = html;
+
+                // Render chart
+                const ctx = document.getElementById('bcraCompareChart').getContext('2d');
+                if (bcraChart) bcraChart.destroy();
+
+                const datasets = results.map((data, i) => {
+                    const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
+                    return {
+                        label: varInfo ? varInfo.name : `Var ${varsToFetch[i]}`,
+                        data: data.map(d => d.valor),
+                        borderColor: CHART_COLORS[i],
+                        backgroundColor: CHART_COLORS[i] + '15',
+                        fill: results.length === 1,
+                        tension: 0.3,
+                        pointRadius: data.length > 100 ? 0 : 2,
+                        borderWidth: 2,
+                        yAxisID: i === 0 ? 'y' : 'y' + i
+                    };
+                });
+
+                // Use the longest labels array
+                const longestData = results.reduce((a, b) => a.length > b.length ? a : b, []);
+                const labels = longestData.map(d => d.fecha);
+
+                const scalesConfig = {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 15, maxRotation: 45, font: { size: 10 } } },
+                    y: {
+                        type: 'linear', position: 'left',
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: CHART_COLORS[0], callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'K' : v }
+                    }
+                };
+
+                if (results.length >= 2) {
+                    scalesConfig.y1 = {
+                        type: 'linear', position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: CHART_COLORS[1], callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'K' : v }
+                    };
+                }
+                if (results.length >= 3) {
+                    scalesConfig.y2 = {
+                        type: 'linear', position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { color: CHART_COLORS[2], callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'K' : v }
+                    };
+                }
+
+                bcraChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            legend: { position: 'top', labels: { color: '#e2e8f0', usePointStyle: true, padding: 16 } },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: scalesConfig
+                    }
+                });
+
+            } catch (e) {
+                console.error('BCRA Explorer error:', e);
+                resultDiv.innerHTML = `<div class="glass-card" style="text-align:center; color:var(--danger);">
+                    ⚠️ Error al consultar el BCRA: ${e.message}<br>
+                    <small style="color:var(--text-muted);">La API del BCRA puede tener latencia alta o restricciones de CORS. Intentá de nuevo.</small>
+                </div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📊 Consultar';
+            }
+        }
+
+        // ======== DÓLARES ========
+        async function fetchDolares() {
+            try {
+                const res = await fetch('https://api.argentinadatos.com/v1/cotizaciones/dolares');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const latest = {};
+                data.forEach(item => { latest[item.casa] = item; });
+                const grid = document.getElementById('dolares-grid');
+                grid.innerHTML = '';
+                const wanted = [
+                    { key: 'oficial', label: 'Dólar Oficial', color: '#3b82f6' },
+                    { key: 'blue', label: 'Dólar Blue', color: '#8b5cf6' },
+                    { key: 'contadoconliqui', label: 'Dólar CCL', color: '#10b981' },
+                ];
+                wanted.forEach(w => {
+                    const d = latest[w.key];
+                    if (!d) return;
+                    const fecha = (d.fecha || '').split('T')[0];
+                    grid.innerHTML += `
+                        <div class="glass-card dolar-card">
+                            <div class="data-label">${w.label}</div>
+                            <div class="mini-trend" style="color:var(--text-muted);">🗓 ${fecha}</div>
+                            <div class="dolar-prices">
+                                <div class="price-box"><span>Compra</span><b style="color:${w.color}">$${Number(d.compra).toLocaleString('es-AR')}</b></div>
+                                <div class="price-box"><span>Venta</span><b style="color:${w.color}">$${Number(d.venta).toLocaleString('es-AR')}</b></div>
+                            </div>
+                        </div>`;
+                });
+            } catch (e) {
+                document.getElementById('dolares-grid').innerHTML = '<div style="color:#ef4444;padding:16px;">Error cargando cotizaciones.</div>';
+            }
+        }
+
+        // ======== RIESGO PAÍS ========
+        async function fetchRiesgoPais() {
+            try {
+                const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const last90 = data.slice(-90);
+                const last = last90[last90.length - 1];
+                const prev = last90[last90.length - 2];
+                const diff = last.valor - prev.valor;
+                const diffPct = ((diff / prev.valor) * 100).toFixed(1);
+                document.getElementById('riesgo-val').innerText = last.valor + ' pts';
+                document.getElementById('riesgo-date').innerText = `Último dato: ${last.fecha}`;
+                const badge = document.getElementById('riesgo-badge');
+                badge.className = diff <= 0 ? 'badge badge-up' : 'badge badge-down';
+                badge.innerText = diff <= 0 ? `▼ ${Math.abs(diff)} (${Math.abs(diffPct)}%)` : `▲ ${diff} (${diffPct}%)`;
+                new Chart(document.getElementById('riesgoChart').getContext('2d'), {
+                    type: 'line',
+                    data: { labels: last90.map(r => r.fecha), datasets: [{ label: 'Riesgo País', data: last90.map(r => r.valor), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: item => `${item.raw} puntos` } } }, scales: { x: { display: false }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } } }, interaction: { mode: 'nearest', axis: 'x', intersect: false } }
+                });
+            } catch (e) { document.getElementById('riesgo-val').innerText = 'Error'; }
+        }
+
+        // ======== INFLACIÓN ========
+        async function fetchInflacion() {
+            try {
+                const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const last24 = data.slice(-24);
+                const last = last24[last24.length - 1];
+                const prev = last24[last24.length - 2];
+                document.getElementById('inflacion-val').innerText = last.valor + '%';
+                const fechaLabel = new Date(last.fecha).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                document.getElementById('inflacion-date').innerText = `Período: ${fechaLabel}`;
+                const diff = (last.valor - prev.valor).toFixed(1);
+                const badge = document.getElementById('inflacion-badge');
+                badge.className = parseFloat(diff) <= 0 ? 'badge badge-up' : 'badge badge-down';
+                badge.innerText = parseFloat(diff) <= 0 ? `▼ ${Math.abs(diff)} pp vs anterior` : `▲ ${diff} pp vs anterior`;
+                new Chart(document.getElementById('inflacionChart').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: last24.map(r => new Date(r.fecha).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' })), datasets: [{ label: 'IPC %', data: last24.map(r => r.valor), backgroundColor: last24.map(r => r.valor > 5 ? 'rgba(239,68,68,0.6)' : 'rgba(16,185,129,0.6)'), borderRadius: 4, borderSkipped: false }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: item => `${item.raw}% mensual` } } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 45, font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v + '%' } } } }
+                });
+            } catch (e) { document.getElementById('inflacion-val').innerText = 'Error'; }
+        }
+
+        // ======== INIT ========
+        document.addEventListener('DOMContentLoaded', () => {
+            populateSelectors();
+            fetchTopBCRA();
+            fetchDolares();
+            fetchRiesgoPais();
+            fetchInflacion();
+        });
+    </script>
+</body>
+</html>
