@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Precios de Combustible</title>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5/papaparse.min.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+        @media (max-width: 768px) { body { padding: 16px; } }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif; font-size: 1.2rem; margin: 0 0 16px 0;
+            padding-bottom: 8px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* KPI */
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .kpi-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; text-align: center;
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); }
+        .kpi-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 4px; }
+        .kpi-value { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.5rem; color: #fff; }
+        .kpi-sub { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; }
+
+        /* Fuel tabs */
+        .fuel-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+        .fuel-tab {
+            padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color);
+            background: rgba(30,41,59,0.5); color: var(--text-secondary); cursor: pointer;
+            font-size: 0.82rem; font-weight: 600; transition: all 0.2s;
+        }
+        .fuel-tab:hover { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); color: #fff; }
+        .fuel-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+        /* Map */
+        #map {
+            height: 480px; border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--border-color); background: #0f172a;
+        }
+        .leaflet-container { background: #0f172a !important; }
+
+        /* Map legend */
+        .map-legend {
+            background: rgba(15,23,42,0.92); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 10px 14px; font-size: 0.75rem;
+        }
+        .map-legend h4 { color: var(--text-secondary); margin-bottom: 8px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; color: var(--text-primary); }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+        /* Progress */
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-bottom: 16px; overflow: hidden; }
+        .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+
+        /* Table */
+        .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.82rem; }
+        .data-table th {
+            text-align: left; padding: 10px 14px; color: var(--text-muted); font-size: 0.68rem;
+            text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;
+            border-bottom: 1px solid var(--border-color); position: sticky; top: 0;
+            background: rgba(15,23,42,0.98); z-index: 2; cursor: pointer;
+        }
+        .data-table th:hover { color: #fff; }
+        .data-table td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-primary); }
+        .data-table tr:hover td { background: rgba(255,255,255,0.025); }
+        .data-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+        .table-scroll { max-height: 400px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border-color); }
+
+        /* Search */
+        .search-bar {
+            width: 100%; background: rgba(15,23,42,0.8); color: white; border: 1px solid var(--border-color);
+            padding: 10px 14px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem;
+            outline: none; margin-bottom: 16px;
+        }
+        .search-bar:focus { border-color: var(--accent); }
+
+        .error-box { background: rgba(239,68,68,0.1); color: #ef4444; padding: 20px; border-radius: 8px; font-size: 0.85rem; text-align: center; }
+        .info-box { background: rgba(59,130,246,0.08); color: #60a5fa; padding: 20px; border-radius: 8px; font-size: 0.85rem; text-align: center; border: 1px dashed rgba(59,130,246,0.25); }
+
+        .chart-wrapper { position: relative; height: 340px; width: 100%; }
+
+        .badge-empresa {
+            display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; font-weight: 600;
+            background: rgba(59,130,246,0.15); color: #60a5fa;
+        }
+
+        .update-tag { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">⛽ Precios de Combustible</h1>
+        <p class="page-subtitle">Precios en surtidor por provincia · Resolución 314/2016 · Datos: Secretaría de Energía de la Nación</p>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-bar" id="progress-wrap" style="display:none">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div id="status-msg" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px; text-align:center;"></div>
+
+    <!-- Fuel type tabs -->
+    <div class="fuel-tabs stagger-1 fade-in" id="fuel-tabs"></div>
+
+    <!-- KPI row -->
+    <div class="kpi-row stagger-2 fade-in" id="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">Cargando datos...</div><div class="kpi-value" style="color:var(--text-muted)">—</div></div>
+    </div>
+
+    <!-- Map + Chart row -->
+    <div class="grid-2 stagger-3 fade-in" style="margin-bottom: 24px;">
+        <div class="glass-card" style="padding:16px;">
+            <h2 class="section-title">
+                Mapa por Provincia
+                <span id="map-update-label" class="update-tag"></span>
+            </h2>
+            <div id="map"></div>
+        </div>
+        <div class="glass-card">
+            <h2 class="section-title">Ranking de Precios por Provincia</h2>
+            <div class="chart-wrapper"><canvas id="chart-provincias"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Empresas chart -->
+    <div class="grid-2 stagger-4 fade-in" style="margin-bottom: 24px;">
+        <div class="glass-card">
+            <h2 class="section-title">Precio Promedio por Empresa</h2>
+            <div class="chart-wrapper"><canvas id="chart-empresas"></canvas></div>
+        </div>
+        <div class="glass-card">
+            <h2 class="section-title">Distribución de Precios</h2>
+            <div class="chart-wrapper"><canvas id="chart-hist"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="glass-card stagger-5 fade-in">
+        <h2 class="section-title">Detalle por Provincia y Empresa</h2>
+        <input class="search-bar" id="table-search" placeholder="🔍 Buscar provincia, empresa o producto..." oninput="filterTable()" />
+        <div class="table-scroll" id="table-container">
+            <div class="info-box">Cargando datos desde la Secretaría de Energía...</div>
+        </div>
+    </div>
+
+    <script>
+    // ==================== CONFIG ====================
+
+    const CSV_URL = 'http://datos.energia.gob.ar/dataset/1c181390-5045-475e-94dc-410429be4b17/resource/80ac25de-a44a-4445-9215-090cf55cfda5/download/precios-en-surtidor-resolucin-3142016.csv';
+
+    // Province centroids [lat, lng]
+    const PROVINCE_COORDS = {
+        'buenos aires':                    [-36.6769, -60.5588],
+        'ciudad autónoma de buenos aires': [-34.6037, -58.3816],
+        'caba':                            [-34.6037, -58.3816],
+        'capital federal':                 [-34.6037, -58.3816],
+        'catamarca':                       [-28.4696, -65.7852],
+        'chaco':                           [-26.3712, -60.7677],
+        'chubut':                          [-43.2935, -65.1132],
+        'córdoba':                         [-31.4166, -64.1834],
+        'cordoba':                         [-31.4166, -64.1834],
+        'corrientes':                      [-29.4192, -58.8159],
+        'entre ríos':                      [-31.7746, -60.4966],
+        'entre rios':                      [-31.7746, -60.4966],
+        'formosa':                         [-24.8951, -59.8916],
+        'jujuy':                           [-23.1853, -65.3008],
+        'la pampa':                        [-36.6166, -64.2833],
+        'la rioja':                        [-29.4127, -66.8578],
+        'mendoza':                         [-32.8908, -68.8272],
+        'misiones':                        [-26.8753, -54.6451],
+        'neuquén':                         [-38.9516, -68.0591],
+        'neuquen':                         [-38.9516, -68.0591],
+        'río negro':                       [-40.8135, -63.0000],
+        'rio negro':                       [-40.8135, -63.0000],
+        'salta':                           [-24.7828, -65.4232],
+        'san juan':                        [-30.6669, -68.5366],
+        'san luis':                        [-32.8950, -66.3357],
+        'santa cruz':                      [-51.6352, -69.2473],
+        'santa fe':                        [-30.7069, -60.9495],
+        'santiago del estero':             [-27.7951, -64.2615],
+        'tierra del fuego':                [-54.8019, -68.3029],
+        'tucumán':                         [-26.8241, -65.2226],
+        'tucuman':                         [-26.8241, -65.2226]
+    };
+
+    // State
+    let allData       = [];
+    let fuelTypes     = [];
+    let activeFuel    = '';
+    let mapInstance   = null;
+    let mapLayers     = [];
+    let chartProv     = null;
+    let chartEmp      = null;
+    let chartHist     = null;
+    let tableData     = [];
+
+    // ==================== FETCH ====================
+
+    function setProgress(pct, msg) {
+        document.getElementById('progress-wrap').style.display = 'block';
+        document.getElementById('progress-fill').style.width = pct + '%';
+        if (msg) document.getElementById('status-msg').textContent = msg;
+    }
+
+    function hideProgress() {
+        document.getElementById('progress-wrap').style.display = 'none';
+        document.getElementById('status-msg').textContent = '';
+    }
+
+    async function fetchWithTimeout(url, ms) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), ms);
+        try {
+            return await fetch(url, { signal: ctrl.signal });
+        } finally { clearTimeout(timer); }
+    }
+
+    async function fetchCSVText(url) {
+        setProgress(10, 'Conectando con la fuente de datos...');
+
+        // 1. corsproxy.io
+        try {
+            setProgress(20, 'Descargando via corsproxy.io...');
+            const r = await fetchWithTimeout(`https://corsproxy.io/?url=${encodeURIComponent(url)}`, 30000);
+            if (r.ok) { setProgress(60, 'Procesando CSV...'); return await r.text(); }
+        } catch(e) {}
+
+        // 2. allorigins raw
+        try {
+            setProgress(30, 'Descargando via allorigins...');
+            const r = await fetchWithTimeout(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, 30000);
+            if (r.ok) { setProgress(60, 'Procesando CSV...'); return await r.text(); }
+        } catch(e) {}
+
+        throw new Error('No se pudo acceder al CSV de la Secretaría de Energía.');
+    }
+
+    // ==================== INIT ====================
+
+    async function init() {
+        initMap();
+
+        try {
+            const csvText = await fetchCSVText(CSV_URL);
+            setProgress(70, 'Parseando datos...');
+
+            Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    setProgress(90, 'Analizando precios...');
+                    processData(results.data);
+                    hideProgress();
+                },
+                error: (err) => { showError('Error parseando CSV: ' + err.message); }
+            });
+
+        } catch(e) {
+            hideProgress();
+            showError(e.message);
+        }
+    }
+
+    function showError(msg) {
+        document.getElementById('kpi-row').innerHTML = `<div class="error-box" style="grid-column:1/-1">⚠️ ${msg}</div>`;
+        document.getElementById('table-container').innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
+    }
+
+    // ==================== DATA PROCESSING ====================
+
+    function normalizeProv(s) { return (s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+    function fmtPeso(n) { return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function fmtNum(n,d=2) { return Number(n).toLocaleString('es-AR', { maximumFractionDigits: d }); }
+
+    function processData(rows) {
+        if (!rows || !rows.length) { showError('El CSV no contiene datos.'); return; }
+
+        const cols = Object.keys(rows[0]);
+
+        // Detect column names (flexible)
+        const colFecha    = cols.find(c => /fecha|indice.*tiempo|date/i.test(c));
+        const colProv     = cols.find(c => /provincia/i.test(c));
+        const colEmpresa  = cols.find(c => /empresa|bandera|raz[oó]n/i.test(c));
+        const colProducto = cols.find(c => /producto|combustible|tipo/i.test(c));
+        const colPrecio   = cols.find(c => /precio/i.test(c));
+
+        if (!colPrecio) { showError('No se encontró columna de precios en el CSV.'); return; }
+
+        // Parse and get latest date's records
+        const parsed = rows.map(r => ({
+            fecha:    (r[colFecha]    || '').trim(),
+            prov:     (r[colProv]     || 'Sin dato').trim(),
+            empresa:  (r[colEmpresa]  || 'Sin dato').trim(),
+            producto: (r[colProducto] || 'Sin dato').trim(),
+            precio:   parseFloat((r[colPrecio] || '0').replace(',', '.')) || 0
+        })).filter(r => r.precio > 0 && r.prov && r.producto);
+
+        // Get latest date
+        const fechas = parsed.map(r => r.fecha).filter(Boolean).sort();
+        const latestDate = fechas[fechas.length - 1];
+        allData = parsed.filter(r => !latestDate || r.fecha === latestDate);
+
+        if (!allData.length) allData = parsed; // fallback to all data
+
+        // Unique fuel types sorted by frequency
+        const fuelCount = {};
+        allData.forEach(r => { fuelCount[r.producto] = (fuelCount[r.producto] || 0) + 1; });
+        fuelTypes = Object.entries(fuelCount)
+            .sort((a,b) => b[1]-a[1])
+            .map(e => e[0]);
+
+        // Build fuel tabs
+        buildFuelTabs(fuelTypes);
+
+        // Default to most common fuel
+        activeFuel = fuelTypes[0];
+        document.querySelector('.fuel-tab')?.classList.add('active');
+
+        const dateStr = latestDate ? `Datos al ${latestDate}` : '';
+        document.getElementById('map-update-label').textContent = dateStr;
+
+        renderAll();
+    }
+
+    function buildFuelTabs(types) {
+        const FUEL_ICONS = { 'nafta': '⛽', 'gasoil': '🚛', 'gnc': '🔵', 'diesel': '🚛', 'premium': '🌟', 'infinia': '🌟' };
+        const getIcon = (name) => {
+            const n = name.toLowerCase();
+            for (const [k,v] of Object.entries(FUEL_ICONS)) { if (n.includes(k)) return v; }
+            return '⛽';
+        };
+        const container = document.getElementById('fuel-tabs');
+        container.innerHTML = types.slice(0, 8).map((t, i) => `
+            <button class="fuel-tab" onclick="setFuel('${t.replace(/'/g,"\\'")}', this)">${getIcon(t)} ${t}</button>
+        `).join('');
+    }
+
+    function setFuel(fuel, btn) {
+        activeFuel = fuel;
+        document.querySelectorAll('.fuel-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderAll();
+    }
+
+    function renderAll() {
+        const filtered = allData.filter(r => r.producto === activeFuel);
+        if (!filtered.length) return;
+
+        // Aggregate by province
+        const byProv = {};
+        filtered.forEach(r => {
+            const k = r.prov;
+            if (!byProv[k]) byProv[k] = { sum: 0, n: 0, prices: [] };
+            byProv[k].sum += r.precio; byProv[k].n++; byProv[k].prices.push(r.precio);
+        });
+        const provStats = Object.entries(byProv).map(([prov, s]) => ({
+            prov,
+            avg: s.sum / s.n,
+            min: Math.min(...s.prices),
+            max: Math.max(...s.prices),
+            n: s.n
+        })).sort((a,b) => a.avg - b.avg);
+
+        // Aggregate by empresa
+        const byEmp = {};
+        filtered.forEach(r => {
+            if (!byEmp[r.empresa]) byEmp[r.empresa] = { sum: 0, n: 0 };
+            byEmp[r.empresa].sum += r.precio; byEmp[r.empresa].n++;
+        });
+        const empStats = Object.entries(byEmp)
+            .map(([emp, s]) => ({ emp, avg: s.sum / s.n, n: s.n }))
+            .sort((a,b) => b.n - a.n).slice(0, 12);
+
+        const prices = filtered.map(r => r.precio);
+        const globalMin = Math.min(...prices);
+        const globalMax = Math.max(...prices);
+        const globalAvg = prices.reduce((a,b)=>a+b,0) / prices.length;
+
+        renderKPIs(provStats, globalAvg, globalMin, globalMax, filtered.length);
+        updateMap(provStats, globalMin, globalMax);
+        renderChartProv(provStats);
+        renderChartEmpresa(empStats);
+        renderChartHistogram(prices);
+
+        // Build table data
+        tableData = filtered.map(r => r);
+        renderTable(tableData);
+    }
+
+    // ==================== KPIs ====================
+
+    function renderKPIs(provStats, avg, min, max, total) {
+        const cheapest  = provStats[0];
+        const mostExp   = provStats[provStats.length - 1];
+        const spread    = ((mostExp.avg - cheapest.avg) / cheapest.avg * 100);
+
+        document.getElementById('kpi-row').innerHTML = `
+            <div class="kpi-card">
+                <div class="kpi-label">Promedio Nacional</div>
+                <div class="kpi-value">${fmtPeso(avg)}</div>
+                <div class="kpi-sub">${fmtNum(total,0)} registros</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Más Barato</div>
+                <div class="kpi-value" style="color:#10b981; font-size:1.2rem;">${fmtPeso(cheapest.avg)}</div>
+                <div class="kpi-sub">${cheapest.prov}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Más Caro</div>
+                <div class="kpi-value" style="color:#ef4444; font-size:1.2rem;">${fmtPeso(mostExp.avg)}</div>
+                <div class="kpi-sub">${mostExp.prov}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Mínimo / Máximo</div>
+                <div class="kpi-value" style="font-size:1rem;">${fmtPeso(min)}<span style="color:var(--text-muted)"> — </span>${fmtPeso(max)}</div>
+                <div class="kpi-sub">rango absoluto</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Brecha Interprovincial</div>
+                <div class="kpi-value" style="color:#f59e0b;">${fmtNum(spread,1)}%</div>
+                <div class="kpi-sub">más caro vs más barato</div>
+            </div>
+        `;
+    }
+
+    // ==================== MAP ====================
+
+    function initMap() {
+        mapInstance = L.map('map', {
+            center: [-38.5, -63.5],
+            zoom: 4,
+            zoomControl: true,
+            scrollWheelZoom: false
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CartoDB',
+            maxZoom: 18
+        }).addTo(mapInstance);
+    }
+
+    function priceColor(value, min, max) {
+        const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)));
+        // green(16,185,129) → yellow(245,158,11) → red(239,68,68)
+        let r, g, b;
+        if (t < 0.5) {
+            const tt = t * 2;
+            r = Math.round(16 + (245-16)*tt);
+            g = Math.round(185 + (158-185)*tt);
+            b = Math.round(129 + (11-129)*tt);
+        } else {
+            const tt = (t - 0.5) * 2;
+            r = Math.round(245 + (239-245)*tt);
+            g = Math.round(158 + (68-158)*tt);
+            b = Math.round(11 + (68-11)*tt);
+        }
+        return `rgb(${r},${g},${b})`;
+    }
+
+    function updateMap(provStats, globalMin, globalMax) {
+        // Clear old layers
+        mapLayers.forEach(l => mapInstance.removeLayer(l));
+        mapLayers = [];
+
+        const pMin = provStats.length ? provStats[0].avg : globalMin;
+        const pMax = provStats.length ? provStats[provStats.length-1].avg : globalMax;
+
+        provStats.forEach(({ prov, avg, min, max, n }) => {
+            const key = normalizeProv(prov);
+            const coords = PROVINCE_COORDS[key];
+            if (!coords) return;
+
+            const color = priceColor(avg, pMin, pMax);
+            const radius = 20000 + ((avg - pMin) / (pMax - pMin || 1)) * 30000;
+
+            const circle = L.circle(coords, {
+                radius,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.65,
+                weight: 2
+            }).bindPopup(`
+                <div style="font-family:'Inter',sans-serif; min-width:160px;">
+                    <strong style="font-size:0.95rem;">${prov}</strong><br>
+                    <span style="color:#94a3b8; font-size:0.75rem;">${activeFuel}</span><br><br>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; font-size:0.82rem;">
+                        <span style="color:#94a3b8;">Promedio</span><span><b>${fmtPeso(avg)}</b></span>
+                        <span style="color:#94a3b8;">Mínimo</span><span style="color:#10b981;">${fmtPeso(min)}</span>
+                        <span style="color:#94a3b8;">Máximo</span><span style="color:#ef4444;">${fmtPeso(max)}</span>
+                        <span style="color:#94a3b8;">Registros</span><span>${n}</span>
+                    </div>
+                </div>
+            `).addTo(mapInstance);
+
+            mapLayers.push(circle);
+        });
+
+        // Add legend
+        const existingLegend = document.querySelector('.map-legend');
+        if (existingLegend) existingLegend.remove();
+
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = () => {
+            const div = L.DomUtil.create('div', 'map-legend');
+            div.innerHTML = `
+                <h4>Precio promedio</h4>
+                ${[0, 0.25, 0.5, 0.75, 1].map(t => {
+                    const price = pMin + t * (pMax - pMin);
+                    return `<div class="legend-item">
+                        <div class="legend-dot" style="background:${priceColor(price, pMin, pMax)}"></div>
+                        <span>${fmtPeso(price)}</span>
+                    </div>`;
+                }).join('')}
+            `;
+            return div;
+        };
+        legend.addTo(mapInstance);
+    }
+
+    // ==================== CHARTS ====================
+
+    function renderChartProv(provStats) {
+        const ctx = document.getElementById('chart-provincias').getContext('2d');
+        if (chartProv) chartProv.destroy();
+
+        const sorted = [...provStats].sort((a,b) => b.avg - a.avg);
+        const COLORS = sorted.map(p => {
+            const t = (p.avg - provStats[0].avg) / ((provStats[provStats.length-1].avg - provStats[0].avg) || 1);
+            return priceColor(t, 0, 1);
+        });
+
+        chartProv = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sorted.map(p => p.prov.length > 15 ? p.prov.substring(0,13)+'…' : p.prov),
+                datasets: [{
+                    label: 'Precio promedio $/L',
+                    data: sorted.map(p => p.avg),
+                    backgroundColor: COLORS.map(c => c.replace('rgb','rgba').replace(')', ',0.75)')),
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: item => fmtPeso(item.raw) } }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => '$'+fmtNum(v,0) } },
+                    y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 9 } } }
+                }
+            }
+        });
+    }
+
+    function renderChartEmpresa(empStats) {
+        const ctx = document.getElementById('chart-empresas').getContext('2d');
+        if (chartEmp) chartEmp.destroy();
+
+        const COLORS = ['#3b82f6','#10b981','#f59e0b','#f43f5e','#8b5cf6','#06b6d4','#ec4899','#84cc16','#0ea5e9','#d946ef','#f97316','#14b8a6'];
+
+        chartEmp = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: empStats.map(e => e.emp.length > 18 ? e.emp.substring(0,16)+'…' : e.emp),
+                datasets: [{
+                    label: 'Precio promedio $/L',
+                    data: empStats.map(e => e.avg),
+                    backgroundColor: COLORS.map(c => c + 'BB'),
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: item => fmtPeso(item.raw) + ` (${empStats[item.dataIndex].n} pts)` } }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 45 } },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => '$'+fmtNum(v,0) } }
+                }
+            }
+        });
+    }
+
+    function renderChartHistogram(prices) {
+        const ctx = document.getElementById('chart-hist').getContext('2d');
+        if (chartHist) chartHist.destroy();
+
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        const bins = 20;
+        const binSize = (max - min) / bins;
+        const counts = new Array(bins).fill(0);
+        prices.forEach(p => {
+            const idx = Math.min(Math.floor((p - min) / binSize), bins - 1);
+            counts[idx]++;
+        });
+
+        const labels = counts.map((_, i) => fmtPeso(min + i * binSize));
+        const avg = prices.reduce((a,b)=>a+b,0)/prices.length;
+
+        chartHist = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Frecuencia',
+                    data: counts,
+                    backgroundColor: counts.map((_, i) => {
+                        const mid = min + (i + 0.5) * binSize;
+                        return priceColor(mid, min, max).replace('rgb','rgba').replace(')', ',0.7)');
+                    }),
+                    borderRadius: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: item => `${item.raw} estaciones` } },
+                    annotation: {}
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#64748b', maxRotation: 45, font: { size: 9 },
+                            callback: function(val, idx) { return idx % 4 === 0 ? this.getLabelForValue(val) : ''; }
+                        }
+                    },
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }
+                }
+            }
+        });
+    }
+
+    // ==================== TABLE ====================
+
+    let sortCol = 'avg'; let sortAsc = true;
+
+    function renderTable(data) {
+        // Aggregate by province + empresa + producto
+        const aggKey = r => `${r.prov}|||${r.empresa}`;
+        const agg = {};
+        data.forEach(r => {
+            const k = aggKey(r);
+            if (!agg[k]) agg[k] = { prov: r.prov, empresa: r.empresa, producto: r.producto, sum: 0, n: 0, min: r.precio, max: r.precio };
+            agg[k].sum += r.precio; agg[k].n++;
+            if (r.precio < agg[k].min) agg[k].min = r.precio;
+            if (r.precio > agg[k].max) agg[k].max = r.precio;
+        });
+
+        let rows = Object.values(agg).map(r => ({ ...r, avg: r.sum / r.n }));
+        rows.sort((a,b) => sortAsc ? a[sortCol] - b[sortCol] : b[sortCol] - a[sortCol]);
+
+        const allAvg = rows.reduce((s,r)=>s+r.avg, 0) / rows.length;
+
+        let html = `<table class="data-table">
+            <thead><tr>
+                <th onclick="sortTable('prov')">Provincia ${sortCol==='prov'? (sortAsc?'▲':'▼'):''}</th>
+                <th>Empresa</th>
+                <th onclick="sortTable('avg')" style="text-align:right">Promedio ${sortCol==='avg'? (sortAsc?'▲':'▼'):''}</th>
+                <th onclick="sortTable('min')" style="text-align:right">Mínimo ${sortCol==='min'? (sortAsc?'▲':'▼'):''}</th>
+                <th onclick="sortTable('max')" style="text-align:right">Máximo ${sortCol==='max'? (sortAsc?'▲':'▼'):''}</th>
+                <th onclick="sortTable('n')" style="text-align:right">Estaciones ${sortCol==='n'? (sortAsc?'▲':'▼'):''}</th>
+            </tr></thead><tbody>`;
+
+        rows.forEach(r => {
+            const diff = allAvg > 0 ? ((r.avg - allAvg) / allAvg * 100) : 0;
+            const diffColor = diff > 2 ? '#ef4444' : diff < -2 ? '#10b981' : '#94a3b8';
+            const diffLabel = diff > 0 ? `+${fmtNum(diff,1)}%` : `${fmtNum(diff,1)}%`;
+            html += `<tr>
+                <td>${r.prov}</td>
+                <td><span class="badge-empresa">${r.empresa}</span></td>
+                <td class="num">${fmtPeso(r.avg)} <span style="font-size:0.68rem; color:${diffColor}">${diffLabel}</span></td>
+                <td class="num" style="color:#10b981">${fmtPeso(r.min)}</td>
+                <td class="num" style="color:#ef4444">${fmtPeso(r.max)}</td>
+                <td class="num">${r.n}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('table-container').innerHTML = html;
+    }
+
+    function sortTable(col) {
+        if (sortCol === col) sortAsc = !sortAsc;
+        else { sortCol = col; sortAsc = true; }
+        const search = document.getElementById('table-search').value.toLowerCase();
+        const filtered = search ? tableData.filter(r =>
+            r.prov.toLowerCase().includes(search) ||
+            r.empresa.toLowerCase().includes(search) ||
+            r.producto.toLowerCase().includes(search)
+        ) : tableData;
+        renderTable(filtered);
+    }
+
+    function filterTable() {
+        const search = document.getElementById('table-search').value.toLowerCase();
+        const filtered = search ? tableData.filter(r =>
+            r.prov.toLowerCase().includes(search) ||
+            r.empresa.toLowerCase().includes(search) ||
+            r.producto.toLowerCase().includes(search)
+        ) : tableData;
+        renderTable(filtered);
+    }
+
+    // ==================== START ====================
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
