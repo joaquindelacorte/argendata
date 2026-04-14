@@ -159,7 +159,7 @@
     // CKAN Datastore API — JSON liviano, ruta por proxy (cert SSL inválido en el dominio .gob.ar)
     const RESOURCE_ID = '80ac25de-a44a-4445-9215-090cf55cfda5';
     const CKAN_BASE   = 'http://datos.energia.gob.ar/api/3/action/datastore_search';
-    const PAGE_SIZE   = 10000;
+    const PAGE_SIZE   = 2000; // últimos 2000 registros — suficiente para el mes actual
 
     // Province centroids [lat, lng]
     const PROVINCE_COORDS = {
@@ -228,49 +228,41 @@
         } finally { clearTimeout(timer); }
     }
 
-    // Fetch JSON via proxy (CKAN API, domain has invalid SSL cert)
+    // Fetch JSON via proxy — todos en paralelo, gana el más rápido
     async function fetchViaProxy(url) {
-        const proxies = [
-            { name: 'corsproxy.io',   fn: u => `https://corsproxy.io/?url=${encodeURIComponent(u)}` },
-            { name: 'allorigins',     fn: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
-            { name: 'codetabs',       fn: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-            { name: 'thingproxy',     fn: u => `https://thingproxy.freeboard.io/fetch/${u}` }
+        const proxyUrls = [
+            `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
         ];
-        let lastErr = '';
-        for (const { name, fn } of proxies) {
-            try {
-                const statusEl = document.getElementById('status-msg');
-                if (statusEl) statusEl.textContent = `Intentando via ${name}...`;
-                const r = await fetchWithTimeout(fn(url), 18000);
-                if (r.ok) {
-                    const text = await r.text();
-                    return JSON.parse(text);
-                }
-            } catch(e) { lastErr = e.message; }
-        }
-        throw new Error(`Todos los proxies fallaron. Verificá tu conexión a internet.`);
+        const attempts = proxyUrls.map(proxyUrl =>
+            fetchWithTimeout(proxyUrl, 15000)
+                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+                .then(text => JSON.parse(text))
+        );
+        return Promise.any(attempts);
     }
 
     async function fetchAllRecords() {
-        setProgress(10, 'Consultando API de Secretaría de Energía...');
+        setProgress(20, 'Conectando con la API...');
 
-        // 1. Get total record count
+        // Paso 1: obtener el total de registros
         const countUrl = `${CKAN_BASE}?resource_id=${RESOURCE_ID}&limit=1`;
         let total = 0;
         try {
             const j = await fetchViaProxy(countUrl);
             total = j.result?.total || 0;
         } catch(e) {
-            throw new Error('No se pudo conectar: ' + e.message);
+            throw new Error('Sin conexión con datos.energia.gob.ar: ' + e.message);
         }
 
-        // 2. Fetch latest PAGE_SIZE records (offset to end of dataset)
+        // Paso 2: traer los últimos PAGE_SIZE registros (fecha más reciente)
         const offset = Math.max(0, total - PAGE_SIZE);
-        setProgress(35, `Descargando ${Math.min(PAGE_SIZE, total).toLocaleString()} registros recientes de ${total.toLocaleString()} totales...`);
+        setProgress(50, `Descargando últimos ${Math.min(PAGE_SIZE, total).toLocaleString()} registros...`);
 
         const dataUrl = `${CKAN_BASE}?resource_id=${RESOURCE_ID}&limit=${PAGE_SIZE}&offset=${offset}`;
         const j = await fetchViaProxy(dataUrl);
-        setProgress(70, 'Procesando datos...');
+        setProgress(80, 'Procesando...');
         return j.result?.records || [];
     }
 
