@@ -63,6 +63,23 @@
         .emae-toggle-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
         .emae-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
         .emae-chart-container { position: relative; height: 300px; width: 100%; margin-top: 8px; }
+
+        /* EMAE range slider */
+        .emae-range-wrap { margin: 8px 0 20px; }
+        .emae-range-labels { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.75rem; }
+        .emae-range-labels .lbl { font-weight: 600; color: #e2e8f0; background: rgba(59,130,246,0.18); padding: 3px 9px; border-radius: 5px; min-width: 72px; text-align: center; }
+        .emae-range-labels .sep { color: var(--text-muted); flex: 1; text-align: center; }
+        .emae-range-track { position: relative; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 14px 8px; }
+        .emae-range-fill { position: absolute; top: 0; height: 100%; background: var(--accent); border-radius: 2px; pointer-events: none; }
+        .emae-slider { position: absolute; width: calc(100% + 16px); left: -8px; top: 50%; transform: translateY(-50%);
+            -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none;
+            height: 20px; margin: 0; padding: 0; outline: none; }
+        .emae-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; pointer-events: all;
+            border: 2px solid #0f172a; box-shadow: 0 0 0 3px rgba(59,130,246,0.25); transition: box-shadow 0.15s; }
+        .emae-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(59,130,246,0.35); }
+        .emae-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; pointer-events: all; border: 2px solid #0f172a; }
     </style>
 </head>
 <body>
@@ -524,7 +541,7 @@
         async function fetchEMAE() {
             const section = document.getElementById('emae-section');
             try {
-                const base = 'https://apis.datos.gob.ar/series/api/series/';
+                const base   = 'https://apis.datos.gob.ar/series/api/series/';
                 const params = 'limit=120&format=json&sort=asc';
                 const [resOrig, resDesest] = await Promise.all([
                     fetch(`${base}?ids=${EMAE_SERIES.original}&${params}`),
@@ -552,117 +569,175 @@
         }
 
         function renderEMAE(seriesType) {
-            const data = emaeCache[seriesType] || [];
-            const section = document.getElementById('emae-section');
+            const fullData = emaeCache[seriesType] || [];
+            const section  = document.getElementById('emae-section');
 
-            if (!data.length) {
+            if (!fullData.length) {
                 section.innerHTML = '<div style="padding:16px;color:var(--text-muted);">Sin datos disponibles.</div>';
                 return;
             }
 
-            const last     = data[data.length - 1];
-            const prev     = data.length >= 2  ? data[data.length - 2]  : null;
-            const prevYear = data.length >= 13 ? data[data.length - 13] : null;
-
-            const momPct = prev     ? (((last.valor - prev.valor)     / prev.valor)     * 100).toFixed(2) : null;
-            const yoyPct = prevYear ? (((last.valor - prevYear.valor) / prevYear.valor) * 100).toFixed(2) : null;
-
-            const seriesLabel = seriesType === 'original' ? 'Series Originales' : 'Desestacionalizado';
-            const color       = seriesType === 'original' ? '#3b82f6' : '#10b981';
-
-            const statBadge = (val) => val === null ? '' : `
-                <span style="font-size:0.75rem;color:${parseFloat(val)>=0?'var(--success)':'var(--danger)'};">
-                    ${parseFloat(val)>=0?'▲':'▼'} ${Math.abs(val)}%
-                </span>`;
+            if (emaeChart) { emaeChart.destroy(); emaeChart = null; }
 
             section.innerHTML = `
                 <div class="emae-header">
                     <div>
                         <div class="data-label">EMAE — Índice base 2004=100</div>
-                        <div style="font-size:0.75rem;color:var(--text-muted);">Último dato: ${last.fecha}</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);">Fuente: SSPM · datos.gob.ar</div>
                     </div>
                     <div class="emae-toggle">
                         <button class="emae-toggle-btn ${seriesType==='original'?'active':''}" onclick="renderEMAE('original')">Originales</button>
                         <button class="emae-toggle-btn ${seriesType==='desest'?'active':''}" onclick="renderEMAE('desest')">Desestacionalizado</button>
                     </div>
                 </div>
-                <div class="emae-stats">
-                    <div class="stat-mini">
-                        <div class="label">Índice EMAE</div>
-                        <div class="val">${Number(last.valor).toLocaleString('es-AR',{maximumFractionDigits:1})}</div>
-                        <div style="font-size:0.7rem;color:var(--text-muted);">${seriesLabel}</div>
+                <div class="emae-stats" id="emae-stats-row"></div>
+                <div class="emae-range-wrap">
+                    <div class="emae-range-labels">
+                        <span class="lbl" id="emae-lbl-from">—</span>
+                        <span class="sep">→</span>
+                        <span class="lbl" id="emae-lbl-to">—</span>
                     </div>
-                    <div class="stat-mini">
-                        <div class="label">Var. mensual</div>
-                        <div class="val" style="font-size:1.1rem;color:${momPct!==null&&parseFloat(momPct)>=0?'var(--success)':'var(--danger)'};">
-                            ${momPct!==null?(parseFloat(momPct)>=0?'+':'')+momPct+'%':'—'}
-                        </div>
-                        <div style="font-size:0.7rem;color:var(--text-muted);">vs mes anterior</div>
-                    </div>
-                    <div class="stat-mini">
-                        <div class="label">Var. interanual</div>
-                        <div class="val" style="color:${yoyPct!==null&&parseFloat(yoyPct)>=0?'var(--success)':'var(--danger)'};">
-                            ${yoyPct!==null?(parseFloat(yoyPct)>=0?'+':'')+yoyPct+'%':'—'}
-                        </div>
-                        <div style="font-size:0.7rem;color:var(--text-muted);">vs mismo mes año anterior</div>
-                    </div>
-                    <div class="stat-mini">
-                        <div class="label">Mín / Máx (período)</div>
-                        <div class="val" style="font-size:0.9rem;">
-                            ${Number(Math.min(...data.map(d=>d.valor))).toLocaleString('es-AR',{maximumFractionDigits:1})}
-                            <span style="color:var(--text-muted);font-size:0.75rem;"> / </span>
-                            ${Number(Math.max(...data.map(d=>d.valor))).toLocaleString('es-AR',{maximumFractionDigits:1})}
-                        </div>
+                    <div class="emae-range-track">
+                        <div class="emae-range-fill" id="emae-range-fill"></div>
+                        <input type="range" class="emae-slider" id="emae-from">
+                        <input type="range" class="emae-slider" id="emae-to">
                     </div>
                 </div>
                 <div class="emae-chart-container"><canvas id="emaeChartCanvas"></canvas></div>
             `;
 
-            const ctx = document.getElementById('emaeChartCanvas').getContext('2d');
-            if (emaeChart) emaeChart.destroy();
+            setupEmaeSlider(fullData, seriesType);
+        }
 
-            emaeChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.map(d => d.fecha),
-                    datasets: [{
-                        label: `EMAE (${seriesLabel})`,
-                        data: data.map(d => d.valor),
-                        borderColor: color,
-                        backgroundColor: color + '18',
-                        fill: true,
-                        tension: 0.35,
-                        pointRadius: data.length > 60 ? 0 : 2,
-                        pointHoverRadius: 5,
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                label: item => `EMAE: ${Number(item.raw).toLocaleString('es-AR',{maximumFractionDigits:1})}`
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#64748b', maxTicksLimit: 12, maxRotation: 45, font: { size: 10 } }
-                        },
-                        y: {
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#64748b', callback: v => v.toFixed(0) }
-                        }
+        function setupEmaeSlider(fullData, seriesType) {
+            const n       = fullData.length;
+            const color   = seriesType === 'original' ? '#3b82f6' : '#10b981';
+            const sLabel  = seriesType === 'original' ? 'Series Originales' : 'Desestacionalizado';
+            const fromEl  = document.getElementById('emae-from');
+            const toEl    = document.getElementById('emae-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = Math.max(0, n - 60);  // default: últimos 60 meses
+            toEl.value   = n - 1;
+
+            function syncSlider() {
+                let from = +fromEl.value;
+                let to   = +toEl.value;
+
+                // Prevent handles from crossing (min gap 2)
+                if (from >= to) {
+                    if (document.activeElement === fromEl) {
+                        from = Math.max(0, to - 2);
+                        fromEl.value = from;
+                    } else {
+                        to = Math.min(n - 1, from + 2);
+                        toEl.value = to;
                     }
                 }
-            });
+
+                // Update fill bar
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                const fill  = document.getElementById('emae-range-fill');
+                fill.style.left  = pFrom + '%';
+                fill.style.width = (pTo - pFrom) + '%';
+
+                // Update date labels
+                document.getElementById('emae-lbl-from').textContent = fullData[from].fecha;
+                document.getElementById('emae-lbl-to').textContent   = fullData[to].fecha;
+
+                // Compute stats on the visible slice
+                const slice    = fullData.slice(from, to + 1);
+                const last     = slice[slice.length - 1];
+                const prevM    = slice.length >= 2  ? slice[slice.length - 2]  : null;
+                const prevYear = to >= 12           ? fullData[to - 12]        : null;
+
+                const momPct = prevM    ? (((last.valor - prevM.valor)    / prevM.valor)    * 100).toFixed(2) : null;
+                const yoyPct = prevYear ? (((last.valor - prevYear.valor) / prevYear.valor) * 100).toFixed(2) : null;
+                const min    = Math.min(...slice.map(d => d.valor));
+                const max    = Math.max(...slice.map(d => d.valor));
+
+                const cVal = v => v !== null && parseFloat(v) >= 0 ? 'var(--success)' : 'var(--danger)';
+                const sign = v => v !== null && parseFloat(v) >= 0 ? '+' : '';
+
+                document.getElementById('emae-stats-row').innerHTML = `
+                    <div class="stat-mini">
+                        <div class="label">Índice EMAE</div>
+                        <div class="val">${Number(last.valor).toLocaleString('es-AR',{maximumFractionDigits:1})}</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">${last.fecha} · ${sLabel}</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. mensual</div>
+                        <div class="val" style="font-size:1.1rem;color:${cVal(momPct)};">
+                            ${momPct !== null ? sign(momPct)+momPct+'%' : '—'}
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">vs mes anterior</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. interanual</div>
+                        <div class="val" style="color:${cVal(yoyPct)};">
+                            ${yoyPct !== null ? sign(yoyPct)+yoyPct+'%' : '—'}
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">vs mismo mes año anterior</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Mín / Máx (selección)</div>
+                        <div class="val" style="font-size:0.9rem;">
+                            ${Number(min).toLocaleString('es-AR',{maximumFractionDigits:1})}
+                            <span style="color:var(--text-muted);font-size:0.75rem;"> / </span>
+                            ${Number(max).toLocaleString('es-AR',{maximumFractionDigits:1})}
+                        </div>
+                    </div>
+                `;
+
+                // Create or update chart
+                if (!emaeChart) {
+                    const ctx = document.getElementById('emaeChartCanvas').getContext('2d');
+                    emaeChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: slice.map(d => d.fecha),
+                            datasets: [{
+                                label: `EMAE (${sLabel})`,
+                                data: slice.map(d => d.valor),
+                                borderColor: color,
+                                backgroundColor: color + '18',
+                                fill: true,
+                                tension: 0.35,
+                                pointRadius: slice.length > 60 ? 0 : 2,
+                                pointHoverRadius: 5,
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 250 },
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    mode: 'index', intersect: false,
+                                    callbacks: { label: item => `EMAE: ${Number(item.raw).toLocaleString('es-AR',{maximumFractionDigits:1})}` }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 12, maxRotation: 45, font: { size: 10 } } },
+                                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v.toFixed(0) } }
+                            }
+                        }
+                    });
+                } else {
+                    emaeChart.data.labels                   = slice.map(d => d.fecha);
+                    emaeChart.data.datasets[0].data         = slice.map(d => d.valor);
+                    emaeChart.data.datasets[0].pointRadius  = slice.length > 60 ? 0 : 2;
+                    emaeChart.update('none'); // sin animación para drag fluido
+                }
+            }
+
+            fromEl.addEventListener('input', syncSlider);
+            toEl.addEventListener('input', syncSlider);
+            syncSlider(); // render inicial
         }
 
         // ======== INIT ========
