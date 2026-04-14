@@ -94,6 +94,50 @@
         }
 
         .update-tag { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; font-family: 'Inter', sans-serif; }
+
+        /* Ciudad filter */
+        .ciudad-filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: flex-end; }
+        .ciudad-filters select {
+            background: rgba(15,23,42,0.8); color: white; border: 1px solid var(--border-color);
+            padding: 10px 14px; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.85rem;
+            outline: none; min-width: 200px; cursor: pointer;
+        }
+        .ciudad-filters select:focus { border-color: var(--accent); }
+        .ciudad-filters select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Station cards */
+        .station-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        .station-card {
+            background: rgba(15,23,42,0.6); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 14px; position: relative; transition: all 0.2s;
+        }
+        .station-card:hover { background: rgba(30,41,59,0.8); transform: translateY(-2px); }
+        .station-card.cheapest { border-color: #10b981; box-shadow: 0 0 12px rgba(16,185,129,0.2); }
+        .station-rank {
+            position: absolute; top: 10px; right: 12px;
+            font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.1rem;
+        }
+        .station-brand {
+            display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;
+            background: rgba(59,130,246,0.15); color: #60a5fa; margin-bottom: 8px;
+        }
+        .station-price {
+            font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.6rem;
+            margin: 6px 0;
+        }
+        .station-addr { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+        .station-horario { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; }
+        .savings-badge {
+            display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 20px;
+            font-size: 0.72rem; font-weight: 700; background: rgba(16,185,129,0.15); color: #10b981;
+        }
+        .ciudad-summary {
+            display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px;
+            padding: 14px 16px; background: rgba(59,130,246,0.06);
+            border-radius: 10px; border: 1px solid rgba(59,130,246,0.15);
+            font-size: 0.82rem; color: var(--text-secondary);
+        }
+        .ciudad-summary strong { color: #fff; }
     </style>
 </head>
 <body>
@@ -115,6 +159,34 @@
     <!-- KPI row -->
     <div class="kpi-row stagger-2 fade-in" id="kpi-row">
         <div class="kpi-card"><div class="kpi-label">Cargando datos...</div><div class="kpi-value" style="color:var(--text-muted)">—</div></div>
+    </div>
+
+    <!-- Ciudad filter -->
+    <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;" id="ciudad-section" style="display:none">
+        <h2 class="section-title">📍 ¿Dónde me conviene cargar?</h2>
+        <div class="ciudad-filters">
+            <div>
+                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:4px;">Provincia</div>
+                <select id="filter-prov" onchange="onProvChange()">
+                    <option value="">— Seleccioná una provincia —</option>
+                </select>
+            </div>
+            <div>
+                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:4px;">Ciudad / Localidad</div>
+                <select id="filter-ciudad" onchange="onCiudadChange()" disabled>
+                    <option value="">— Primero elegí provincia —</option>
+                </select>
+            </div>
+            <div>
+                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:4px;">Combustible</div>
+                <select id="filter-fuel-ciudad" onchange="onCiudadChange()" disabled>
+                    <option value="">— Seleccioná ciudad antes —</option>
+                </select>
+            </div>
+        </div>
+        <div id="ciudad-results">
+            <div class="info-box" style="padding:16px;">Seleccioná provincia y ciudad para ver las estaciones más baratas de tu zona.</div>
+        </div>
     </div>
 
     <!-- Map + Chart row -->
@@ -341,6 +413,7 @@
         document.getElementById('map-update-label').textContent = dateStr;
 
         renderAll();
+        populateCiudadFilter();
     }
 
     function buildFuelTabs(types) {
@@ -750,6 +823,164 @@
             r.producto.toLowerCase().includes(search)
         ) : tableData;
         renderTable(filtered);
+    }
+
+    // ==================== CIUDAD FILTER ====================
+
+    function populateCiudadFilter() {
+        const provSel = document.getElementById('filter-prov');
+        const provincias = [...new Set(allData.map(r => r.prov))].sort();
+        provSel.innerHTML = '<option value="">— Seleccioná una provincia —</option>' +
+            provincias.map(p => `<option value="${p}">${p.charAt(0) + p.slice(1).toLowerCase()}</option>`).join('');
+        document.getElementById('ciudad-section').style.display = 'block';
+    }
+
+    function onProvChange() {
+        const prov = document.getElementById('filter-prov').value;
+        const ciudadSel = document.getElementById('filter-ciudad');
+        const fuelSel = document.getElementById('filter-fuel-ciudad');
+        document.getElementById('ciudad-results').innerHTML =
+            '<div class="info-box" style="padding:16px;">Elegí una ciudad para ver las estaciones disponibles.</div>';
+
+        if (!prov) {
+            ciudadSel.disabled = true;
+            ciudadSel.innerHTML = '<option value="">— Primero elegí provincia —</option>';
+            fuelSel.disabled = true;
+            return;
+        }
+
+        const ciudades = [...new Set(
+            allData.filter(r => r.prov === prov).map(r => r.localidad).filter(Boolean)
+        )].sort();
+
+        ciudadSel.innerHTML = '<option value="">— Seleccioná una ciudad —</option>' +
+            ciudades.map(c => `<option value="${c}">${c.charAt(0) + c.slice(1).toLowerCase()}</option>`).join('');
+        ciudadSel.disabled = false;
+        fuelSel.disabled = true;
+    }
+
+    function onCiudadChange() {
+        const prov   = document.getElementById('filter-prov').value;
+        const ciudad = document.getElementById('filter-ciudad').value;
+        const fuelSel = document.getElementById('filter-fuel-ciudad');
+
+        if (!ciudad) {
+            fuelSel.disabled = true;
+            return;
+        }
+
+        // Populate fuel types available for this city
+        const fuelsEnCiudad = [...new Set(
+            allData.filter(r => r.prov === prov && r.localidad === ciudad).map(r => r.producto)
+        )].sort();
+
+        fuelSel.innerHTML = fuelsEnCiudad.map(f => `<option value="${f}">${f}</option>`).join('');
+        fuelSel.disabled = false;
+
+        // If current activeFuel is available in this city, pre-select it
+        if (fuelsEnCiudad.includes(activeFuel)) fuelSel.value = activeFuel;
+
+        renderCiudadResults(prov, ciudad, fuelSel.value);
+    }
+
+    function renderCiudadResults(prov, ciudad, fuel) {
+        const records = allData.filter(r =>
+            r.prov === prov && r.localidad === ciudad && r.producto === fuel
+        );
+
+        if (!records.length) {
+            document.getElementById('ciudad-results').innerHTML =
+                '<div class="info-box" style="padding:16px;">Sin datos para esta combinación.</div>';
+            return;
+        }
+
+        // Group by empresa + dirección (una estación puede tener Diurno/Nocturno)
+        const byStation = {};
+        records.forEach(r => {
+            const key = `${r.empresa}||${r.direccion}`;
+            if (!byStation[key]) byStation[key] = {
+                empresa: r.empresa, brand: r.empresa, direccion: r.direccion,
+                lat: r.lat, lng: r.lng, precios: {}
+            };
+            byStation[key].precios[r.tipohorario || 'Diurno'] = r.precio;
+        });
+
+        // Use precio Diurno (or first available) for ranking
+        const stations = Object.values(byStation).map(s => ({
+            ...s,
+            precio: s.precios['Diurno'] || Object.values(s.precios)[0]
+        })).filter(s => s.precio > 0).sort((a, b) => a.precio - b.precio);
+
+        if (!stations.length) {
+            document.getElementById('ciudad-results').innerHTML =
+                '<div class="info-box" style="padding:16px;">Sin precios válidos para esta ciudad.</div>';
+            return;
+        }
+
+        const cheapest = stations[0].precio;
+        const mostExp  = stations[stations.length - 1].precio;
+        const savings  = mostExp - cheapest;
+        const avg      = stations.reduce((s, r) => s + r.precio, 0) / stations.length;
+
+        // Summary bar
+        let html = `
+            <div class="ciudad-summary">
+                <span>🏪 <strong>${stations.length}</strong> estaciones encontradas</span>
+                <span>⛽ <strong>${fuel}</strong></span>
+                <span>📍 <strong>${ciudad.charAt(0) + ciudad.slice(1).toLowerCase()}</strong></span>
+                <span>💰 Ahorro max: <strong style="color:#10b981">$${fmtNum(savings, 0)}/L</strong> entre la más cara y más barata</span>
+            </div>
+            <div class="station-grid">`;
+
+        stations.forEach((s, i) => {
+            const isCheapest = i === 0;
+            const diff = s.precio - cheapest;
+            const diffLabel = diff === 0 ? '✅ La más barata' : `+$${fmtNum(diff, 0)} vs más barata`;
+            const priceColor = isCheapest ? '#10b981' : diff <= savings * 0.25 ? '#84cc16' : diff <= savings * 0.6 ? '#f59e0b' : '#ef4444';
+            const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+
+            // Nocturno price if different
+            let noctLabel = '';
+            if (s.precios['Nocturno'] && s.precios['Nocturno'] !== s.precio) {
+                noctLabel = `<div class="station-horario">🌙 Nocturno: $${fmtNum(s.precios['Nocturno'], 0)}</div>`;
+            }
+
+            const mapBtn = (s.lat && s.lng)
+                ? `<button onclick="zoomToStation(${s.lat},${s.lng},'${s.empresa.replace(/'/g,"\\'")} — $${fmtNum(s.precio,0)}/L')"
+                    style="margin-top:8px; background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);
+                    padding:4px 10px; border-radius:6px; font-size:0.72rem; cursor:pointer; font-weight:600;">🗺 Ver en mapa</button>`
+                : '';
+
+            html += `
+                <div class="station-card ${isCheapest ? 'cheapest' : ''}">
+                    <div class="station-rank">${rankEmoji}</div>
+                    <div class="station-brand">${s.brand}</div>
+                    <div class="station-price" style="color:${priceColor}">$${fmtNum(s.precio, 0)}</div>
+                    <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:2px;">por litro · Diurno</div>
+                    ${noctLabel}
+                    <div class="station-addr">📍 ${s.direccion || 'Dirección no disponible'}</div>
+                    ${diff > 0 ? `<div class="station-horario" style="color:${priceColor}; margin-top:6px; font-weight:600;">${diffLabel}</div>` : `<div class="savings-badge">✅ Precio más bajo</div>`}
+                    ${mapBtn}
+                </div>`;
+        });
+
+        html += '</div>';
+        document.getElementById('ciudad-results').innerHTML = html;
+
+        // Zoom map to city
+        if (stations[0].lat && stations[0].lng) {
+            mapInstance.setView([stations[0].lat, stations[0].lng], 13);
+        }
+    }
+
+    function zoomToStation(lat, lng, label) {
+        mapInstance.setView([lat, lng], 15);
+        L.popup()
+            .setLatLng([lat, lng])
+            .setContent(`<div style="font-family:'Inter',sans-serif; font-size:0.85rem; font-weight:600;">${label}</div>`)
+            .openOn(mapInstance);
+        // Scroll to map
+        document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     // ==================== START ====================
