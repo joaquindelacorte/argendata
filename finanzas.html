@@ -312,12 +312,12 @@
             btn.disabled = true;
             btn.textContent = '⏳ Consultando...';
 
-            const var1 = document.getElementById('bcra-var1').value;
-            const var2 = document.getElementById('bcra-var2').value;
-            const var3 = document.getElementById('bcra-var3').value;
+            const var1  = document.getElementById('bcra-var1').value;
+            const var2  = document.getElementById('bcra-var2').value;
+            const var3  = document.getElementById('bcra-var3').value;
             const limit = document.getElementById('bcra-limit').value;
 
-            const resultDiv = document.getElementById('bcra-result');
+            const resultDiv   = document.getElementById('bcra-result');
             resultDiv.innerHTML = '<div class="loader-container"><div class="spinner"></div></div>';
 
             const varsToFetch = [var1];
@@ -327,113 +327,35 @@
             try {
                 const results = await Promise.all(varsToFetch.map(v => fetchBCRAVariable(v, limit)));
 
-                // Build stats + chart
-                let html = '<div class="glass-card">';
-
-                // Stats for each variable
-                html += '<div class="bcra-stats">';
-                results.forEach((data, i) => {
-                    const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
-                    const label = varInfo ? varInfo.name : `Variable ${varsToFetch[i]}`;
-                    if (data.length === 0) {
-                        html += `<div class="stat-mini"><div class="label" style="color:${CHART_COLORS[i]}">${label}</div><div class="val">Sin datos</div></div>`;
-                        return;
-                    }
-                    const last = data[data.length - 1];
-                    const first = data[0];
-                    const min = Math.min(...data.map(d => d.valor));
-                    const max = Math.max(...data.map(d => d.valor));
-                    const varPct = first.valor !== 0 ? (((last.valor - first.valor) / first.valor) * 100).toFixed(1) : 0;
-
-                    html += `
-                        <div class="stat-mini">
-                            <div class="label" style="color:${CHART_COLORS[i]}">${label}</div>
-                            <div class="val">${Number(last.valor).toLocaleString('es-AR', {maximumFractionDigits:2})}</div>
-                            <div style="font-size:0.7rem; color:var(--text-muted);">${last.fecha}</div>
-                        </div>
-                        <div class="stat-mini">
-                            <div class="label">Var. período</div>
-                            <div class="val" style="color:${parseFloat(varPct) >= 0 ? 'var(--success)' : 'var(--danger)'}; font-size:1.1rem;">${varPct}%</div>
-                        </div>
-                        <div class="stat-mini">
-                            <div class="label">Mínimo</div>
-                            <div class="val" style="font-size:1rem;">${Number(min).toLocaleString('es-AR', {maximumFractionDigits:2})}</div>
-                        </div>
-                        <div class="stat-mini">
-                            <div class="label">Máximo</div>
-                            <div class="val" style="font-size:1rem;">${Number(max).toLocaleString('es-AR', {maximumFractionDigits:2})}</div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-
-                // Chart
-                html += '<div class="compare-chart-container"><canvas id="bcraCompareChart"></canvas></div>';
-                html += '</div>';
-
-                resultDiv.innerHTML = html;
-
-                // Render chart
-                const ctx = document.getElementById('bcraCompareChart').getContext('2d');
-                if (bcraChart) bcraChart.destroy();
-
-                const datasets = results.map((data, i) => {
-                    const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
-                    return {
-                        label: varInfo ? varInfo.name : `Var ${varsToFetch[i]}`,
-                        data: data.map(d => d.valor),
-                        borderColor: CHART_COLORS[i],
-                        backgroundColor: CHART_COLORS[i] + '15',
-                        fill: results.length === 1,
-                        tension: 0.3,
-                        pointRadius: data.length > 100 ? 0 : 2,
-                        borderWidth: 2,
-                        yAxisID: i === 0 ? 'y' : 'y' + i
-                    };
-                });
-
-                // Use the longest labels array
-                const longestData = results.reduce((a, b) => a.length > b.length ? a : b, []);
-                const labels = longestData.map(d => d.fecha);
-
+                // Scales config depends only on number of variables, not on data range
                 const scalesConfig = {
                     x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 15, maxRotation: 45, font: { size: 10 } } },
-                    y: {
-                        type: 'linear', position: 'left',
-                        grid: { color: 'rgba(255,255,255,0.05)' },
-                        ticks: { color: CHART_COLORS[0], callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'K' : v }
-                    }
+                    y: { type: 'linear', position: 'left', grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: CHART_COLORS[0], callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } }
                 };
+                if (results.length >= 2) scalesConfig.y1 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: CHART_COLORS[1], callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } };
+                if (results.length >= 3) scalesConfig.y2 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: CHART_COLORS[2], callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } };
 
-                if (results.length >= 2) {
-                    scalesConfig.y1 = {
-                        type: 'linear', position: 'right',
-                        grid: { drawOnChartArea: false },
-                        ticks: { color: CHART_COLORS[1], callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'K' : v }
-                    };
-                }
-                if (results.length >= 3) {
-                    scalesConfig.y2 = {
-                        type: 'linear', position: 'right',
-                        grid: { drawOnChartArea: false },
-                        ticks: { color: CHART_COLORS[2], callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'K' : v }
-                    };
-                }
+                resultDiv.innerHTML = `
+                    <div class="glass-card">
+                        <div class="bcra-stats" id="bcra-stats-row"></div>
+                        <div class="emae-range-wrap">
+                            <div class="emae-range-labels">
+                                <span class="lbl" id="bcra-lbl-from">—</span>
+                                <span class="sep">→</span>
+                                <span class="lbl" id="bcra-lbl-to">—</span>
+                            </div>
+                            <div class="emae-range-track">
+                                <div class="emae-range-fill" id="bcra-range-fill"></div>
+                                <input type="range" class="emae-slider" id="bcra-from">
+                                <input type="range" class="emae-slider" id="bcra-to">
+                            </div>
+                        </div>
+                        <div class="compare-chart-container"><canvas id="bcraCompareChart"></canvas></div>
+                    </div>
+                `;
 
-                bcraChart = new Chart(ctx, {
-                    type: 'line',
-                    data: { labels, datasets },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        plugins: {
-                            legend: { position: 'top', labels: { color: '#e2e8f0', usePointStyle: true, padding: 16 } },
-                            tooltip: { mode: 'index', intersect: false }
-                        },
-                        scales: scalesConfig
-                    }
-                });
+                if (bcraChart) { bcraChart.destroy(); bcraChart = null; }
+                setupBCRASlider(results, varsToFetch, scalesConfig);
 
             } catch (e) {
                 console.error('BCRA Explorer error:', e);
@@ -445,6 +367,130 @@
                 btn.disabled = false;
                 btn.textContent = '📊 Consultar';
             }
+        }
+
+        function setupBCRASlider(results, varsToFetch, scalesConfig) {
+            const refData = results.reduce((a, b) => a.length > b.length ? a : b, []);
+            const n       = refData.length;
+            const fromEl  = document.getElementById('bcra-from');
+            const toEl    = document.getElementById('bcra-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = 0;
+            toEl.value   = n - 1;
+
+            function syncBCRA() {
+                let from = +fromEl.value;
+                let to   = +toEl.value;
+
+                if (from >= to) {
+                    if (document.activeElement === fromEl) { from = Math.max(0, to - 2); fromEl.value = from; }
+                    else { to = Math.min(n - 1, from + 2); toEl.value = to; }
+                }
+
+                // Update fill bar
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                const fill  = document.getElementById('bcra-range-fill');
+                fill.style.left  = pFrom + '%';
+                fill.style.width = (pTo - pFrom) + '%';
+
+                // Date labels
+                const dateFrom = refData[from].fecha;
+                const dateTo   = refData[to].fecha;
+                document.getElementById('bcra-lbl-from').textContent = dateFrom;
+                document.getElementById('bcra-lbl-to').textContent   = dateTo;
+
+                // Slice each series by date range
+                const slices = results.map(data => data.filter(d => d.fecha >= dateFrom && d.fecha <= dateTo));
+
+                // Stats
+                let statsHtml = '';
+                slices.forEach((slice, i) => {
+                    const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
+                    const label   = varInfo ? varInfo.name : `Variable ${varsToFetch[i]}`;
+                    if (!slice.length) {
+                        statsHtml += `<div class="stat-mini"><div class="label" style="color:${CHART_COLORS[i]}">${label}</div><div class="val">Sin datos</div></div>`;
+                        return;
+                    }
+                    const last   = slice[slice.length - 1];
+                    const first  = slice[0];
+                    const min    = Math.min(...slice.map(d => d.valor));
+                    const max    = Math.max(...slice.map(d => d.valor));
+                    const varPct = first.valor !== 0 ? (((last.valor - first.valor) / first.valor) * 100).toFixed(1) : 0;
+
+                    statsHtml += `
+                        <div class="stat-mini">
+                            <div class="label" style="color:${CHART_COLORS[i]}">${label}</div>
+                            <div class="val">${Number(last.valor).toLocaleString('es-AR',{maximumFractionDigits:2})}</div>
+                            <div style="font-size:0.7rem;color:var(--text-muted);">${last.fecha}</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Var. período</div>
+                            <div class="val" style="color:${parseFloat(varPct)>=0?'var(--success)':'var(--danger)'};font-size:1.1rem;">${varPct}%</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Mínimo</div>
+                            <div class="val" style="font-size:1rem;">${Number(min).toLocaleString('es-AR',{maximumFractionDigits:2})}</div>
+                        </div>
+                        <div class="stat-mini">
+                            <div class="label">Máximo</div>
+                            <div class="val" style="font-size:1rem;">${Number(max).toLocaleString('es-AR',{maximumFractionDigits:2})}</div>
+                        </div>
+                    `;
+                });
+                document.getElementById('bcra-stats-row').innerHTML = statsHtml;
+
+                // Chart
+                const longestSlice = slices.reduce((a, b) => a.length > b.length ? a : b, []);
+                const labels = longestSlice.map(d => d.fecha);
+
+                if (!bcraChart) {
+                    const ctx      = document.getElementById('bcraCompareChart').getContext('2d');
+                    const datasets = slices.map((slice, i) => {
+                        const varInfo = BCRA_VARS.find(v => v.id == varsToFetch[i]);
+                        return {
+                            label: varInfo ? varInfo.name : `Var ${varsToFetch[i]}`,
+                            data: slice.map(d => d.valor),
+                            borderColor: CHART_COLORS[i],
+                            backgroundColor: CHART_COLORS[i] + '15',
+                            fill: slices.length === 1,
+                            tension: 0.3,
+                            pointRadius: slice.length > 100 ? 0 : 2,
+                            borderWidth: 2,
+                            yAxisID: i === 0 ? 'y' : 'y' + i
+                        };
+                    });
+                    bcraChart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels, datasets },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: { duration: 250 },
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { position: 'top', labels: { color: '#e2e8f0', usePointStyle: true, padding: 16 } },
+                                tooltip: { mode: 'index', intersect: false }
+                            },
+                            scales: scalesConfig
+                        }
+                    });
+                } else {
+                    bcraChart.data.labels = labels;
+                    slices.forEach((slice, i) => {
+                        if (bcraChart.data.datasets[i]) {
+                            bcraChart.data.datasets[i].data        = slice.map(d => d.valor);
+                            bcraChart.data.datasets[i].pointRadius = slice.length > 100 ? 0 : 2;
+                        }
+                    });
+                    bcraChart.update('none');
+                }
+            }
+
+            fromEl.addEventListener('input', syncBCRA);
+            toEl.addEventListener('input', syncBCRA);
+            syncBCRA();
         }
 
         // ======== DÓLARES ========
