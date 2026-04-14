@@ -231,16 +231,24 @@
     // Fetch JSON via proxy (CKAN API, domain has invalid SSL cert)
     async function fetchViaProxy(url) {
         const proxies = [
-            `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+            { name: 'corsproxy.io',   fn: u => `https://corsproxy.io/?url=${encodeURIComponent(u)}` },
+            { name: 'allorigins',     fn: u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+            { name: 'codetabs',       fn: u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+            { name: 'thingproxy',     fn: u => `https://thingproxy.freeboard.io/fetch/${u}` }
         ];
-        for (const proxyUrl of proxies) {
+        let lastErr = '';
+        for (const { name, fn } of proxies) {
             try {
-                const r = await fetchWithTimeout(proxyUrl, 20000);
-                if (r.ok) return await r.json();
-            } catch(e) { /* try next */ }
+                const statusEl = document.getElementById('status-msg');
+                if (statusEl) statusEl.textContent = `Intentando via ${name}...`;
+                const r = await fetchWithTimeout(fn(url), 18000);
+                if (r.ok) {
+                    const text = await r.text();
+                    return JSON.parse(text);
+                }
+            } catch(e) { lastErr = e.message; }
         }
-        throw new Error('No se pudo conectar con la API de Secretaría de Energía.');
+        throw new Error(`Todos los proxies fallaron. Verificá tu conexión a internet.`);
     }
 
     async function fetchAllRecords() {
@@ -283,8 +291,14 @@
     }
 
     function showError(msg) {
-        document.getElementById('kpi-row').innerHTML = `<div class="error-box" style="grid-column:1/-1">⚠️ ${msg}</div>`;
-        document.getElementById('table-container').innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
+        const html = `
+            <div class="error-box" style="grid-column:1/-1; line-height:1.8;">
+                ⚠️ ${msg}<br>
+                <small style="opacity:0.7">Los datos provienen de la Secretaría de Energía vía proxy externo. Puede haber demora o indisponibilidad temporal.</small><br><br>
+                <button onclick="init()" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.4); padding:8px 20px; border-radius:8px; cursor:pointer; font-weight:600;">🔄 Reintentar</button>
+            </div>`;
+        document.getElementById('kpi-row').innerHTML = html;
+        document.getElementById('table-container').innerHTML = `<div class="error-box">⚠️ ${msg} <br><br><button onclick="init()" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.4); padding:8px 20px; border-radius:8px; cursor:pointer; font-weight:600;">🔄 Reintentar</button></div>`;
     }
 
     // ==================== DATA PROCESSING ====================
