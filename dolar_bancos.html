@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dólar Bancos</title>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <style>
+        body { padding: 32px; background-color: transparent; }
+
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+        }
+
+        /* ── HERO CARDS ─────────────────────────────────────── */
+        .hero-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .hero-card {
+            background: rgba(30,41,59,0.7);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 16px;
+            padding: 20px 24px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .hero-card .hc-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .hero-card .hc-name {
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hero-card .hc-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: 4px;
+        }
+
+        .hero-card .hc-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .hero-buy  .hc-value { color: #10b981; }
+        .hero-sell .hc-value { color: #f59e0b; }
+        .hero-spread .hc-value { color: #94a3b8; }
+
+        .hero-buy  { border-left: 3px solid #10b981; }
+        .hero-sell { border-left: 3px solid #f59e0b; }
+        .hero-spread { border-left: 3px solid #6366f1; }
+
+        /* ── CONTROLS ────────────────────────────────────────── */
+        .controls-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            background: rgba(30,41,59,0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #f8fafc;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            min-width: 200px;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus { border-color: var(--accent); }
+        .search-input::placeholder { color: #475569; }
+
+        .sort-select {
+            background: rgba(30,41,59,0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #f8fafc;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .btn-refresh {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-refresh:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-export {
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(30,41,59,0.8);
+            color: #e2e8f0;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-export:hover { background: rgba(51,65,85,0.9); border-color: rgba(255,255,255,0.2); }
+
+        .export-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .last-update {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-left: 8px;
+        }
+
+        /* ── RANKING TABLE ───────────────────────────────────── */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        table.ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .ranking-table thead th {
+            background: rgba(15,23,42,0.9);
+            color: #94a3b8;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            font-weight: 700;
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.15s;
+        }
+        .ranking-table thead th:hover { color: #e2e8f0; }
+        .ranking-table thead th.sorted { color: var(--accent); }
+
+        .ranking-table tbody tr {
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            transition: background 0.15s;
+        }
+        .ranking-table tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .ranking-table tbody tr:last-child { border-bottom: none; }
+
+        .ranking-table td {
+            padding: 12px 16px;
+            color: #e2e8f0;
+        }
+
+        .rank-pos {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 1rem;
+            color: #475569;
+            width: 40px;
+        }
+        .rank-pos.top1 { color: #f59e0b; }
+        .rank-pos.top2 { color: #94a3b8; }
+        .rank-pos.top3 { color: #a16207; }
+
+        .bank-name {
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .price-buy {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #10b981;
+        }
+        .price-sell {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f59e0b;
+        }
+        .price-spread {
+            color: #94a3b8;
+            font-size: 0.82rem;
+        }
+
+        .spread-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .spread-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            min-width: 4px;
+        }
+
+        .badge-best-buy {
+            display: inline-block;
+            background: rgba(16,185,129,0.15);
+            color: #10b981;
+            border: 1px solid rgba(16,185,129,0.3);
+            font-size: 0.65rem;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-left: 6px;
+        }
+        .badge-best-sell {
+            display: inline-block;
+            background: rgba(245,158,11,0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245,158,11,0.3);
+            font-size: 0.65rem;
+            padding: 2px 7px;
+            border-radius: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-left: 6px;
+        }
+
+        .no-data { color: #475569; font-style: italic; font-size: 0.8rem; }
+
+        /* ── MODAL ───────────────────────────────────────────── */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(6px);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-backdrop.open { display: flex; }
+
+        .modal-box {
+            background: #1e293b;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 28px 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-box h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin: 0 0 6px 0;
+        }
+
+        .modal-box p.modal-desc {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin: 0 0 18px 0;
+            line-height: 1.5;
+        }
+
+        .formula-box {
+            background: rgba(15,23,42,0.8);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 14px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            color: #7dd3fc;
+            word-break: break-all;
+            line-height: 1.6;
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        .btn-copy {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(59,130,246,0.2);
+            border: 1px solid rgba(59,130,246,0.4);
+            color: #93c5fd;
+            font-size: 0.72rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-copy:hover { background: rgba(59,130,246,0.35); }
+        .btn-copy.copied { color: #6ee7b7; border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.15); }
+
+        .modal-steps {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        .modal-steps li {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            padding: 5px 0 5px 20px;
+            position: relative;
+            line-height: 1.5;
+        }
+        .modal-steps li::before {
+            content: counter(step);
+            counter-increment: step;
+            position: absolute;
+            left: 0;
+            top: 5px;
+            width: 14px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 50%;
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-steps { counter-reset: step; }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .btn-modal-close {
+            background: rgba(255,255,255,0.07);
+            color: #94a3b8;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 9px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-modal-close:hover { background: rgba(255,255,255,0.12); color: #e2e8f0; }
+
+        .btn-modal-download {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-modal-download:hover { background: #1d4ed8; }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            margin: 32px 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .skeleton-row td { height: 46px; }
+        .skeleton-cell {
+            display: inline-block;
+            width: 80%;
+            height: 14px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    </style>
+</head>
+<body>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">Dólar en Bancos Argentinos</h1>
+        <p class="page-subtitle">Cotizaciones de compra y venta por banco. Fuente: CriptoYa · Actualización automática.</p>
+    </div>
+
+    <!-- HERO: MEJOR COMPRA / MEJOR VENTA / SPREAD PROMEDIO -->
+    <div class="hero-grid stagger-1 fade-in" id="hero-grid">
+        <div class="hero-card hero-buy">
+            <span class="hc-label">Mejor precio para comprar</span>
+            <span class="hc-name" id="best-buy-bank">—</span>
+            <span class="hc-value" id="best-buy-val">$—</span>
+            <span class="hc-sub">Pagás menos → conviene para adquirir dólares</span>
+        </div>
+        <div class="hero-card hero-sell">
+            <span class="hc-label">Mejor precio para vender</span>
+            <span class="hc-name" id="best-sell-bank">—</span>
+            <span class="hc-value" id="best-sell-val">$—</span>
+            <span class="hc-sub">Recibís más → conviene para vender tus dólares</span>
+        </div>
+        <div class="hero-card hero-spread">
+            <span class="hc-label">Spread promedio bancos</span>
+            <span class="hc-name" id="spread-bank-count">— bancos disponibles</span>
+            <span class="hc-value" id="avg-spread-val">—%</span>
+            <span class="hc-sub">Diferencia promedio compra–venta</span>
+        </div>
+    </div>
+
+    <!-- CONTROLES -->
+    <h2 class="section-title stagger-2 fade-in">Ranking de Bancos</h2>
+    <div class="controls-bar stagger-2 fade-in">
+        <input type="text" class="search-input" id="search-input" placeholder="🔍  Buscar banco..." oninput="renderTable()">
+        <select class="sort-select" id="sort-select" onchange="renderTable()">
+            <option value="buy_asc">Mejor compra primero ↑</option>
+            <option value="sell_desc">Mejor venta primero ↓</option>
+            <option value="spread_asc">Menor spread primero</option>
+            <option value="name_asc">Nombre A→Z</option>
+        </select>
+        <button class="btn-refresh" id="btn-refresh" onclick="loadData()">⟳ Actualizar</button>
+        <span class="last-update" id="last-update"></span>
+
+        <div class="export-group">
+            <button class="btn-export" onclick="openModal('sheets')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+                Google Sheets
+            </button>
+            <button class="btn-export" onclick="openModal('excel')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                Excel XML
+            </button>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="glass-card stagger-3 fade-in" style="padding: 0; overflow: hidden;">
+        <div class="table-wrapper">
+            <table class="ranking-table" id="ranking-table">
+                <thead>
+                    <tr>
+                        <th onclick="setSort('rank')" id="th-rank">#</th>
+                        <th onclick="setSort('name_asc')" id="th-name">Banco</th>
+                        <th onclick="setSort('buy_asc')" id="th-buy">Compra (te venden $)</th>
+                        <th onclick="setSort('sell_desc')" id="th-sell">Venta (te compran $)</th>
+                        <th onclick="setSort('spread_asc')" id="th-spread">Spread</th>
+                        <th>Spread Visual</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- skeleton -->
+                    <tr class="skeleton-row"><td><span class="skeleton-cell" style="width:30px"></span></td><td><span class="skeleton-cell" style="width:140px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:55px"></span></td><td><span class="skeleton-cell" style="width:80px"></span></td></tr>
+                    <tr class="skeleton-row"><td><span class="skeleton-cell" style="width:30px"></span></td><td><span class="skeleton-cell" style="width:120px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:55px"></span></td><td><span class="skeleton-cell" style="width:80px"></span></td></tr>
+                    <tr class="skeleton-row"><td><span class="skeleton-cell" style="width:30px"></span></td><td><span class="skeleton-cell" style="width:160px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:55px"></span></td><td><span class="skeleton-cell" style="width:80px"></span></td></tr>
+                    <tr class="skeleton-row"><td><span class="skeleton-cell" style="width:30px"></span></td><td><span class="skeleton-cell" style="width:100px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:55px"></span></td><td><span class="skeleton-cell" style="width:80px"></span></td></tr>
+                    <tr class="skeleton-row"><td><span class="skeleton-cell" style="width:30px"></span></td><td><span class="skeleton-cell" style="width:150px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:70px"></span></td><td><span class="skeleton-cell" style="width:55px"></span></td><td><span class="skeleton-cell" style="width:80px"></span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL GOOGLE SHEETS -->
+    <div class="modal-backdrop" id="modal-sheets" onclick="closeModalIfBackdrop(event, 'modal-sheets')">
+        <div class="modal-box">
+            <h3>📊 Importar en Google Sheets</h3>
+            <p class="modal-desc">
+                Usá la función <strong>IMPORTJSON</strong> o <strong>IMPORTDATA</strong> desde Google Sheets para que los datos se actualicen automáticamente desde esta página cada vez que abras la planilla.
+            </p>
+
+            <p style="font-size:0.78rem; color:#94a3b8; margin:0 0 8px 0; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">Opción 1 — IMPORTDATA (CSV directo)</p>
+            <div class="formula-box" id="formula-sheets-csv">
+                =IMPORTDATA("https://criptoya.com/api/bancostodos")
+                <button class="btn-copy" onclick="copyFormula('formula-sheets-csv', this)">Copiar</button>
+            </div>
+
+            <p style="font-size:0.78rem; color:#94a3b8; margin:0 0 8px 0; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">Opción 2 — Apps Script (recomendado, parsea JSON)</p>
+            <div class="formula-box" id="formula-sheets-script" style="font-size:0.72rem; line-height:1.7;">
+function importDolarBancos() {
+  var url = "https://criptoya.com/api/bancostodos";
+  var response = UrlFetchApp.fetch(url);
+  var data = JSON.parse(response.getContentText());
+  var sheet = SpreadsheetApp.getActiveSheet();
+  sheet.clearContents();
+  sheet.appendRow(["Banco", "Compra", "Venta", "Spread %", "Actualizado"]);
+  var now = new Date().toLocaleString("es-AR");
+  for (var key in data) {
+    var b = data[key];
+    var buy = b.totalask || b.ask || "-";
+    var sell = b.totalbid || b.bid || "-";
+    var spread = (buy && sell) ? (((sell - buy) / buy) * 100).toFixed(2) + "%" : "-";
+    sheet.appendRow([key, buy, sell, spread, now]);
+  }
+}
+                <button class="btn-copy" onclick="copyFormula('formula-sheets-script', this)">Copiar</button>
+            </div>
+
+            <ol class="modal-steps">
+                <li>Abrí tu planilla de Google Sheets</li>
+                <li>Menú <strong>Extensiones → Apps Script</strong></li>
+                <li>Pegá el código de la Opción 2 y guardá (Ctrl+S)</li>
+                <li>Ejecutá la función <code>importDolarBancos</code> manualmente o configurá un trigger para actualización automática</li>
+            </ol>
+
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeModal('modal-sheets')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EXCEL XML -->
+    <div class="modal-backdrop" id="modal-excel" onclick="closeModalIfBackdrop(event, 'modal-excel')">
+        <div class="modal-box">
+            <h3>📁 Exportar a Excel (XML)</h3>
+            <p class="modal-desc">
+                Descargá un archivo <strong>.xml</strong> compatible con Excel que podés abrir directamente. Los datos reflejan la última cotización disponible. Para mantenerlo actualizado, volvé aquí y descargá nuevamente, o usá Power Query para conectarte directo a la API.
+            </p>
+
+            <p style="font-size:0.78rem; color:#94a3b8; margin:0 0 8px 0; font-weight:600; text-transform:uppercase; letter-spacing:0.06em;">Power Query — conexión automática desde Excel</p>
+            <div class="formula-box" id="formula-excel-pq" style="font-size:0.72rem; line-height:1.7;">
+let
+    url = "https://criptoya.com/api/bancostodos",
+    source = Json.Document(Web.Contents(url)),
+    toTable = Record.ToTable(source),
+    expandCol = Table.ExpandRecordColumn(
+        toTable, "Value",
+        {"totalask","totalbid","ask","bid"},
+        {"Compra","Venta","ask_raw","bid_raw"}
+    ),
+    renameCol = Table.RenameColumns(toTable,{{"Name","Banco"}}),
+    final = Table.SelectColumns(expandCol, {"Name","Compra","Venta"})
+in
+    final
+                <button class="btn-copy" onclick="copyFormula('formula-excel-pq', this)">Copiar</button>
+            </div>
+
+            <ol class="modal-steps">
+                <li>En Excel: <strong>Datos → Obtener datos → Desde otras fuentes → Consulta en blanco</strong></li>
+                <li>En el Editor de Power Query, menú <strong>Inicio → Editor avanzado</strong></li>
+                <li>Pegá el código M de arriba y presioná <strong>Listo</strong></li>
+                <li>Cerrá y cargá la consulta para ver los datos en la hoja</li>
+                <li>Para actualizar: <strong>Datos → Actualizar todo</strong></li>
+            </ol>
+
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeModal('modal-excel')">Cerrar</button>
+                <button class="btn-modal-download" onclick="downloadXML()">⬇ Descargar XML ahora</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── STATE ──────────────────────────────────────────────────────
+        let allBanks = [];   // [{ name, buy, sell, spread, spreadPct }]
+        let currentSort = 'buy_asc';
+
+        // ── FORMAT ────────────────────────────────────────────────────
+        const fmt = (n) => n != null ? '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+        const fmtPct = (n) => n != null ? Number(n).toFixed(2) + '%' : '—';
+
+        // ── LOAD DATA ─────────────────────────────────────────────────
+        async function loadData() {
+            const btn = document.getElementById('btn-refresh');
+            btn.disabled = true;
+            btn.textContent = '⟳ Cargando...';
+
+            try {
+                const res = await fetch('https://criptoya.com/api/bancostodos');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const raw = await res.json();
+
+                allBanks = parseBanks(raw);
+                updateHero();
+                renderTable();
+
+                const now = new Date();
+                document.getElementById('last-update').textContent =
+                    'Actualizado: ' + now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+            } catch (err) {
+                console.error('Error al cargar CriptoYa:', err);
+                document.getElementById('table-body').innerHTML =
+                    '<tr><td colspan="6" style="text-align:center; padding:32px; color:#ef4444;">⚠ Error al conectar con la API. Intentá nuevamente.</td></tr>';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '⟳ Actualizar';
+            }
+        }
+
+        // ── PARSE ─────────────────────────────────────────────────────
+        function parseBanks(raw) {
+            const banks = [];
+            for (const key in raw) {
+                const b = raw[key];
+                // CriptoYa puede devolver totalask/totalbid o ask/bid
+                const buy  = b.totalask ?? b.ask ?? null;
+                const sell = b.totalbid ?? b.bid ?? null;
+                if (buy == null && sell == null) continue;
+
+                const spreadAbs = (buy != null && sell != null) ? (sell - buy) : null;
+                const spreadPct = (buy != null && sell != null && buy > 0) ? ((sell - buy) / buy) * 100 : null;
+
+                banks.push({
+                    name:      formatBankName(key),
+                    key,
+                    buy,
+                    sell,
+                    spreadAbs,
+                    spreadPct
+                });
+            }
+            return banks;
+        }
+
+        function formatBankName(key) {
+            // Capitalize nicely: "bancogalicia" → "Banco Galicia"
+            return key
+                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        // ── HERO CARDS ────────────────────────────────────────────────
+        function updateHero() {
+            if (!allBanks.length) return;
+
+            const withBuy  = allBanks.filter(b => b.buy != null);
+            const withSell = allBanks.filter(b => b.sell != null);
+            const withBoth = allBanks.filter(b => b.buy != null && b.sell != null);
+
+            // Mejor para COMPRAR: el que tiene precio de compra MÁS BAJO (pagás menos)
+            const bestBuy = withBuy.sort((a, b) => a.buy - b.buy)[0];
+            // Mejor para VENDER: el que tiene precio de venta MÁS ALTO (recibís más)
+            const bestSell = withSell.sort((a, b) => b.sell - a.sell)[0];
+            // Spread promedio
+            const avgSpread = withBoth.length
+                ? withBoth.reduce((s, b) => s + (b.spreadPct || 0), 0) / withBoth.length
+                : null;
+
+            document.getElementById('best-buy-bank').textContent = bestBuy?.name ?? '—';
+            document.getElementById('best-buy-val').textContent  = bestBuy ? fmt(bestBuy.buy) : '—';
+            document.getElementById('best-sell-bank').textContent = bestSell?.name ?? '—';
+            document.getElementById('best-sell-val').textContent  = bestSell ? fmt(bestSell.sell) : '—';
+            document.getElementById('spread-bank-count').textContent = allBanks.length + ' bancos disponibles';
+            document.getElementById('avg-spread-val').textContent = avgSpread != null ? fmtPct(avgSpread) : '—';
+        }
+
+        // ── RENDER TABLE ──────────────────────────────────────────────
+        function renderTable() {
+            const query = (document.getElementById('search-input')?.value ?? '').toLowerCase().trim();
+            const sortVal = document.getElementById('sort-select').value;
+            currentSort = sortVal;
+
+            let rows = [...allBanks];
+            if (query) rows = rows.filter(b => b.name.toLowerCase().includes(query));
+
+            // Sort
+            switch (sortVal) {
+                case 'buy_asc':    rows.sort((a, b) => (a.buy ?? Infinity) - (b.buy ?? Infinity)); break;
+                case 'sell_desc':  rows.sort((a, b) => (b.sell ?? -Infinity) - (a.sell ?? -Infinity)); break;
+                case 'spread_asc': rows.sort((a, b) => (a.spreadPct ?? Infinity) - (b.spreadPct ?? Infinity)); break;
+                case 'name_asc':   rows.sort((a, b) => a.name.localeCompare(b.name)); break;
+                case 'rank':       rows.sort((a, b) => (a.buy ?? Infinity) - (b.buy ?? Infinity)); break;
+            }
+
+            // Find global best for badge
+            const allWithBuy  = allBanks.filter(b => b.buy  != null).sort((a, b) => a.buy  - b.buy);
+            const allWithSell = allBanks.filter(b => b.sell != null).sort((a, b) => b.sell - a.sell);
+            const bestBuyKey  = allWithBuy[0]?.key;
+            const bestSellKey = allWithSell[0]?.key;
+
+            // Max spread for bar scaling
+            const maxSpread = Math.max(...allBanks.map(b => b.spreadPct ?? 0), 1);
+
+            const tbody = document.getElementById('table-body');
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:32px; color:#94a3b8;">Sin resultados para "' + query + '"</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rows.map((b, i) => {
+                const pos = i + 1;
+                const posClass = pos === 1 ? 'top1' : pos === 2 ? 'top2' : pos === 3 ? 'top3' : '';
+                const badgeBuy  = b.key === bestBuyKey  ? '<span class="badge-best-buy">mejor compra</span>'  : '';
+                const badgeSell = b.key === bestSellKey ? '<span class="badge-best-sell">mejor venta</span>' : '';
+                const barW = b.spreadPct != null ? Math.round((b.spreadPct / maxSpread) * 80) : 0;
+
+                return `<tr>
+                    <td class="rank-pos ${posClass}">${pos}</td>
+                    <td class="bank-name">${escHtml(b.name)}${badgeBuy}${badgeSell}</td>
+                    <td class="price-buy">${b.buy != null ? fmt(b.buy) : '<span class="no-data">s/d</span>'}</td>
+                    <td class="price-sell">${b.sell != null ? fmt(b.sell) : '<span class="no-data">s/d</span>'}</td>
+                    <td class="price-spread">${b.spreadPct != null ? fmtPct(b.spreadPct) : '<span class="no-data">—</span>'}</td>
+                    <td>
+                        <div class="spread-bar-wrap">
+                            <div class="spread-bar" style="width:${barW}px"></div>
+                            <span style="font-size:0.72rem; color:#64748b">${b.spreadAbs != null ? fmt(b.spreadAbs) : ''}</span>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function escHtml(str) {
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ── SORT VIA HEADER CLICK ─────────────────────────────────────
+        function setSort(val) {
+            document.getElementById('sort-select').value = val;
+            renderTable();
+        }
+
+        // ── MODALS ────────────────────────────────────────────────────
+        function openModal(type) {
+            document.getElementById('modal-' + type).classList.add('open');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('open');
+        }
+        function closeModalIfBackdrop(e, id) {
+            if (e.target === document.getElementById(id)) closeModal(id);
+        }
+
+        // ── COPY FORMULA ──────────────────────────────────────────────
+        function copyFormula(boxId, btn) {
+            const el = document.getElementById(boxId);
+            // Get text without the button text
+            const text = el.childNodes[0].textContent.trim();
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = '✓ Copiado';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+            }).catch(() => {
+                // fallback
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                btn.textContent = '✓ Copiado';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+            });
+        }
+
+        // ── DOWNLOAD XML ──────────────────────────────────────────────
+        function downloadXML() {
+            if (!allBanks.length) {
+                alert('Primero cargá los datos (presioná Actualizar).');
+                return;
+            }
+            const rows = [...allBanks].sort((a, b) => (a.buy ?? Infinity) - (b.buy ?? Infinity));
+            const now = new Date().toLocaleString('es-AR');
+
+            const xmlRows = rows.map((b, i) => `
+    <Row>
+      <Cell><Data ss:Type="Number">${i + 1}</Data></Cell>
+      <Cell><Data ss:Type="String">${escHtml(b.name)}</Data></Cell>
+      <Cell><Data ss:Type="Number">${b.buy ?? ''}</Data></Cell>
+      <Cell><Data ss:Type="Number">${b.sell ?? ''}</Data></Cell>
+      <Cell><Data ss:Type="String">${b.spreadPct != null ? b.spreadPct.toFixed(2) + '%' : ''}</Data></Cell>
+    </Row>`).join('');
+
+            const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+          xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Worksheet ss:Name="Dólar Bancos">
+    <Table>
+      <Row>
+        <Cell ss:StyleID="header"><Data ss:Type="String">#</Data></Cell>
+        <Cell ss:StyleID="header"><Data ss:Type="String">Banco</Data></Cell>
+        <Cell ss:StyleID="header"><Data ss:Type="String">Compra (ARS)</Data></Cell>
+        <Cell ss:StyleID="header"><Data ss:Type="String">Venta (ARS)</Data></Cell>
+        <Cell ss:StyleID="header"><Data ss:Type="String">Spread %</Data></Cell>
+      </Row>${xmlRows}
+      <Row>
+        <Cell><Data ss:Type="String">Fuente: criptoya.com/api/bancostodos · ${escHtml(now)}</Data></Cell>
+      </Row>
+    </Table>
+  </Worksheet>
+  <Styles>
+    <Style ss:ID="header">
+      <Font ss:Bold="1"/>
+    </Style>
+  </Styles>
+</Workbook>`;
+
+            const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dolar_bancos_${new Date().toISOString().slice(0,10)}.xml`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ── INIT ──────────────────────────────────────────────────────
+        loadData();
+    </script>
+</body>
+</html>
