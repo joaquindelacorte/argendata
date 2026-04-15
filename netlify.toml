@@ -1,0 +1,7 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from   = "/api/dolar-bancos"
+  to     = "/.netlify/functions/dolar-bancos"
+  status = 200
