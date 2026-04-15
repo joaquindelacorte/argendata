@@ -222,6 +222,32 @@
         /* skeleton */
         .sk { display:inline-block; height:12px; border-radius:4px; background:linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.1) 50%,rgba(255,255,255,0.05) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
         @keyframes shimmer { 0%{background-position:200% 0}100%{background-position:-200% 0} }
+
+        /* ── TOAST ──────────────────────────────────────────────── */
+        #copy-toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(0);
+            background: rgba(16,185,129,0.96);
+            color: #fff;
+            padding: 11px 22px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            z-index: 9999;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.45);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: toast-in 0.22s ease;
+        }
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0);    }
+        }
     </style>
 </head>
 <body>
@@ -464,17 +490,56 @@ function renderFormulas(rows) {
 
 // ── COPY ──────────────────────────────────────────────────────────────────
 function copyF(text, btnId, label) {
-    const btn = document.getElementById(btnId);
+    const btn  = document.getElementById(btnId);
     const orig = btn.innerHTML;
-    navigator.clipboard.writeText(text).catch(() => {
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-    }).finally(() => {
-        btn.textContent = '✓ Copiado';
+
+    // Fallback sincrónico: necesita el gesture del usuario activo (no puede ir en .catch async)
+    function execFallback() {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none;top:0;left:0;';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            return ok;
+        } catch (e) { return false; }
+    }
+
+    function onSuccess() {
+        btn.textContent = '✓';
         btn.classList.add('copied');
         setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
-    });
+        showToast();
+    }
+
+    // Intentar clipboard API (HTTPS / contexto seguro)
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+            .then(onSuccess)
+            .catch(() => { if (execFallback()) onSuccess(); });
+    } else {
+        // iframe o HTTP: ir directo al fallback sincrónico
+        if (execFallback()) onSuccess();
+    }
+}
+
+function showToast() {
+    const prev = document.getElementById('copy-toast');
+    if (prev) prev.remove();
+
+    const t = document.createElement('div');
+    t.id = 'copy-toast';
+    t.innerHTML = '✓ &nbsp;¡Copiado al portapapeles!';
+    document.body.appendChild(t);
+
+    setTimeout(() => {
+        t.style.transition = 'opacity 0.3s ease';
+        t.style.opacity = '0';
+        setTimeout(() => t.remove(), 320);
+    }, 2200);
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
