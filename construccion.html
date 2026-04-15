@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Construcción — ISAC</title>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+
+        @media (max-width: 768px) {
+            body { padding: 16px; }
+        }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            margin: 32px 0 16px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Stats row */
+        .isac-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .stat-mini { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; text-align: center; }
+        .stat-mini .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stat-mini .val { font-family: 'Outfit', sans-serif; font-size: 1.3rem; font-weight: 700; color: #fff; margin-top: 4px; }
+
+        /* Chart */
+        .isac-chart-container { position: relative; height: 320px; width: 100%; margin-top: 8px; }
+        .yoy-chart-container  { position: relative; height: 260px; width: 100%; margin-top: 8px; }
+
+        /* Range slider (same pattern as finanzas.html) */
+        .isac-range-wrap { margin: 8px 0 20px; }
+        .isac-range-labels { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.75rem; }
+        .isac-range-labels .lbl { font-weight: 600; color: #e2e8f0; background: rgba(245,158,11,0.18); padding: 3px 9px; border-radius: 5px; min-width: 72px; text-align: center; }
+        .isac-range-labels .sep { color: var(--text-muted); flex: 1; text-align: center; }
+        .isac-range-track { position: relative; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 14px 8px; }
+        .isac-range-fill { position: absolute; top: 0; height: 100%; background: #f59e0b; border-radius: 2px; pointer-events: none; }
+        .isac-slider { position: absolute; width: calc(100% + 16px); left: -8px; top: 50%; transform: translateY(-50%);
+            -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none;
+            height: 20px; margin: 0; padding: 0; outline: none; }
+        .isac-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+            background: #f59e0b; cursor: pointer; pointer-events: all;
+            border: 2px solid #0f172a; box-shadow: 0 0 0 3px rgba(245,158,11,0.25); transition: box-shadow 0.15s; }
+        .isac-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(245,158,11,0.35); }
+        .isac-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%;
+            background: #f59e0b; cursor: pointer; pointer-events: all; border: 2px solid #0f172a; }
+
+        /* Source note */
+        .source-note { font-size: 0.7rem; color: var(--text-muted); margin-top: 12px; text-align: right; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header stagger-1 fade-in">
+        <h1 class="page-title">Construcción — ISAC</h1>
+        <p class="page-subtitle">Indicador Sintético de la Actividad de la Construcción. Índice base 2004=100. Fuente: SSPM · datos.gob.ar</p>
+    </div>
+
+    <!-- TOP STATS -->
+    <div class="isac-stats stagger-1 fade-in" id="isac-top-stats">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- MAIN CHART -->
+    <h2 class="section-title stagger-2 fade-in">Evolución del ISAC</h2>
+    <div class="glass-card stagger-2 fade-in" id="isac-main-card">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- YOY CHART -->
+    <h2 class="section-title stagger-3 fade-in">Variación Interanual mensual (%)</h2>
+    <div class="glass-card stagger-3 fade-in" id="isac-yoy-card">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <script>
+        const ISAC_URL = 'https://infra.datos.gob.ar/catalog/sspm/dataset/33/distribution/33.2/download/indicador-sintetico-actividad-construccion-valores-mensuales-base-2004.csv';
+
+        let isacFullData  = [];
+        let isacMainChart = null;
+        let isacYoyChart  = null;
+
+        // ── Fetch with CORS proxy fallbacks ──────────────────────────────────
+        async function fetchText(url) {
+            const proxies = [
+                url,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+            ];
+            for (const src of proxies) {
+                try {
+                    const r = await fetch(src);
+                    if (r.ok) return await r.text();
+                } catch (_) {}
+            }
+            throw new Error('No se pudo obtener el CSV (CORS)');
+        }
+
+        // ── CSV parser ───────────────────────────────────────────────────────
+        function parseISACcsv(text) {
+            const lines   = text.trim().split('\n').filter(l => l.trim());
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+
+            const timeIdx  = headers.findIndex(h => h === 'indice_tiempo' || h.includes('tiempo') || h.includes('fecha'));
+            // Look for the ISAC total column (not a variation column)
+            let valueIdx = headers.findIndex(h => h === 'isac_total');
+            if (valueIdx < 0) valueIdx = headers.findIndex(h => h.includes('isac') && !h.includes('var') && !h.includes('pct'));
+            if (valueIdx < 0) valueIdx = timeIdx === 0 ? 1 : 0; // fallback: second column
+
+            return lines.slice(1)
+                .map(line => {
+                    const cols  = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                    const fecha = cols[timeIdx >= 0 ? timeIdx : 0];
+                    const valor = parseFloat(cols[valueIdx]);
+                    return { fecha: fecha ? fecha.substring(0, 7) : null, valor };
+                })
+                .filter(d => d.fecha && !isNaN(d.valor));
+        }
+
+        // ── Top stats (full dataset last point) ──────────────────────────────
+        function renderTopStats(data) {
+            const last     = data[data.length - 1];
+            const prev     = data.length >= 2  ? data[data.length - 2]  : null;
+            const prevYear = data.length >= 13 ? data[data.length - 13] : null;
+            const last12   = data.slice(-12);
+
+            const mom  = prev     ? (((last.valor - prev.valor)     / prev.valor)     * 100).toFixed(2) : null;
+            const yoy  = prevYear ? (((last.valor - prevYear.valor) / prevYear.valor) * 100).toFixed(2) : null;
+            const avg12 = (last12.reduce((s, d) => s + d.valor, 0) / last12.length).toFixed(1);
+
+            const cVal = v => v !== null && parseFloat(v) >= 0 ? 'var(--success)' : 'var(--danger)';
+            const sign = v => v !== null && parseFloat(v) >= 0 ? '+' : '';
+            const arr  = v => v !== null ? (parseFloat(v) >= 0 ? '▲' : '▼') : '';
+
+            document.getElementById('isac-top-stats').innerHTML = `
+                <div class="stat-mini">
+                    <div class="label">Índice ISAC</div>
+                    <div class="val" style="color:#f59e0b;">${Number(last.valor).toLocaleString('es-AR',{maximumFractionDigits:1})}</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">${last.fecha}</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="label">Var. mensual</div>
+                    <div class="val" style="color:${cVal(mom)};">${mom !== null ? sign(mom)+mom+'%' : '—'}</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">vs mes anterior</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="label">Var. interanual</div>
+                    <div class="val" style="color:${cVal(yoy)};">${yoy !== null ? sign(yoy)+yoy+'%' : '—'}</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">vs mismo mes año ant.</div>
+                </div>
+                <div class="stat-mini">
+                    <div class="label">Promedio 12m</div>
+                    <div class="val">${avg12}</div>
+                    <div style="font-size:0.7rem;color:var(--text-muted);">últimos 12 meses</div>
+                </div>
+            `;
+        }
+
+        // ── Main chart with slider ────────────────────────────────────────────
+        function renderMainCard(fullData) {
+            const card = document.getElementById('isac-main-card');
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                    <div>
+                        <div class="data-label">ISAC — Índice base 2004=100</div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);">Fuente: SSPM · datos.gob.ar</div>
+                    </div>
+                </div>
+                <div class="isac-stats" id="isac-slice-stats"></div>
+                <div class="isac-range-wrap">
+                    <div class="isac-range-labels">
+                        <span class="lbl" id="isac-lbl-from">—</span>
+                        <span class="sep">→</span>
+                        <span class="lbl" id="isac-lbl-to">—</span>
+                    </div>
+                    <div class="isac-range-track">
+                        <div class="isac-range-fill" id="isac-range-fill"></div>
+                        <input type="range" class="isac-slider" id="isac-from">
+                        <input type="range" class="isac-slider" id="isac-to">
+                    </div>
+                </div>
+                <div class="isac-chart-container"><canvas id="isacMainCanvas"></canvas></div>
+                <div class="source-note">ISAC · SSPM · datos.gob.ar</div>
+            `;
+            setupMainSlider(fullData);
+        }
+
+        function setupMainSlider(fullData) {
+            const n      = fullData.length;
+            const fromEl = document.getElementById('isac-from');
+            const toEl   = document.getElementById('isac-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = Math.max(0, n - 60);
+            toEl.value   = n - 1;
+
+            function sync() {
+                let from = +fromEl.value, to = +toEl.value;
+                if (from >= to) {
+                    if (document.activeElement === fromEl) { from = Math.max(0, to - 2); fromEl.value = from; }
+                    else { to = Math.min(n - 1, from + 2); toEl.value = to; }
+                }
+
+                const pFrom = (from / (n - 1)) * 100, pTo = (to / (n - 1)) * 100;
+                const fill  = document.getElementById('isac-range-fill');
+                fill.style.left  = pFrom + '%';
+                fill.style.width = (pTo - pFrom) + '%';
+                document.getElementById('isac-lbl-from').textContent = fullData[from].fecha;
+                document.getElementById('isac-lbl-to').textContent   = fullData[to].fecha;
+
+                const slice    = fullData.slice(from, to + 1);
+                const last     = slice[slice.length - 1];
+                const prevM    = slice.length >= 2  ? slice[slice.length - 2]  : null;
+                const prevYear = to >= 12           ? fullData[to - 12]        : null;
+                const mom  = prevM    ? (((last.valor - prevM.valor)    / prevM.valor)    * 100).toFixed(2) : null;
+                const yoy  = prevYear ? (((last.valor - prevYear.valor) / prevYear.valor) * 100).toFixed(2) : null;
+                const min  = Math.min(...slice.map(d => d.valor));
+                const max  = Math.max(...slice.map(d => d.valor));
+                const cVal = v => v !== null && parseFloat(v) >= 0 ? 'var(--success)' : 'var(--danger)';
+                const sign = v => v !== null && parseFloat(v) >= 0 ? '+' : '';
+
+                document.getElementById('isac-slice-stats').innerHTML = `
+                    <div class="stat-mini">
+                        <div class="label">Índice ISAC</div>
+                        <div class="val">${Number(last.valor).toLocaleString('es-AR',{maximumFractionDigits:1})}</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);">${last.fecha}</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. mensual</div>
+                        <div class="val" style="font-size:1.1rem;color:${cVal(mom)};">${mom !== null ? sign(mom)+mom+'%' : '—'}</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. interanual</div>
+                        <div class="val" style="color:${cVal(yoy)};">${yoy !== null ? sign(yoy)+yoy+'%' : '—'}</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Mín / Máx (selección)</div>
+                        <div class="val" style="font-size:0.9rem;">
+                            ${Number(min).toLocaleString('es-AR',{maximumFractionDigits:1})}
+                            <span style="color:var(--text-muted);font-size:0.75rem;"> / </span>
+                            ${Number(max).toLocaleString('es-AR',{maximumFractionDigits:1})}
+                        </div>
+                    </div>
+                `;
+
+                if (!isacMainChart) {
+                    const ctx = document.getElementById('isacMainCanvas').getContext('2d');
+                    isacMainChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: slice.map(d => d.fecha),
+                            datasets: [{
+                                label: 'ISAC',
+                                data: slice.map(d => d.valor),
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245,158,11,0.12)',
+                                fill: true, tension: 0.35,
+                                pointRadius: slice.length > 60 ? 0 : 2,
+                                pointHoverRadius: 5, borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true, maintainAspectRatio: false,
+                            animation: { duration: 250 },
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: { callbacks: { label: i => `ISAC: ${Number(i.raw).toLocaleString('es-AR',{maximumFractionDigits:1})}` } }
+                            },
+                            scales: {
+                                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', maxTicksLimit: 12, maxRotation: 45, font: { size: 10 } } },
+                                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v.toFixed(0) } }
+                            }
+                        }
+                    });
+                } else {
+                    isacMainChart.data.labels = slice.map(d => d.fecha);
+                    isacMainChart.data.datasets[0].data = slice.map(d => d.valor);
+                    isacMainChart.data.datasets[0].pointRadius = slice.length > 60 ? 0 : 2;
+                    isacMainChart.update('none');
+                }
+            }
+
+            fromEl.addEventListener('input', sync);
+            toEl.addEventListener('input', sync);
+            sync();
+        }
+
+        // ── Year-over-year bar chart (last 36 months) ────────────────────────
+        function renderYoyCard(fullData) {
+            const card = document.getElementById('isac-yoy-card');
+
+            // Compute yoy for all months that have a prior-year value
+            const yoyData = fullData
+                .map((d, i) => {
+                    if (i < 12) return null;
+                    const prev = fullData[i - 12];
+                    const pct  = ((d.valor - prev.valor) / prev.valor * 100);
+                    return { fecha: d.fecha, pct };
+                })
+                .filter(Boolean)
+                .slice(-36); // last 36 months
+
+            card.innerHTML = `
+                <div class="data-label" style="margin-bottom:12px;">Últimos 36 meses · variación interanual</div>
+                <div class="yoy-chart-container"><canvas id="isacYoyCanvas"></canvas></div>
+                <div class="source-note">ISAC · SSPM · datos.gob.ar</div>
+            `;
+
+            if (isacYoyChart) isacYoyChart.destroy();
+            const ctx = document.getElementById('isacYoyCanvas').getContext('2d');
+            isacYoyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: yoyData.map(d => d.fecha),
+                    datasets: [{
+                        label: 'Var. i/a ISAC (%)',
+                        data: yoyData.map(d => parseFloat(d.pct.toFixed(2))),
+                        backgroundColor: yoyData.map(d => d.pct >= 0 ? 'rgba(16,185,129,0.65)' : 'rgba(239,68,68,0.65)'),
+                        borderRadius: 4, borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: i => `${i.raw > 0 ? '+' : ''}${i.raw}%` } }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 45, font: { size: 10 } } },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#64748b', callback: v => v + '%' },
+                            border: { dash: [4, 4] }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── Init ─────────────────────────────────────────────────────────────
+        async function init() {
+            try {
+                const csvText = await fetchText(ISAC_URL);
+                isacFullData  = parseISACcsv(csvText);
+                if (!isacFullData.length) throw new Error('CSV sin datos válidos');
+
+                renderTopStats(isacFullData);
+                renderMainCard(isacFullData);
+                renderYoyCard(isacFullData);
+            } catch (e) {
+                console.error('ISAC:', e);
+                ['isac-top-stats','isac-main-card','isac-yoy-card'].forEach(id => {
+                    document.getElementById(id).innerHTML =
+                        `<div style="color:var(--danger);padding:16px;">⚠️ ${e.message}</div>`;
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
