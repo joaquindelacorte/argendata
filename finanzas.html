@@ -588,7 +588,7 @@
             const section = document.getElementById('emae-section');
             try {
                 const base   = 'https://apis.datos.gob.ar/series/api/series/';
-                const params = 'limit=120&format=json&sort=asc';
+                const params = 'limit=300&format=json&sort=asc';
                 const [resOrig, resDesest] = await Promise.all([
                     fetch(`${base}?ids=${EMAE_SERIES.original}&${params}`),
                     fetch(`${base}?ids=${EMAE_SERIES.desest}&${params}`)
