@@ -103,25 +103,11 @@
 
     <!-- Indicators Section -->
     <h2 class="section-title stagger-3 fade-in">Indicadores Macroeconómicos</h2>
-    <div class="grid-2 stagger-3 fade-in">
-        <div class="glass-card">
-            <div class="data-label">Riesgo País (EMBI+)</div>
-            <div class="indicator-hero">
-                <div class="data-value" id="riesgo-val">---</div>
-                <span class="badge" id="riesgo-badge">---</span>
-            </div>
-            <div class="mini-trend" style="color:var(--text-muted);" id="riesgo-date">Cargando...</div>
-            <div class="chart-container"><canvas id="riesgoChart"></canvas></div>
-        </div>
-        <div class="glass-card">
-            <div class="data-label">Inflación Mensual (IPC)</div>
-            <div class="indicator-hero">
-                <div class="data-value" id="inflacion-val">---</div>
-                <span class="badge" id="inflacion-badge">---</span>
-            </div>
-            <div class="mini-trend" style="color:var(--text-muted);" id="inflacion-date">Cargando...</div>
-            <div class="chart-container"><canvas id="inflacionChart"></canvas></div>
-        </div>
+    <div class="glass-card stagger-3 fade-in" id="riesgo-section">
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+    <div class="glass-card stagger-3 fade-in" style="margin-top:16px;" id="inflacion-section">
+        <div class="loader-container"><div class="spinner"></div></div>
     </div>
 
     <!-- EMAE Section -->
@@ -528,51 +514,279 @@
         }
 
         // ======== RIESGO PAÍS ========
+        let riesgoChart = null;
+        let riesgoAllData = [];
+
         async function fetchRiesgoPais() {
+            const section = document.getElementById('riesgo-section');
             try {
                 const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais');
                 if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json();
-                const last90 = data.slice(-90);
-                const last = last90[last90.length - 1];
-                const prev = last90[last90.length - 2];
-                const diff = last.valor - prev.valor;
-                const diffPct = ((diff / prev.valor) * 100).toFixed(1);
-                document.getElementById('riesgo-val').innerText = last.valor + ' pts';
-                document.getElementById('riesgo-date').innerText = `Último dato: ${last.fecha}`;
-                const badge = document.getElementById('riesgo-badge');
-                badge.className = diff <= 0 ? 'badge badge-up' : 'badge badge-down';
-                badge.innerText = diff <= 0 ? `▼ ${Math.abs(diff)} (${Math.abs(diffPct)}%)` : `▲ ${diff} (${diffPct}%)`;
-                new Chart(document.getElementById('riesgoChart').getContext('2d'), {
-                    type: 'line',
-                    data: { labels: last90.map(r => r.fecha), datasets: [{ label: 'Riesgo País', data: last90.map(r => r.valor), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2 }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: item => `${item.raw} puntos` } } }, scales: { x: { display: false }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } } }, interaction: { mode: 'nearest', axis: 'x', intersect: false } }
-                });
-            } catch (e) { document.getElementById('riesgo-val').innerText = 'Error'; }
+                riesgoAllData = await res.json();
+                renderRiesgoPais();
+            } catch (e) {
+                section.innerHTML = '<div style="color:var(--danger);padding:16px;">Error cargando riesgo país.</div>';
+            }
+        }
+
+        function renderRiesgoPais() {
+            const data = riesgoAllData;
+            const section = document.getElementById('riesgo-section');
+            if (!data.length) return;
+
+            const last = data[data.length - 1];
+            const prev = data[data.length - 2];
+            const diff = last.valor - prev.valor;
+            const diffPct = ((diff / prev.valor) * 100).toFixed(1);
+            const badgeClass = diff <= 0 ? 'badge badge-up' : 'badge badge-down';
+            const badgeText = diff <= 0 ? `▼ ${Math.abs(diff)} (${Math.abs(diffPct)}%)` : `▲ ${diff} (${diffPct}%)`;
+
+            section.innerHTML = `
+                <div class="data-label">Riesgo País (EMBI+)</div>
+                <div class="indicator-hero">
+                    <div class="data-value">${last.valor} pts</div>
+                    <span class="badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div class="mini-trend" style="color:var(--text-muted);">Último dato: ${last.fecha}</div>
+                <div class="emae-range-wrap" style="margin-top:16px;">
+                    <div class="emae-range-labels">
+                        <span class="lbl" id="riesgo-lbl-from">—</span>
+                        <span class="sep">→</span>
+                        <span class="lbl" id="riesgo-lbl-to">—</span>
+                    </div>
+                    <div class="emae-range-track">
+                        <div class="emae-range-fill" id="riesgo-range-fill"></div>
+                        <input type="range" class="emae-slider" id="riesgo-from">
+                        <input type="range" class="emae-slider" id="riesgo-to">
+                    </div>
+                </div>
+                <div class="chart-container" style="height:260px;"><canvas id="riesgoChart"></canvas></div>
+            `;
+
+            if (riesgoChart) { riesgoChart.destroy(); riesgoChart = null; }
+            setupRiesgoSlider();
+        }
+
+        function setupRiesgoSlider() {
+            const data = riesgoAllData;
+            const n = data.length;
+            const fromEl = document.getElementById('riesgo-from');
+            const toEl = document.getElementById('riesgo-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = Math.max(0, n - 90);
+            toEl.value = n - 1;
+
+            function syncRiesgo() {
+                let from = +fromEl.value;
+                let to = +toEl.value;
+                if (from >= to) {
+                    if (document.activeElement === fromEl) { from = Math.max(0, to - 2); fromEl.value = from; }
+                    else { to = Math.min(n - 1, from + 2); toEl.value = to; }
+                }
+
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                document.getElementById('riesgo-range-fill').style.left  = pFrom + '%';
+                document.getElementById('riesgo-range-fill').style.width = (pTo - pFrom) + '%';
+                document.getElementById('riesgo-lbl-from').textContent = data[from].fecha;
+                document.getElementById('riesgo-lbl-to').textContent   = data[to].fecha;
+
+                const slice = data.slice(from, to + 1);
+
+                if (!riesgoChart) {
+                    const ctx = document.getElementById('riesgoChart').getContext('2d');
+                    riesgoChart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: slice.map(r => r.fecha), datasets: [{ label: 'Riesgo País', data: slice.map(r => r.valor), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.35, pointRadius: slice.length > 120 ? 0 : 2, borderWidth: 2 }] },
+                        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, callbacks: { label: item => `${item.raw} puntos` } } }, scales: { x: { display: false }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } } }, interaction: { mode: 'nearest', axis: 'x', intersect: false } }
+                    });
+                } else {
+                    riesgoChart.data.labels = slice.map(r => r.fecha);
+                    riesgoChart.data.datasets[0].data = slice.map(r => r.valor);
+                    riesgoChart.data.datasets[0].pointRadius = slice.length > 120 ? 0 : 2;
+                    riesgoChart.update('none');
+                }
+            }
+
+            fromEl.addEventListener('input', syncRiesgo);
+            toEl.addEventListener('input', syncRiesgo);
+            syncRiesgo();
         }
 
         // ======== INFLACIÓN ========
+        let inflacionChart = null;
+        let inflacionAllData = [];
+
         async function fetchInflacion() {
+            const section = document.getElementById('inflacion-section');
             try {
                 const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion');
                 if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json();
-                const last24 = data.slice(-24);
-                const last = last24[last24.length - 1];
-                const prev = last24[last24.length - 2];
-                document.getElementById('inflacion-val').innerText = last.valor + '%';
-                const fechaLabel = new Date(last.fecha).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-                document.getElementById('inflacion-date').innerText = `Período: ${fechaLabel}`;
-                const diff = (last.valor - prev.valor).toFixed(1);
-                const badge = document.getElementById('inflacion-badge');
-                badge.className = parseFloat(diff) <= 0 ? 'badge badge-up' : 'badge badge-down';
-                badge.innerText = parseFloat(diff) <= 0 ? `▼ ${Math.abs(diff)} pp vs anterior` : `▲ ${diff} pp vs anterior`;
-                new Chart(document.getElementById('inflacionChart').getContext('2d'), {
-                    type: 'bar',
-                    data: { labels: last24.map(r => new Date(r.fecha).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' })), datasets: [{ label: 'IPC %', data: last24.map(r => r.valor), backgroundColor: last24.map(r => r.valor > 5 ? 'rgba(239,68,68,0.6)' : 'rgba(16,185,129,0.6)'), borderRadius: 4, borderSkipped: false }] },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: item => `${item.raw}% mensual` } } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 45, font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v + '%' } } } }
-                });
-            } catch (e) { document.getElementById('inflacion-val').innerText = 'Error'; }
+                inflacionAllData = await res.json();
+                renderInflacion();
+            } catch (e) {
+                section.innerHTML = '<div style="color:var(--danger);padding:16px;">Error cargando inflación.</div>';
+            }
+        }
+
+        function renderInflacion() {
+            const data = inflacionAllData;
+            const section = document.getElementById('inflacion-section');
+            if (!data.length) return;
+
+            const last = data[data.length - 1];
+            const prev = data[data.length - 2];
+            const diff = (last.valor - prev.valor).toFixed(1);
+            const badgeClass = parseFloat(diff) <= 0 ? 'badge badge-up' : 'badge badge-down';
+            const badgeText = parseFloat(diff) <= 0 ? `▼ ${Math.abs(diff)} pp vs anterior` : `▲ ${diff} pp vs anterior`;
+            const fechaLabel = new Date(last.fecha).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+            section.innerHTML = `
+                <div class="data-label">Inflación Mensual (IPC)</div>
+                <div class="indicator-hero">
+                    <div class="data-value">${last.valor}%</div>
+                    <span class="badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div class="mini-trend" style="color:var(--text-muted);">Período: ${fechaLabel}</div>
+                <div class="emae-range-wrap" style="margin-top:16px;">
+                    <div class="emae-range-labels">
+                        <span class="lbl" id="inflacion-lbl-from">—</span>
+                        <span class="sep">→</span>
+                        <span class="lbl" id="inflacion-lbl-to">—</span>
+                    </div>
+                    <div class="emae-range-track">
+                        <div class="emae-range-fill" id="inflacion-range-fill"></div>
+                        <input type="range" class="emae-slider" id="inflacion-from">
+                        <input type="range" class="emae-slider" id="inflacion-to">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin:16px 0;">
+                    <div class="stat-mini">
+                        <div class="label">Var. Interanual</div>
+                        <div class="val" id="inflacion-yoy-val" style="color:var(--danger);">—</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);" id="inflacion-yoy-label">Últimos 12 meses al fin del período</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Var. del Segmento</div>
+                        <div class="val" id="inflacion-seg-val" style="color:var(--danger);">—</div>
+                        <div style="font-size:0.7rem;color:var(--text-muted);" id="inflacion-seg-label">Acumulado en período seleccionado</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="label">Calculadora de Inflación</div>
+                        <div style="display:flex; align-items:center; gap:6px; margin-top:8px;">
+                            <span style="color:var(--text-muted); font-size:1rem; flex-shrink:0;">$</span>
+                            <input type="number" id="inflacion-calc-input" min="0" placeholder="Ingresá un monto"
+                                style="background:rgba(30,41,59,0.8);color:white;border:1px solid var(--border-color);padding:6px 10px;border-radius:6px;font-family:'Inter',sans-serif;font-size:0.9rem;outline:none;flex:1;min-width:0;">
+                        </div>
+                        <div id="inflacion-calc-result" style="margin-top:10px; text-align:center; display:none;">
+                            <div style="font-size:0.7rem;color:var(--text-muted);">Equivale a hoy</div>
+                            <div id="inflacion-calc-value" style="font-family:'Outfit',sans-serif; font-size:1.6rem; font-weight:700; color:var(--accent);"></div>
+                            <div id="inflacion-calc-desc" style="font-size:0.7rem;color:var(--text-muted);"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="inflacionChart"></canvas></div>
+            `;
+
+            if (inflacionChart) { inflacionChart.destroy(); inflacionChart = null; }
+            document.getElementById('inflacion-calc-input').addEventListener('input', updateInflacionCalc);
+            setupInflacionSlider();
+        }
+
+        let _inflacionSliceRef = [];
+
+        function setupInflacionSlider() {
+            const data = inflacionAllData;
+            const n = data.length;
+            const fromEl = document.getElementById('inflacion-from');
+            const toEl   = document.getElementById('inflacion-to');
+
+            [fromEl, toEl].forEach(el => { el.min = 0; el.max = n - 1; });
+            fromEl.value = Math.max(0, n - 24);
+            toEl.value   = n - 1;
+
+            function syncInflacion() {
+                let from = +fromEl.value;
+                let to   = +toEl.value;
+                if (from >= to) {
+                    if (document.activeElement === fromEl) { from = Math.max(0, to - 2); fromEl.value = from; }
+                    else { to = Math.min(n - 1, from + 2); toEl.value = to; }
+                }
+
+                const pFrom = (from / (n - 1)) * 100;
+                const pTo   = (to   / (n - 1)) * 100;
+                document.getElementById('inflacion-range-fill').style.left  = pFrom + '%';
+                document.getElementById('inflacion-range-fill').style.width = (pTo - pFrom) + '%';
+
+                const fromLabel = data[from].fecha.substring(0, 7);
+                const toLabel   = data[to].fecha.substring(0, 7);
+                document.getElementById('inflacion-lbl-from').textContent = fromLabel;
+                document.getElementById('inflacion-lbl-to').textContent   = toLabel;
+
+                const slice = data.slice(from, to + 1);
+                _inflacionSliceRef = slice;
+
+                // Variación del segmento: producto compuesto
+                const segFactor = slice.reduce((acc, d) => acc * (1 + d.valor / 100), 1) - 1;
+                const segPct = (segFactor * 100).toFixed(1);
+                document.getElementById('inflacion-seg-val').textContent = segPct + '%';
+                document.getElementById('inflacion-seg-label').textContent = `Acumulado: ${fromLabel} → ${toLabel}`;
+
+                // Variación interanual: últimos 12 meses al fin del período seleccionado
+                const yoySlice = to >= 12 ? data.slice(to - 11, to + 1) : data.slice(0, to + 1);
+                const yoyFactor = yoySlice.reduce((acc, d) => acc * (1 + d.valor / 100), 1) - 1;
+                const yoyPct = (yoyFactor * 100).toFixed(1);
+                document.getElementById('inflacion-yoy-val').textContent = yoyPct + '%';
+                document.getElementById('inflacion-yoy-label').textContent = `Últimos 12 meses al ${toLabel}`;
+
+                // Calculadora
+                updateInflacionCalc();
+
+                // Chart
+                const labels = slice.map(r => new Date(r.fecha).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }));
+                const vals   = slice.map(r => r.valor);
+                const colors = slice.map(r => r.valor > 5 ? 'rgba(239,68,68,0.6)' : 'rgba(16,185,129,0.6)');
+
+                if (!inflacionChart) {
+                    const ctx = document.getElementById('inflacionChart').getContext('2d');
+                    inflacionChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: { labels, datasets: [{ label: 'IPC %', data: vals, backgroundColor: colors, borderRadius: 4, borderSkipped: false }] },
+                        options: { responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: item => `${item.raw}% mensual` } } }, scales: { x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 45, font: { size: 10 } } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', callback: v => v + '%' } } } }
+                    });
+                } else {
+                    inflacionChart.data.labels = labels;
+                    inflacionChart.data.datasets[0].data = vals;
+                    inflacionChart.data.datasets[0].backgroundColor = colors;
+                    inflacionChart.update('none');
+                }
+            }
+
+            fromEl.addEventListener('input', syncInflacion);
+            toEl.addEventListener('input', syncInflacion);
+            syncInflacion();
+        }
+
+        function updateInflacionCalc() {
+            const input = document.getElementById('inflacion-calc-input');
+            const resultDiv = document.getElementById('inflacion-calc-result');
+            if (!input || !resultDiv) return;
+            const amount = parseFloat(input.value);
+            if (!amount || isNaN(amount) || amount <= 0 || !_inflacionSliceRef.length) {
+                resultDiv.style.display = 'none';
+                return;
+            }
+            const factor = _inflacionSliceRef.reduce((acc, d) => acc * (1 + d.valor / 100), 1);
+            const inflated = amount * factor;
+            const pct = ((factor - 1) * 100).toFixed(1);
+            const fromDate = _inflacionSliceRef[0].fecha.substring(0, 7);
+            const toDate   = _inflacionSliceRef[_inflacionSliceRef.length - 1].fecha.substring(0, 7);
+            document.getElementById('inflacion-calc-value').textContent =
+                '$' + inflated.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('inflacion-calc-desc').textContent =
+                `De ${fromDate} a ${toDate} · +${pct}%`;
+            resultDiv.style.display = 'block';
         }
 
         // ======== EMAE ========
