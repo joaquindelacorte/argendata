@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energía Eléctrica | SADI</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7056671058245686"
+     crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { padding: 32px; background-color: transparent; }
+        @media (max-width: 768px) { body { padding: 16px; } }
+
+        .section-title {
+            font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 700;
+            margin: 0 0 16px 0; padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
+            color: var(--text-primary);
+        }
+
+        /* KPI */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px; margin-bottom: 28px;
+        }
+        .kpi-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+            padding: 18px 16px; text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative; overflow: hidden;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        .kpi-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: var(--kpi-color, var(--accent)); border-radius: 14px 14px 0 0;
+        }
+        .kpi-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; margin-bottom: 8px; }
+        .kpi-value { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.6rem; color: #fff; line-height: 1; }
+        .kpi-unit { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .kpi-icon { font-size: 1.4rem; margin-bottom: 8px; display: block; }
+
+        /* Charts layout */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1.8fr;
+            gap: 20px; margin-bottom: 24px;
+        }
+        @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
+
+        .chart-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+            padding: 20px;
+        }
+
+        .chart-wrapper { position: relative; width: 100%; }
+        .chart-wrapper.donut { height: 260px; }
+        .chart-wrapper.line { height: 280px; }
+
+        /* Mix legend */
+        .mix-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+        .mix-item { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; }
+        .mix-dot-label { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+        .mix-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .mix-value { font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+        .mix-pct { color: var(--text-muted); font-size: 0.72rem; margin-left: 4px; }
+
+        /* Corridors */
+        .corridors-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px; margin-bottom: 24px;
+        }
+        .corridor-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+            padding: 20px;
+        }
+        .corridor-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8rem; }
+        .corridor-table th {
+            text-align: left; padding: 8px 10px; color: var(--text-muted);
+            font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em;
+            font-weight: 600; border-bottom: 1px solid var(--border-color);
+        }
+        .corridor-table td { padding: 9px 10px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-primary); }
+        .corridor-table tr:last-child td { border-bottom: none; }
+        .corridor-table tr:hover td { background: rgba(255,255,255,0.025); }
+        .mw-pos { color: #10b981; font-weight: 700; }
+        .mw-neg { color: #ef4444; font-weight: 700; }
+        .mw-zero { color: var(--text-muted); font-weight: 600; }
+
+        /* Reservoirs */
+        .reservoir-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 14px;
+            padding: 20px; margin-bottom: 24px;
+        }
+        .reservoir-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px; margin-top: 4px;
+        }
+        .reservoir-item {
+            background: rgba(15,23,42,0.6); border-radius: 10px;
+            padding: 14px; border: 1px solid rgba(255,255,255,0.04);
+        }
+        .reservoir-name { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 6px; }
+        .reservoir-val { font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.1rem; color: #fff; }
+        .reservoir-sub { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+        .progress-bar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+
+        /* Region selector */
+        .region-select {
+            background: rgba(15,23,42,0.8); color: var(--text-primary);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 6px 12px; font-family: 'Inter', sans-serif; font-size: 0.8rem;
+            cursor: pointer; outline: none;
+        }
+        .region-select:focus { border-color: var(--accent); }
+        .region-select option { background: #1e293b; }
+
+        /* Status & badges */
+        .live-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(16,185,129,0.12); color: #10b981;
+            border: 1px solid rgba(16,185,129,0.25); border-radius: 20px;
+            padding: 3px 10px; font-size: 0.7rem; font-weight: 700;
+        }
+        .live-dot {
+            width: 6px; height: 6px; border-radius: 50%; background: #10b981;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        .source-tag { font-size: 0.7rem; color: var(--text-muted); font-weight: 400; font-family: 'Inter', sans-serif; }
+
+        /* Loader */
+        .section-loader { display: flex; align-items: center; justify-content: center; min-height: 120px; }
+        .mini-spinner { width: 28px; height: 28px; border: 2px solid rgba(255,255,255,0.08); border-radius: 50%; border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error-box { background: rgba(239,68,68,0.1); color: #ef4444; padding: 16px; border-radius: 8px; font-size: 0.82rem; text-align: center; border: 1px solid rgba(239,68,68,0.2); }
+        .info-msg { color: var(--text-muted); font-size: 0.8rem; font-style: italic; }
+
+        .header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .refresh-btn {
+            background: rgba(59,130,246,0.12); color: var(--accent);
+            border: 1px solid rgba(59,130,246,0.3); border-radius: 8px;
+            padding: 5px 12px; font-size: 0.75rem; font-weight: 600;
+            cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.2s;
+        }
+        .refresh-btn:hover { background: rgba(59,130,246,0.22); }
+    </style>
+</head>
+<body>
+
+    <!-- Page Header -->
+    <div class="page-header fade-in">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+            <div>
+                <h1 class="page-title">⚡ Energía Eléctrica</h1>
+                <p class="page-subtitle">Sistema Argentino de Interconexión (SADI) — Datos en tiempo real</p>
+            </div>
+            <div class="header-actions">
+                <span class="live-badge"><span class="live-dot"></span>En vivo</span>
+                <button class="refresh-btn" onclick="loadAllData()">↺ Actualizar</button>
+                <span class="source-tag">Fuente: CAMMESA</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Region selector -->
+    <div style="margin-bottom: 20px; display:flex; align-items:center; gap:10px;" class="fade-in stagger-1">
+        <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">Región:</span>
+        <select class="region-select" id="regionSelect" onchange="onRegionChange()">
+            <option value="">Cargando regiones...</option>
+        </select>
+        <span id="lastUpdate" style="font-size:0.72rem; color:var(--text-muted);"></span>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-row fade-in stagger-1" id="kpiRow">
+        <div class="kpi-card" style="--kpi-color:#3b82f6;">
+            <span class="kpi-icon">⚡</span>
+            <div class="kpi-label">Generación Total</div>
+            <div class="kpi-value" id="kpiGenTotal">—</div>
+            <div class="kpi-unit">MW</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color:#10b981;">
+            <span class="kpi-icon">🌿</span>
+            <div class="kpi-label">Renovable</div>
+            <div class="kpi-value" id="kpiRenovable">—</div>
+            <div class="kpi-unit">% del mix</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color:#8b5cf6;">
+            <span class="kpi-icon">☢️</span>
+            <div class="kpi-label">Nuclear</div>
+            <div class="kpi-value" id="kpiNuclear">—</div>
+            <div class="kpi-unit">MW</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color:#3b82f6;">
+            <span class="kpi-icon">💧</span>
+            <div class="kpi-label">Hidráulica</div>
+            <div class="kpi-value" id="kpiHidro">—</div>
+            <div class="kpi-unit">MW</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color:#f59e0b;">
+            <span class="kpi-icon">🔥</span>
+            <div class="kpi-label">Térmica</div>
+            <div class="kpi-value" id="kpiTermico">—</div>
+            <div class="kpi-unit">MW</div>
+        </div>
+        <div class="kpi-card" style="--kpi-color:#f97316;">
+            <span class="kpi-icon">🌡️</span>
+            <div class="kpi-label">Temperatura</div>
+            <div class="kpi-value" id="kpiTemp">—</div>
+            <div class="kpi-unit">°C actual</div>
+        </div>
+    </div>
+
+    <!-- Charts Row: Mix + Demanda -->
+    <div class="charts-row fade-in stagger-2">
+        <!-- Mix donut -->
+        <div class="chart-card">
+            <div class="section-title">
+                Mix de Generación
+                <span class="source-tag" id="mixFecha"></span>
+            </div>
+            <div id="mixLoader" class="section-loader"><div class="mini-spinner"></div></div>
+            <div id="mixContent" style="display:none;">
+                <div class="chart-wrapper donut">
+                    <canvas id="mixChart"></canvas>
+                </div>
+                <div class="mix-legend" id="mixLegend"></div>
+            </div>
+            <div id="mixError" class="error-box" style="display:none;">No se pudo cargar el mix de generación.</div>
+        </div>
+
+        <!-- Demanda time series -->
+        <div class="chart-card">
+            <div class="section-title">
+                Demanda del Día
+                <span class="source-tag">Hoy vs. Ayer</span>
+            </div>
+            <div id="demandaLoader" class="section-loader"><div class="mini-spinner"></div></div>
+            <div id="demandaContent" style="display:none;">
+                <div class="chart-wrapper line">
+                    <canvas id="demandaChart"></canvas>
+                </div>
+            </div>
+            <div id="demandaError" class="error-box" style="display:none;">No se pudo cargar la demanda.</div>
+        </div>
+    </div>
+
+    <!-- Intercambios internacionales -->
+    <div class="corridors-row fade-in stagger-3">
+        <div class="corridor-card">
+            <div class="section-title">
+                🌐 Intercambios Internacionales
+                <span class="source-tag">MW en tiempo real</span>
+            </div>
+            <div id="corrLoader" class="section-loader"><div class="mini-spinner"></div></div>
+            <div id="corrContent" style="display:none;">
+                <table class="corridor-table" id="corrTable">
+                    <thead>
+                        <tr>
+                            <th>Corredor</th>
+                            <th style="text-align:right;">Flujo (MW)</th>
+                            <th style="text-align:right;">Dirección</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div id="corrError" class="error-box" style="display:none;">No se pudo cargar los intercambios.</div>
+        </div>
+
+        <!-- Generacion por tipo — barra horizontal -->
+        <div class="corridor-card">
+            <div class="section-title">
+                📊 Distribución del Mix
+                <span class="source-tag">últimos 5 min</span>
+            </div>
+            <div id="barLoader" class="section-loader"><div class="mini-spinner"></div></div>
+            <div id="barContent" style="display:none;">
+                <div class="chart-wrapper" style="height:220px;">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+            <div id="barError" class="error-box" style="display:none;">No se pudo cargar.</div>
+        </div>
+    </div>
+
+    <!-- Embalses -->
+    <div class="reservoir-card fade-in stagger-4">
+        <div class="section-title">
+            💧 Embalses y Cuencas Hidroeléctricas
+            <span class="source-tag">Datos operativos</span>
+        </div>
+        <div id="embalsesLoader" class="section-loader"><div class="mini-spinner"></div></div>
+        <div class="reservoir-grid" id="embalsesGrid" style="display:none;"></div>
+        <div id="embalsesError" class="error-box" style="display:none;">No se pudo cargar datos de embalses.</div>
+    </div>
+
+<script>
+const API = 'https://api.cammesa.com';
+let mixChartInst = null;
+let demandaChartInst = null;
+let barChartInst = null;
+let currentRegionId = null;
+
+const MIX_COLORS = {
+    hidraulico: '#3b82f6',
+    termico:    '#f59e0b',
+    nuclear:    '#8b5cf6',
+    renovable:  '#10b981',
+    importacion:'#ef4444'
+};
+const MIX_LABELS = {
+    hidraulico: 'Hidráulica',
+    termico:    'Térmica',
+    nuclear:    'Nuclear',
+    renovable:  'Renovable',
+    importacion:'Importación'
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(n, dec = 0) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+}
+function fmtMW(n) { return fmt(n) + ' MW'; }
+
+function showSection(prefix, show) {
+    document.getElementById(prefix + 'Loader').style.display = 'none';
+    document.getElementById(prefix + 'Content').style.display = show ? '' : 'none';
+    document.getElementById(prefix + 'Error').style.display = show ? 'none' : '';
+}
+
+async function apiFetch(path) {
+    const r = await fetch(API + path, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+}
+
+// ── Regions ───────────────────────────────────────────────────────────────────
+async function loadRegions() {
+    try {
+        const data = await apiFetch('/demanda-svc/demanda/RegionesDemanda');
+        const sel = document.getElementById('regionSelect');
+        sel.innerHTML = '';
+        // Sort: put "total" or "SADI" first
+        const sorted = [...data].sort((a, b) => {
+            const aName = (a.nombre || a.descripcion || '').toLowerCase();
+            const bName = (b.nombre || b.descripcion || '').toLowerCase();
+            const aIsTotal = aName.includes('total') || aName.includes('sadi') || aName.includes('nacional');
+            const bIsTotal = bName.includes('total') || bName.includes('sadi') || bName.includes('nacional');
+            if (aIsTotal && !bIsTotal) return -1;
+            if (!aIsTotal && bIsTotal) return 1;
+            return aName.localeCompare(bName, 'es');
+        });
+        sorted.forEach(r => {
+            const opt = document.createElement('option');
+            const name = r.nombre || r.descripcion || r.id;
+            opt.value = r.id;
+            opt.textContent = name;
+            sel.appendChild(opt);
+        });
+        currentRegionId = sorted[0]?.id;
+        if (currentRegionId) sel.value = currentRegionId;
+        return currentRegionId;
+    } catch(e) {
+        document.getElementById('regionSelect').innerHTML = '<option value="1002">SADI Total</option>';
+        currentRegionId = 1002;
+        return currentRegionId;
+    }
+}
+
+function onRegionChange() {
+    const sel = document.getElementById('regionSelect');
+    currentRegionId = sel.value;
+    loadGeneracion(currentRegionId);
+    loadDemanda(currentRegionId);
+}
+
+// ── Generacion ────────────────────────────────────────────────────────────────
+async function loadGeneracion(regionId) {
+    // Reset
+    document.getElementById('mixLoader').style.display = 'flex';
+    document.getElementById('mixContent').style.display = 'none';
+    document.getElementById('mixError').style.display = 'none';
+    document.getElementById('barLoader').style.display = 'flex';
+    document.getElementById('barContent').style.display = 'none';
+    document.getElementById('barError').style.display = 'none';
+
+    try {
+        const data = await apiFetch(`/demanda-svc/generacion/ObtieneGeneracioEnergiaPorRegion?id_region=${regionId}`);
+        if (!data || data.length === 0) throw new Error('Sin datos');
+
+        // Latest snapshot
+        const latest = data[data.length - 1];
+        const { hidraulico = 0, termico = 0, nuclear = 0, renovable = 0, importacion = 0, sumTotal = 0 } = latest;
+        const total = sumTotal || (hidraulico + termico + nuclear + renovable + importacion);
+
+        // KPIs
+        document.getElementById('kpiGenTotal').textContent = fmt(total);
+        document.getElementById('kpiNuclear').textContent = fmt(nuclear);
+        document.getElementById('kpiHidro').textContent = fmt(hidraulico);
+        document.getElementById('kpiTermico').textContent = fmt(termico);
+        const pctRen = total > 0 ? ((renovable + hidraulico) / total * 100) : 0;
+        document.getElementById('kpiRenovable').textContent = fmt(pctRen, 1);
+
+        // Fecha
+        const fecha = latest.fecha ? new Date(latest.fecha).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }) : '';
+        document.getElementById('mixFecha').textContent = fecha ? `Actualiz. ${fecha}` : '';
+        document.getElementById('lastUpdate').textContent = fecha ? `Última actualización: ${fecha}` : '';
+
+        // Donut chart
+        const keys = ['hidraulico', 'termico', 'nuclear', 'renovable', 'importacion'];
+        const vals = keys.map(k => latest[k] || 0);
+        const colors = keys.map(k => MIX_COLORS[k]);
+
+        if (mixChartInst) mixChartInst.destroy();
+        const ctx = document.getElementById('mixChart').getContext('2d');
+        mixChartInst = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: keys.map(k => MIX_LABELS[k]),
+                datasets: [{ data: vals, backgroundColor: colors, borderColor: 'rgba(15,23,42,0.8)', borderWidth: 2, hoverOffset: 6 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '68%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${MIX_LABELS[keys[ctx.dataIndex]]}: ${fmt(ctx.raw)} MW (${total > 0 ? fmt(ctx.raw / total * 100, 1) : 0}%)`
+                        },
+                        backgroundColor: 'rgba(15,23,42,0.95)', titleColor: '#94a3b8',
+                        bodyColor: '#f8fafc', padding: 10, cornerRadius: 8,
+                    }
+                }
+            }
+        });
+
+        // Legend
+        const legendEl = document.getElementById('mixLegend');
+        legendEl.innerHTML = keys.map((k, i) => {
+            const pct = total > 0 ? (vals[i] / total * 100).toFixed(1) : '0.0';
+            return `<div class="mix-item">
+                <div class="mix-dot-label">
+                    <div class="mix-dot" style="background:${colors[i]}"></div>
+                    <span>${MIX_LABELS[k]}</span>
+                </div>
+                <div>
+                    <span class="mix-value">${fmt(vals[i])} MW</span>
+                    <span class="mix-pct">${pct}%</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Bar chart
+        if (barChartInst) barChartInst.destroy();
+        const ctx2 = document.getElementById('barChart').getContext('2d');
+        barChartInst = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: keys.map(k => MIX_LABELS[k]),
+                datasets: [{
+                    data: vals,
+                    backgroundColor: colors.map(c => c + 'bb'),
+                    borderColor: colors,
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: { label: ctx => ` ${fmt(ctx.raw)} MW` },
+                        backgroundColor: 'rgba(15,23,42,0.95)', bodyColor: '#f8fafc',
+                        padding: 10, cornerRadius: 8,
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#64748b', font: { size: 11 },
+                            callback: v => fmt(v) + ' MW' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8', font: { size: 12, weight: '600' } }
+                    }
+                }
+            }
+        });
+
+        showSection('mix', true);
+        showSection('bar', true);
+    } catch(e) {
+        console.error('Generacion error:', e);
+        document.getElementById('mixLoader').style.display = 'none';
+        document.getElementById('mixError').style.display = '';
+        document.getElementById('barLoader').style.display = 'none';
+        document.getElementById('barError').style.display = '';
+    }
+}
+
+// ── Demanda ───────────────────────────────────────────────────────────────────
+async function loadDemanda(regionId) {
+    document.getElementById('demandaLoader').style.display = 'flex';
+    document.getElementById('demandaContent').style.display = 'none';
+    document.getElementById('demandaError').style.display = 'none';
+
+    try {
+        const data = await apiFetch(`/demanda-svc/demanda/ObtieneDemandaYTemperaturaRegion?id_region=${regionId}`);
+        if (!data || data.length === 0) throw new Error('Sin datos');
+
+        // Temperature from last point
+        const last = data[data.length - 1];
+        const temp = last.demanda?.temperatura ?? last.temperatura ?? null;
+        document.getElementById('kpiTemp').textContent = temp !== null ? fmt(temp, 1) : '—';
+
+        // Build time series
+        const hoy = data.map(d => ({
+            t: d.fecha || d.fch,
+            v: d.demanda?.dem ?? d.dem ?? d.demanda ?? null,
+            vAyer: d.demandaAyer?.dem ?? d.demAyer ?? null
+        }));
+
+        // Labels: parse time HH:MM
+        const labels = hoy.map(d => {
+            if (!d.t) return '';
+            const dt = new Date(d.t);
+            return dt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        });
+
+        if (demandaChartInst) demandaChartInst.destroy();
+        const ctx = document.getElementById('demandaChart').getContext('2d');
+
+        const gradHoy = ctx.createLinearGradient(0, 0, 0, 280);
+        gradHoy.addColorStop(0, 'rgba(59,130,246,0.3)');
+        gradHoy.addColorStop(1, 'rgba(59,130,246,0.01)');
+
+        const gradAyer = ctx.createLinearGradient(0, 0, 0, 280);
+        gradAyer.addColorStop(0, 'rgba(148,163,184,0.15)');
+        gradAyer.addColorStop(1, 'rgba(148,163,184,0.01)');
+
+        const datasets = [
+            {
+                label: 'Hoy',
+                data: hoy.map(d => d.v),
+                borderColor: '#3b82f6',
+                backgroundColor: gradHoy,
+                fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2
+            }
+        ];
+
+        const hasAyer = hoy.some(d => d.vAyer !== null && d.vAyer !== undefined);
+        if (hasAyer) {
+            datasets.push({
+                label: 'Ayer',
+                data: hoy.map(d => d.vAyer),
+                borderColor: '#475569',
+                backgroundColor: gradAyer,
+                fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3]
+            });
+        }
+
+        demandaChartInst = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, usePointStyle: true }
+                    },
+                    tooltip: {
+                        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)} MW` },
+                        backgroundColor: 'rgba(15,23,42,0.95)', titleColor: '#94a3b8',
+                        bodyColor: '#f8fafc', padding: 10, cornerRadius: 8,
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: {
+                            color: '#64748b', font: { size: 10 }, maxTicksLimit: 8,
+                            maxRotation: 0
+                        }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#64748b', font: { size: 10 },
+                            callback: v => fmt(v) }
+                    }
+                }
+            }
+        });
+
+        showSection('demanda', true);
+    } catch(e) {
+        console.error('Demanda error:', e);
+        document.getElementById('demandaLoader').style.display = 'none';
+        document.getElementById('demandaError').style.display = '';
+    }
+}
+
+// ── Corredores ────────────────────────────────────────────────────────────────
+async function loadCorredores() {
+    document.getElementById('corrLoader').style.display = 'flex';
+    document.getElementById('corrContent').style.display = 'none';
+    document.getElementById('corrError').style.display = 'none';
+
+    try {
+        const data = await apiFetch('/demanda-svc/demanda/IntercambioCorredoresGeo');
+        if (!data || (!data.features && !Array.isArray(data))) throw new Error('Sin datos');
+
+        const features = data.features || data;
+        // Filter international corridors
+        const internacionales = features.filter(f => {
+            const name = (f.properties?.nombre || f.nombre || '').toLowerCase();
+            return name.includes('chile') || name.includes('bolivia') ||
+                   name.includes('uruguay') || name.includes('brasil') ||
+                   name.includes('paraguay') || name.includes('arg-');
+        });
+        const domesticos = features.filter(f => !internacionales.includes(f));
+
+        const tbody = document.querySelector('#corrTable tbody');
+        tbody.innerHTML = '';
+
+        const renderRows = (list, isIntl) => {
+            list.forEach(f => {
+                const props = f.properties || f;
+                const nombre = props.nombre || props.name || 'Corredor';
+                const mw = props.mw ?? props.flujo ?? props.potencia ?? null;
+                const mwFmt = mw !== null ? fmt(Math.abs(mw)) + ' MW' : '—';
+                const dir = mw === null ? '—' : mw > 10 ? '↑ Exporta' : mw < -10 ? '↓ Importa' : '≈ Neutro';
+                const cls = mw === null ? 'mw-zero' : mw > 10 ? 'mw-pos' : mw < -10 ? 'mw-neg' : 'mw-zero';
+                tbody.innerHTML += `<tr>
+                    <td>${isIntl ? '🌐 ' : ''}${nombre}</td>
+                    <td style="text-align:right;" class="${cls}">${mwFmt}</td>
+                    <td style="text-align:right; font-size:0.75rem; color:var(--text-muted);">${dir}</td>
+                </tr>`;
+            });
+        };
+
+        if (internacionales.length > 0) {
+            tbody.innerHTML += `<tr><td colspan="3" style="padding:6px 10px; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Internacionales</td></tr>`;
+            renderRows(internacionales, true);
+        }
+        if (domesticos.length > 0) {
+            tbody.innerHTML += `<tr><td colspan="3" style="padding:6px 10px; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Domésticos</td></tr>`;
+            renderRows(domesticos.slice(0, 10), false);
+        }
+
+        if (features.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="info-msg" style="padding:16px; text-align:center;">Sin datos de intercambios disponibles.</td></tr>`;
+        }
+
+        showSection('corr', true);
+    } catch(e) {
+        console.error('Corredores error:', e);
+        document.getElementById('corrLoader').style.display = 'none';
+        document.getElementById('corrError').style.display = '';
+    }
+}
+
+// ── Embalses ──────────────────────────────────────────────────────────────────
+async function loadEmbalses() {
+    document.getElementById('embalsesLoader').style.display = 'flex';
+    document.getElementById('embalsesGrid').style.display = 'none';
+    document.getElementById('embalsesError').style.display = 'none';
+
+    try {
+        // First get cuencas list to know IDs
+        const cuencas = await apiFetch('/demanda-svc/demanda/EmbalsesyCuencas?ids_cuencas=1,2,3,4,5,6,7,8,9,10');
+        if (!cuencas || cuencas.length === 0) throw new Error('Sin datos');
+
+        const grid = document.getElementById('embalsesGrid');
+        grid.innerHTML = '';
+
+        cuencas.forEach(c => {
+            const nombre = c.nombre || c.cuenca || c.id || 'Cuenca';
+            const cota = c.cota ?? c.nivel ?? null;
+            const caudal = c.caudal ?? c.caudalNatural ?? null;
+            const cotaMax = c.cotaMaxima ?? c.cotaMax ?? null;
+            const cotaMin = c.cotaMinima ?? c.cotaMin ?? null;
+            const pct = (cota !== null && cotaMax !== null && cotaMin !== null && cotaMax > cotaMin)
+                ? Math.max(0, Math.min(100, (cota - cotaMin) / (cotaMax - cotaMin) * 100))
+                : null;
+
+            const color = pct === null ? '#3b82f6' : pct > 70 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444';
+
+            grid.innerHTML += `<div class="reservoir-item">
+                <div class="reservoir-name">${nombre}</div>
+                <div class="reservoir-val">${cota !== null ? fmt(cota, 2) + ' m' : '—'}</div>
+                <div class="reservoir-sub">Caudal: ${caudal !== null ? fmt(caudal, 0) + ' m³/s' : '—'}</div>
+                ${pct !== null ? `
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:${pct.toFixed(1)}%; background:${color};"></div>
+                </div>
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:3px;">${pct.toFixed(0)}% del volumen</div>
+                ` : ''}
+            </div>`;
+        });
+
+        document.getElementById('embalsesGrid').style.display = 'grid';
+        document.getElementById('embalsesLoader').style.display = 'none';
+    } catch(e) {
+        console.error('Embalses error:', e);
+        document.getElementById('embalsesLoader').style.display = 'none';
+        document.getElementById('embalsesError').style.display = '';
+        // Show a friendly message instead of error
+        document.getElementById('embalsesError').textContent = 'Los datos de embalses no están disponibles para esta región o requieren parámetros adicionales.';
+    }
+}
+
+// ── Orchestrator ──────────────────────────────────────────────────────────────
+async function loadAllData() {
+    if (!currentRegionId) return;
+    await Promise.allSettled([
+        loadGeneracion(currentRegionId),
+        loadDemanda(currentRegionId),
+        loadCorredores(),
+        loadEmbalses(),
+    ]);
+}
+
+async function init() {
+    await loadRegions();
+    await loadAllData();
+    // Auto-refresh every 5 minutes
+    setInterval(loadAllData, 5 * 60 * 1000);
+}
+
+init();
+</script>
+</body>
+</html>
