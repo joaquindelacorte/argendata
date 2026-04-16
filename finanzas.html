@@ -16,17 +16,6 @@
             .btn-fetch { width: 100%; margin-top: 8px; min-height: 48px; font-size: 1rem; }
             .btn-fetch:hover { transform: none; }
             .section-title { font-size: 1.15rem; }
-
-            /* Sliders: mayor área táctil en mobile */
-            .emae-range-wrap { margin: 12px 0 32px; }
-            .emae-range-track { height: 6px; margin: 22px 14px; }
-            .emae-slider { height: 44px; width: calc(100% + 28px); left: -14px; }
-            .emae-slider::-webkit-slider-thumb {
-                width: 28px; height: 28px;
-                box-shadow: 0 0 0 6px rgba(59,130,246,0.2);
-            }
-            .emae-slider::-moz-range-thumb { width: 28px; height: 28px; }
-            .emae-range-labels .lbl { font-size: 0.8rem; padding: 4px 10px; }
         }
 
         .dolar-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -77,22 +66,35 @@
         .emae-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
         .emae-chart-container { position: relative; height: 300px; width: 100%; margin-top: 8px; }
 
-        /* EMAE range slider */
-        .emae-range-wrap { margin: 8px 0 20px; touch-action: pan-y; }
-        .emae-range-labels { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 0.75rem; }
+        /* Range slider dual */
+        .emae-range-wrap { margin: 8px 0 28px; }
+        .emae-range-labels { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 0.75rem; }
         .emae-range-labels .lbl { font-weight: 600; color: #e2e8f0; background: rgba(59,130,246,0.18); padding: 3px 9px; border-radius: 5px; min-width: 72px; text-align: center; }
         .emae-range-labels .sep { color: var(--text-muted); flex: 1; text-align: center; }
-        .emae-range-track { position: relative; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 14px 8px; }
-        .emae-range-fill { position: absolute; top: 0; height: 100%; background: var(--accent); border-radius: 2px; pointer-events: none; }
-        .emae-slider { position: absolute; width: calc(100% + 16px); left: -8px; top: 50%; transform: translateY(-50%);
-            -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none;
-            height: 20px; margin: 0; padding: 0; outline: none; touch-action: none; }
-        .emae-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
-            background: var(--accent); cursor: pointer; pointer-events: all;
-            border: 2px solid #0f172a; box-shadow: 0 0 0 3px rgba(59,130,246,0.25); transition: box-shadow 0.15s; }
-        .emae-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(59,130,246,0.35); }
-        .emae-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%;
-            background: var(--accent); cursor: pointer; pointer-events: all; border: 2px solid #0f172a; }
+        .emae-range-track { position: relative; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; margin: 18px 10px; }
+        .emae-range-fill { position: absolute; top: 0; height: 100%; background: var(--accent); border-radius: 3px; pointer-events: none; }
+        .emae-slider { position: absolute; width: calc(100% + 20px); left: -10px; top: 50%; transform: translateY(-50%);
+            -webkit-appearance: none; appearance: none; background: transparent;
+            pointer-events: all; z-index: 2;
+            height: 36px; margin: 0; padding: 0; outline: none; touch-action: none; cursor: pointer; }
+        .emae-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+            background: var(--accent); cursor: grab;
+            border: 3px solid #0f172a; box-shadow: 0 0 0 4px rgba(59,130,246,0.3); transition: box-shadow 0.15s; }
+        .emae-slider:active::-webkit-slider-thumb { cursor: grabbing; box-shadow: 0 0 0 7px rgba(59,130,246,0.25); }
+        .emae-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 6px rgba(59,130,246,0.35); }
+        .emae-slider::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%;
+            background: var(--accent); cursor: grab; border: 3px solid #0f172a;
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.3); }
+
+        @media (max-width: 768px) {
+            .emae-range-wrap { margin: 8px 0 36px; }
+            .emae-range-track { height: 8px; margin: 26px 16px; }
+            .emae-slider { height: 52px; width: calc(100% + 32px); left: -16px; }
+            .emae-slider::-webkit-slider-thumb { width: 34px; height: 34px; border-width: 3px;
+                box-shadow: 0 0 0 8px rgba(59,130,246,0.18); }
+            .emae-slider::-moz-range-thumb { width: 34px; height: 34px; }
+            .emae-range-labels .lbl { font-size: 0.82rem; padding: 5px 12px; min-width: 78px; }
+        }
     </style>
 </head>
 <body>
@@ -489,6 +491,7 @@
 
             fromEl.addEventListener('input', syncBCRA);
             toEl.addEventListener('input', syncBCRA);
+            setupDualSliderTouch(fromEl, toEl);
             syncBCRA();
         }
 
@@ -524,6 +527,31 @@
             } catch (e) {
                 document.getElementById('dolares-grid').innerHTML = '<div style="color:#ef4444;padding:16px;">Error cargando cotizaciones.</div>';
             }
+        }
+
+        // ======== DUAL SLIDER TOUCH HELPER ========
+        // En mobile, cuando los dos thumbs están cerca, el dedo siempre activa
+        // el que esté encima (z-index). Esta función sube al frente el handle
+        // más cercano a la posición del toque en cada touchstart.
+        function setupDualSliderTouch(fromEl, toEl) {
+            function prioritize(e) {
+                if (!e.touches.length) return;
+                const touch = e.touches[0];
+                const rect = toEl.getBoundingClientRect(); // ambos tienen el mismo ancho
+                const touchPct = (touch.clientX - rect.left) / rect.width;
+                const n = +fromEl.max || 1;
+                const fromPct = +fromEl.value / n;
+                const toPct   = +toEl.value   / n;
+                if (Math.abs(touchPct - fromPct) <= Math.abs(touchPct - toPct)) {
+                    fromEl.style.zIndex = 4;
+                    toEl.style.zIndex   = 2;
+                } else {
+                    toEl.style.zIndex   = 4;
+                    fromEl.style.zIndex = 2;
+                }
+            }
+            fromEl.addEventListener('touchstart', prioritize, { passive: true });
+            toEl.addEventListener('touchstart',   prioritize, { passive: true });
         }
 
         // ======== RIESGO PAÍS ========
@@ -624,6 +652,7 @@
 
             fromEl.addEventListener('input', syncRiesgo);
             toEl.addEventListener('input', syncRiesgo);
+            setupDualSliderTouch(fromEl, toEl);
             syncRiesgo();
         }
 
@@ -778,6 +807,7 @@
 
             fromEl.addEventListener('input', syncInflacion);
             toEl.addEventListener('input', syncInflacion);
+            setupDualSliderTouch(fromEl, toEl);
             syncInflacion();
         }
 
@@ -1010,6 +1040,7 @@
 
             fromEl.addEventListener('input', syncSlider);
             toEl.addEventListener('input', syncSlider);
+            setupDualSliderTouch(fromEl, toEl);
             syncSlider(); // render inicial
         }
 
