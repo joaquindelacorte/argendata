@@ -820,15 +820,21 @@ function selectRegion(id, nombre) {
 }
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
-async function loadAllData() {
+async function loadMainData() {
     if (!currentRegionId) return;
+    // Primero las secciones principales (pocas requests)
     await Promise.allSettled([
         loadGeneracion(currentRegionId),
         loadDemanda(currentRegionId),
         loadCorredores(),
         loadEmbalses(),
-        loadProvincias(),
     ]);
+}
+
+async function loadAllData() {
+    await loadMainData();
+    // Provincias después, en segundo plano (muchas requests)
+    loadProvincias();
 }
 
 async function init() {
