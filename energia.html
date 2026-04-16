@@ -307,12 +307,42 @@
         <div id="embalsesError" class="error-box" style="display:none;">No se pudo cargar datos de embalses.</div>
     </div>
 
+    <!-- Demanda por Región / Provincia -->
+    <div class="reservoir-card fade-in stagger-4">
+        <div class="section-title">
+            🗺️ Demanda por Región
+            <span class="source-tag" id="provFecha"></span>
+        </div>
+        <div id="provLoader" class="section-loader"><div class="mini-spinner"></div></div>
+        <div id="provContent" style="display:none;">
+            <div style="margin-bottom:12px; font-size:0.78rem; color:var(--text-muted);">
+                Demanda actual (MW) — últimos 5 minutos. Haz clic en una región para ver su detalle.
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="corridor-table" id="provTable">
+                    <thead>
+                        <tr>
+                            <th>Región / Provincia</th>
+                            <th style="text-align:right;">Hoy (MW)</th>
+                            <th style="text-align:right;">Ayer (MW)</th>
+                            <th style="text-align:right;">Variación</th>
+                            <th style="text-align:right;">Temp. (°C)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="provTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="provError" class="error-box" style="display:none;">No se pudo cargar la demanda por región.</div>
+    </div>
+
 <script>
 const API = 'https://api.cammesa.com';
 let mixChartInst = null;
 let demandaChartInst = null;
 let barChartInst = null;
 let currentRegionId = null;
+let allRegions = [];
 
 const MIX_COLORS = {
     hidraulico: '#3b82f6',
@@ -329,12 +359,11 @@ const MIX_LABELS = {
     importacion:'Importación'
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n, dec = 0) {
     if (n === null || n === undefined || isNaN(n)) return '—';
     return new Intl.NumberFormat('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
 }
-function fmtMW(n) { return fmt(n) + ' MW'; }
 
 function showSection(prefix, show) {
     document.getElementById(prefix + 'Loader').style.display = 'none';
@@ -351,26 +380,26 @@ async function apiFetch(path) {
 // ── Regions ───────────────────────────────────────────────────────────────────
 async function loadRegions() {
     try {
-        const data = await apiFetch('/demanda-svc/demanda/RegionesDemanda');
+        allRegions = await apiFetch('/demanda-svc/demanda/RegionesDemanda');
         const sel = document.getElementById('regionSelect');
         sel.innerHTML = '';
-        // Sort: put "total" or "SADI" first
-        const sorted = [...data].sort((a, b) => {
-            const aName = (a.nombre || a.descripcion || '').toLowerCase();
-            const bName = (b.nombre || b.descripcion || '').toLowerCase();
-            const aIsTotal = aName.includes('total') || aName.includes('sadi') || aName.includes('nacional');
-            const bIsTotal = bName.includes('total') || bName.includes('sadi') || bName.includes('nacional');
+
+        // Sort: "total" / "SADI" first, rest alphabetical
+        const sorted = [...allRegions].sort((a, b) => {
+            const aIsTotal = /total|sadi|nacion/i.test(a.nombre || '');
+            const bIsTotal = /total|sadi|nacion/i.test(b.nombre || '');
             if (aIsTotal && !bIsTotal) return -1;
             if (!aIsTotal && bIsTotal) return 1;
-            return aName.localeCompare(bName, 'es');
+            return (a.nombre || '').localeCompare(b.nombre || '', 'es');
         });
+
         sorted.forEach(r => {
             const opt = document.createElement('option');
-            const name = r.nombre || r.descripcion || r.id;
             opt.value = r.id;
-            opt.textContent = name;
+            opt.textContent = r.nombre || r.id;
             sel.appendChild(opt);
         });
+
         currentRegionId = sorted[0]?.id;
         if (currentRegionId) sel.value = currentRegionId;
         return currentRegionId;
@@ -382,15 +411,13 @@ async function loadRegions() {
 }
 
 function onRegionChange() {
-    const sel = document.getElementById('regionSelect');
-    currentRegionId = sel.value;
+    currentRegionId = document.getElementById('regionSelect').value;
     loadGeneracion(currentRegionId);
     loadDemanda(currentRegionId);
 }
 
-// ── Generacion ────────────────────────────────────────────────────────────────
+// ── Generación ────────────────────────────────────────────────────────────────
 async function loadGeneracion(regionId) {
-    // Reset
     document.getElementById('mixLoader').style.display = 'flex';
     document.getElementById('mixContent').style.display = 'none';
     document.getElementById('mixError').style.display = 'none';
@@ -402,56 +429,55 @@ async function loadGeneracion(regionId) {
         const data = await apiFetch(`/demanda-svc/generacion/ObtieneGeneracioEnergiaPorRegion?id_region=${regionId}`);
         if (!data || data.length === 0) throw new Error('Sin datos');
 
-        // Latest snapshot
         const latest = data[data.length - 1];
-        const { hidraulico = 0, termico = 0, nuclear = 0, renovable = 0, importacion = 0, sumTotal = 0 } = latest;
-        const total = sumTotal || (hidraulico + termico + nuclear + renovable + importacion);
+        const hidraulico  = latest.hidraulico  || 0;
+        const termico     = latest.termico     || 0;
+        const nuclear     = latest.nuclear     || 0;
+        const renovable   = latest.renovable   || 0;
+        const importacion = latest.importacion || 0;
+        const total = latest.sumTotal || (hidraulico + termico + nuclear + renovable + importacion);
 
         // KPIs
         document.getElementById('kpiGenTotal').textContent = fmt(total);
-        document.getElementById('kpiNuclear').textContent = fmt(nuclear);
-        document.getElementById('kpiHidro').textContent = fmt(hidraulico);
-        document.getElementById('kpiTermico').textContent = fmt(termico);
-        const pctRen = total > 0 ? ((renovable + hidraulico) / total * 100) : 0;
-        document.getElementById('kpiRenovable').textContent = fmt(pctRen, 1);
+        document.getElementById('kpiNuclear').textContent  = fmt(nuclear);
+        document.getElementById('kpiHidro').textContent    = fmt(hidraulico);
+        document.getElementById('kpiTermico').textContent  = fmt(termico);
+        const pctLimpia = total > 0 ? ((renovable + hidraulico + nuclear) / total * 100) : 0;
+        document.getElementById('kpiRenovable').textContent = fmt(pctLimpia, 1);
 
-        // Fecha
-        const fecha = latest.fecha ? new Date(latest.fecha).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }) : '';
-        document.getElementById('mixFecha').textContent = fecha ? `Actualiz. ${fecha}` : '';
-        document.getElementById('lastUpdate').textContent = fecha ? `Última actualización: ${fecha}` : '';
+        const hora = latest.fecha
+            ? new Date(latest.fecha).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' })
+            : '';
+        document.getElementById('mixFecha').textContent  = hora ? `Actualiz. ${hora}` : '';
+        document.getElementById('lastUpdate').textContent = hora ? `Última actualización: ${hora}` : '';
 
-        // Donut chart
-        const keys = ['hidraulico', 'termico', 'nuclear', 'renovable', 'importacion'];
-        const vals = keys.map(k => latest[k] || 0);
+        // ── Donut ──
+        const keys   = ['hidraulico','termico','nuclear','renovable','importacion'];
+        const vals   = [hidraulico, termico, nuclear, renovable, importacion];
         const colors = keys.map(k => MIX_COLORS[k]);
 
         if (mixChartInst) mixChartInst.destroy();
-        const ctx = document.getElementById('mixChart').getContext('2d');
-        mixChartInst = new Chart(ctx, {
+        mixChartInst = new Chart(document.getElementById('mixChart').getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: keys.map(k => MIX_LABELS[k]),
-                datasets: [{ data: vals, backgroundColor: colors, borderColor: 'rgba(15,23,42,0.8)', borderWidth: 2, hoverOffset: 6 }]
+                datasets: [{ data: vals, backgroundColor: colors, borderColor:'rgba(15,23,42,0.8)', borderWidth:2, hoverOffset:6 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false, cutout: '68%',
+                responsive: true, maintainAspectRatio: false, cutout:'68%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        callbacks: {
-                            label: ctx => ` ${MIX_LABELS[keys[ctx.dataIndex]]}: ${fmt(ctx.raw)} MW (${total > 0 ? fmt(ctx.raw / total * 100, 1) : 0}%)`
-                        },
-                        backgroundColor: 'rgba(15,23,42,0.95)', titleColor: '#94a3b8',
-                        bodyColor: '#f8fafc', padding: 10, cornerRadius: 8,
+                        callbacks: { label: c => ` ${MIX_LABELS[keys[c.dataIndex]]}: ${fmt(c.raw)} MW (${total > 0 ? fmt(c.raw/total*100,1) : 0}%)` },
+                        backgroundColor:'rgba(15,23,42,0.95)', titleColor:'#94a3b8',
+                        bodyColor:'#f8fafc', padding:10, cornerRadius:8
                     }
                 }
             }
         });
 
-        // Legend
-        const legendEl = document.getElementById('mixLegend');
-        legendEl.innerHTML = keys.map((k, i) => {
-            const pct = total > 0 ? (vals[i] / total * 100).toFixed(1) : '0.0';
+        document.getElementById('mixLegend').innerHTML = keys.map((k, i) => {
+            const pct = total > 0 ? (vals[i]/total*100).toFixed(1) : '0.0';
             return `<div class="mix-item">
                 <div class="mix-dot-label">
                     <div class="mix-dot" style="background:${colors[i]}"></div>
@@ -464,10 +490,9 @@ async function loadGeneracion(regionId) {
             </div>`;
         }).join('');
 
-        // Bar chart
+        // ── Bar horizontal ──
         if (barChartInst) barChartInst.destroy();
-        const ctx2 = document.getElementById('barChart').getContext('2d');
-        barChartInst = new Chart(ctx2, {
+        barChartInst = new Chart(document.getElementById('barChart').getContext('2d'), {
             type: 'bar',
             data: {
                 labels: keys.map(k => MIX_LABELS[k]),
@@ -476,30 +501,22 @@ async function loadGeneracion(regionId) {
                     backgroundColor: colors.map(c => c + 'bb'),
                     borderColor: colors,
                     borderWidth: 1.5,
-                    borderRadius: 6,
+                    borderRadius: 6
                 }]
             },
             options: {
-                indexAxis: 'y',
-                responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        callbacks: { label: ctx => ` ${fmt(ctx.raw)} MW` },
-                        backgroundColor: 'rgba(15,23,42,0.95)', bodyColor: '#f8fafc',
-                        padding: 10, cornerRadius: 8,
+                        callbacks: { label: c => ` ${fmt(c.raw)} MW` },
+                        backgroundColor:'rgba(15,23,42,0.95)', bodyColor:'#f8fafc',
+                        padding:10, cornerRadius:8
                     }
                 },
                 scales: {
-                    x: {
-                        grid: { color: 'rgba(255,255,255,0.04)' },
-                        ticks: { color: '#64748b', font: { size: 11 },
-                            callback: v => fmt(v) + ' MW' }
-                    },
-                    y: {
-                        grid: { display: false },
-                        ticks: { color: '#94a3b8', font: { size: 12, weight: '600' } }
-                    }
+                    x: { grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#64748b', font:{size:11}, callback: v => fmt(v)+' MW' } },
+                    y: { grid:{ display:false }, ticks:{ color:'#94a3b8', font:{size:12,weight:'600'} } }
                 }
             }
         });
@@ -507,7 +524,7 @@ async function loadGeneracion(regionId) {
         showSection('mix', true);
         showSection('bar', true);
     } catch(e) {
-        console.error('Generacion error:', e);
+        console.error('Generacion:', e);
         document.getElementById('mixLoader').style.display = 'none';
         document.getElementById('mixError').style.display = '';
         document.getElementById('barLoader').style.display = 'none';
@@ -525,30 +542,21 @@ async function loadDemanda(regionId) {
         const data = await apiFetch(`/demanda-svc/demanda/ObtieneDemandaYTemperaturaRegion?id_region=${regionId}`);
         if (!data || data.length === 0) throw new Error('Sin datos');
 
-        // Temperature from last point
-        const last = data[data.length - 1];
-        const temp = last.demanda?.temperatura ?? last.temperatura ?? null;
-        document.getElementById('kpiTemp').textContent = temp !== null ? fmt(temp, 1) : '—';
+        // Campos reales: demHoy, demAyer, demSemanaAnt, tempHoy (solo en primer item)
+        const first = data[0];
+        document.getElementById('kpiTemp').textContent =
+            first.tempHoy !== undefined ? fmt(first.tempHoy, 1) : '—';
 
-        // Build time series
-        const hoy = data.map(d => ({
-            t: d.fecha || d.fch,
-            v: d.demanda?.dem ?? d.dem ?? d.demanda ?? null,
-            vAyer: d.demandaAyer?.dem ?? d.demAyer ?? null
-        }));
-
-        // Labels: parse time HH:MM
-        const labels = hoy.map(d => {
-            if (!d.t) return '';
-            const dt = new Date(d.t);
-            return dt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        const labels = data.map(d => {
+            const dt = new Date(d.fecha);
+            return dt.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
         });
 
         if (demandaChartInst) demandaChartInst.destroy();
         const ctx = document.getElementById('demandaChart').getContext('2d');
 
         const gradHoy = ctx.createLinearGradient(0, 0, 0, 280);
-        gradHoy.addColorStop(0, 'rgba(59,130,246,0.3)');
+        gradHoy.addColorStop(0, 'rgba(59,130,246,0.35)');
         gradHoy.addColorStop(1, 'rgba(59,130,246,0.01)');
 
         const gradAyer = ctx.createLinearGradient(0, 0, 0, 280);
@@ -558,21 +566,27 @@ async function loadDemanda(regionId) {
         const datasets = [
             {
                 label: 'Hoy',
-                data: hoy.map(d => d.v),
-                borderColor: '#3b82f6',
-                backgroundColor: gradHoy,
+                data: data.map(d => d.demHoy ?? null),
+                borderColor: '#3b82f6', backgroundColor: gradHoy,
                 fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2
+            },
+            {
+                label: 'Ayer',
+                data: data.map(d => d.demAyer ?? null),
+                borderColor: '#475569', backgroundColor: gradAyer,
+                fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5,
+                borderDash: [4, 3]
             }
         ];
 
-        const hasAyer = hoy.some(d => d.vAyer !== null && d.vAyer !== undefined);
-        if (hasAyer) {
+        // Semana anterior como línea extra si existe
+        if (data.some(d => d.demSemanaAnt != null)) {
             datasets.push({
-                label: 'Ayer',
-                data: hoy.map(d => d.vAyer),
-                borderColor: '#475569',
-                backgroundColor: gradAyer,
-                fill: true, tension: 0.4, pointRadius: 0, borderWidth: 1.5, borderDash: [4, 3]
+                label: 'Sem. ant.',
+                data: data.map(d => d.demSemanaAnt ?? null),
+                borderColor: '#334155', backgroundColor: 'transparent',
+                fill: false, tension: 0.4, pointRadius: 0, borderWidth: 1,
+                borderDash: [2, 4]
             });
         }
 
@@ -581,30 +595,26 @@ async function loadDemanda(regionId) {
             data: { labels, datasets },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
+                interaction: { mode:'index', intersect:false },
                 plugins: {
                     legend: {
                         display: true,
-                        labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, usePointStyle: true }
+                        labels: { color:'#94a3b8', font:{size:11}, boxWidth:12, usePointStyle:true }
                     },
                     tooltip: {
-                        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)} MW` },
-                        backgroundColor: 'rgba(15,23,42,0.95)', titleColor: '#94a3b8',
-                        bodyColor: '#f8fafc', padding: 10, cornerRadius: 8,
+                        callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)} MW` },
+                        backgroundColor:'rgba(15,23,42,0.95)', titleColor:'#94a3b8',
+                        bodyColor:'#f8fafc', padding:10, cornerRadius:8
                     }
                 },
                 scales: {
                     x: {
-                        grid: { color: 'rgba(255,255,255,0.04)' },
-                        ticks: {
-                            color: '#64748b', font: { size: 10 }, maxTicksLimit: 8,
-                            maxRotation: 0
-                        }
+                        grid:{ color:'rgba(255,255,255,0.04)' },
+                        ticks:{ color:'#64748b', font:{size:10}, maxTicksLimit:8, maxRotation:0 }
                     },
                     y: {
-                        grid: { color: 'rgba(255,255,255,0.04)' },
-                        ticks: { color: '#64748b', font: { size: 10 },
-                            callback: v => fmt(v) }
+                        grid:{ color:'rgba(255,255,255,0.04)' },
+                        ticks:{ color:'#64748b', font:{size:10}, callback: v => fmt(v) }
                     }
                 }
             }
@@ -612,13 +622,13 @@ async function loadDemanda(regionId) {
 
         showSection('demanda', true);
     } catch(e) {
-        console.error('Demanda error:', e);
+        console.error('Demanda:', e);
         document.getElementById('demandaLoader').style.display = 'none';
         document.getElementById('demandaError').style.display = '';
     }
 }
 
-// ── Corredores ────────────────────────────────────────────────────────────────
+// ── Corredores / Intercambios ─────────────────────────────────────────────────
 async function loadCorredores() {
     document.getElementById('corrLoader').style.display = 'flex';
     document.getElementById('corrContent').style.display = 'none';
@@ -626,53 +636,50 @@ async function loadCorredores() {
 
     try {
         const data = await apiFetch('/demanda-svc/demanda/IntercambioCorredoresGeo');
-        if (!data || (!data.features && !Array.isArray(data))) throw new Error('Sin datos');
+        if (!data?.features) throw new Error('Sin datos');
 
-        const features = data.features || data;
-        // Filter international corridors
-        const internacionales = features.filter(f => {
-            const name = (f.properties?.nombre || f.nombre || '').toLowerCase();
-            return name.includes('chile') || name.includes('bolivia') ||
-                   name.includes('uruguay') || name.includes('brasil') ||
-                   name.includes('paraguay') || name.includes('arg-');
-        });
-        const domesticos = features.filter(f => !internacionales.includes(f));
+        const features = data.features;
+        // Campo real: properties.text (string) → parsear como número
+        // Campo real: properties.internacional (boolean)
+        const internacionales = features.filter(f => f.properties?.internacional === true);
+        const domesticos      = features.filter(f => f.properties?.internacional !== true);
 
         const tbody = document.querySelector('#corrTable tbody');
         tbody.innerHTML = '';
 
         const renderRows = (list, isIntl) => {
             list.forEach(f => {
-                const props = f.properties || f;
-                const nombre = props.nombre || props.name || 'Corredor';
-                const mw = props.mw ?? props.flujo ?? props.potencia ?? null;
-                const mwFmt = mw !== null ? fmt(Math.abs(mw)) + ' MW' : '—';
-                const dir = mw === null ? '—' : mw > 10 ? '↑ Exporta' : mw < -10 ? '↓ Importa' : '≈ Neutro';
-                const cls = mw === null ? 'mw-zero' : mw > 10 ? 'mw-pos' : mw < -10 ? 'mw-neg' : 'mw-zero';
+                const p    = f.properties || {};
+                const nombre = p.nombre || 'Corredor';
+                const mw   = p.text !== undefined ? Number(p.text) : null;
+                const mwAbs = mw !== null ? fmt(Math.abs(mw)) + ' MW' : '—';
+                const dir  = mw === null ? '—' : mw > 5 ? '↑ Exporta' : mw < -5 ? '↓ Importa' : '≈ Neutro';
+                const cls  = mw === null ? 'mw-zero' : mw > 5 ? 'mw-pos' : mw < -5 ? 'mw-neg' : 'mw-zero';
                 tbody.innerHTML += `<tr>
                     <td>${isIntl ? '🌐 ' : ''}${nombre}</td>
-                    <td style="text-align:right;" class="${cls}">${mwFmt}</td>
+                    <td style="text-align:right;" class="${cls}">${mwAbs}</td>
                     <td style="text-align:right; font-size:0.75rem; color:var(--text-muted);">${dir}</td>
                 </tr>`;
             });
         };
 
+        const sep = (label) => `<tr><td colspan="3" style="padding:6px 10px; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">${label}</td></tr>`;
+
         if (internacionales.length > 0) {
-            tbody.innerHTML += `<tr><td colspan="3" style="padding:6px 10px; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Internacionales</td></tr>`;
+            tbody.innerHTML += sep('Internacionales');
             renderRows(internacionales, true);
         }
         if (domesticos.length > 0) {
-            tbody.innerHTML += `<tr><td colspan="3" style="padding:6px 10px; font-size:0.65rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Domésticos</td></tr>`;
-            renderRows(domesticos.slice(0, 10), false);
+            tbody.innerHTML += sep('Domésticos');
+            renderRows(domesticos, false);
         }
-
         if (features.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" class="info-msg" style="padding:16px; text-align:center;">Sin datos de intercambios disponibles.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="padding:16px; text-align:center; color:var(--text-muted); font-style:italic;">Sin datos.</td></tr>`;
         }
 
         showSection('corr', true);
     } catch(e) {
-        console.error('Corredores error:', e);
+        console.error('Corredores:', e);
         document.getElementById('corrLoader').style.display = 'none';
         document.getElementById('corrError').style.display = '';
     }
@@ -685,7 +692,6 @@ async function loadEmbalses() {
     document.getElementById('embalsesError').style.display = 'none';
 
     try {
-        // First get cuencas list to know IDs
         const cuencas = await apiFetch('/demanda-svc/demanda/EmbalsesyCuencas?ids_cuencas=1,2,3,4,5,6,7,8,9,10');
         if (!cuencas || cuencas.length === 0) throw new Error('Sin datos');
 
@@ -693,39 +699,124 @@ async function loadEmbalses() {
         grid.innerHTML = '';
 
         cuencas.forEach(c => {
-            const nombre = c.nombre || c.cuenca || c.id || 'Cuenca';
-            const cota = c.cota ?? c.nivel ?? null;
-            const caudal = c.caudal ?? c.caudalNatural ?? null;
+            const nombre  = c.nombre || c.cuenca || String(c.id);
+            const cota    = c.cota    ?? c.nivel ?? null;
+            const caudal  = c.caudal  ?? c.caudalNatural ?? null;
             const cotaMax = c.cotaMaxima ?? c.cotaMax ?? null;
             const cotaMin = c.cotaMinima ?? c.cotaMin ?? null;
-            const pct = (cota !== null && cotaMax !== null && cotaMin !== null && cotaMax > cotaMin)
+            const pct = (cota != null && cotaMax != null && cotaMin != null && cotaMax > cotaMin)
                 ? Math.max(0, Math.min(100, (cota - cotaMin) / (cotaMax - cotaMin) * 100))
                 : null;
-
-            const color = pct === null ? '#3b82f6' : pct > 70 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444';
+            const color = pct == null ? '#3b82f6' : pct > 70 ? '#10b981' : pct > 40 ? '#f59e0b' : '#ef4444';
 
             grid.innerHTML += `<div class="reservoir-item">
                 <div class="reservoir-name">${nombre}</div>
-                <div class="reservoir-val">${cota !== null ? fmt(cota, 2) + ' m' : '—'}</div>
-                <div class="reservoir-sub">Caudal: ${caudal !== null ? fmt(caudal, 0) + ' m³/s' : '—'}</div>
-                ${pct !== null ? `
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width:${pct.toFixed(1)}%; background:${color};"></div>
-                </div>
-                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:3px;">${pct.toFixed(0)}% del volumen</div>
-                ` : ''}
+                <div class="reservoir-val">${cota != null ? fmt(cota,2)+' m' : '—'}</div>
+                <div class="reservoir-sub">Caudal: ${caudal != null ? fmt(caudal,0)+' m³/s' : '—'}</div>
+                ${pct != null ? `
+                <div class="progress-bar"><div class="progress-fill" style="width:${pct.toFixed(1)}%;background:${color};"></div></div>
+                <div style="font-size:0.65rem;color:var(--text-muted);margin-top:3px;">${pct.toFixed(0)}% del volumen</div>` : ''}
             </div>`;
         });
 
         document.getElementById('embalsesGrid').style.display = 'grid';
         document.getElementById('embalsesLoader').style.display = 'none';
     } catch(e) {
-        console.error('Embalses error:', e);
+        console.error('Embalses:', e);
         document.getElementById('embalsesLoader').style.display = 'none';
-        document.getElementById('embalsesError').style.display = '';
-        // Show a friendly message instead of error
-        document.getElementById('embalsesError').textContent = 'Los datos de embalses no están disponibles para esta región o requieren parámetros adicionales.';
+        const el = document.getElementById('embalsesError');
+        el.style.display = '';
+        el.textContent = 'Datos de embalses no disponibles en este momento.';
     }
+}
+
+// ── Demanda por región (tabla de todas las provincias) ────────────────────────
+async function loadProvincias() {
+    document.getElementById('provLoader').style.display = 'flex';
+    document.getElementById('provContent').style.display = 'none';
+    document.getElementById('provError').style.display = 'none';
+
+    try {
+        if (allRegions.length === 0) throw new Error('Sin regiones');
+
+        // Excluir la región "total" para no duplicar, solo regiones hijas (idPadre definido)
+        const regiones = allRegions.filter(r => r.idPadre != null);
+        if (regiones.length === 0) {
+            // Si todas tienen idPadre null, mostrarlas todas
+            regiones.push(...allRegions);
+        }
+
+        // Fetch en paralelo con límite de concurrencia
+        const BATCH = 8;
+        const results = [];
+        for (let i = 0; i < regiones.length; i += BATCH) {
+            const batch = regiones.slice(i, i + BATCH);
+            const batchResults = await Promise.allSettled(
+                batch.map(async r => {
+                    const data = await apiFetch(`/demanda-svc/demanda/ObtieneDemandaYTemperaturaRegion?id_region=${r.id}`);
+                    if (!data || data.length === 0) return null;
+                    const last = data[data.length - 1];
+                    const first = data[0];
+                    return {
+                        nombre:   r.nombre,
+                        id:       r.id,
+                        demHoy:   last.demHoy   ?? null,
+                        demAyer:  last.demAyer  ?? null,
+                        tempHoy:  first.tempHoy ?? null,
+                    };
+                })
+            );
+            batchResults.forEach(r => {
+                if (r.status === 'fulfilled' && r.value) results.push(r.value);
+            });
+        }
+
+        // Ordenar por demanda actual desc
+        results.sort((a, b) => (b.demHoy ?? 0) - (a.demHoy ?? 0));
+
+        const tbody = document.getElementById('provTableBody');
+        tbody.innerHTML = '';
+
+        const hora = results.length > 0
+            ? new Date().toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' })
+            : '';
+        document.getElementById('provFecha').textContent = hora ? `Actualiz. ${hora}` : '';
+
+        results.forEach(r => {
+            const varPct = (r.demHoy != null && r.demAyer != null && r.demAyer !== 0)
+                ? ((r.demHoy - r.demAyer) / r.demAyer * 100)
+                : null;
+            const varFmt = varPct != null
+                ? `<span style="color:${varPct >= 0 ? '#10b981' : '#ef4444'};font-weight:700;">${varPct >= 0 ? '+' : ''}${fmt(varPct,1)}%</span>`
+                : '<span style="color:var(--text-muted);">—</span>';
+
+            tbody.innerHTML += `<tr style="cursor:pointer;" onclick="selectRegion(${r.id}, '${r.nombre.replace(/'/g,"\\'")}')">
+                <td style="font-weight:600;">${r.nombre}</td>
+                <td style="text-align:right; font-weight:700; font-variant-numeric:tabular-nums;">${r.demHoy != null ? fmt(r.demHoy) : '—'}</td>
+                <td style="text-align:right; color:var(--text-muted); font-variant-numeric:tabular-nums;">${r.demAyer != null ? fmt(r.demAyer) : '—'}</td>
+                <td style="text-align:right;">${varFmt}</td>
+                <td style="text-align:right; color:var(--text-muted);">${r.tempHoy != null ? fmt(r.tempHoy,1)+'°' : '—'}</td>
+            </tr>`;
+        });
+
+        if (results.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-muted);font-style:italic;">Sin datos disponibles.</td></tr>`;
+        }
+
+        showSection('prov', true);
+    } catch(e) {
+        console.error('Provincias:', e);
+        document.getElementById('provLoader').style.display = 'none';
+        document.getElementById('provError').style.display = '';
+    }
+}
+
+function selectRegion(id, nombre) {
+    currentRegionId = id;
+    document.getElementById('regionSelect').value = id;
+    loadGeneracion(id);
+    loadDemanda(id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
@@ -736,13 +827,13 @@ async function loadAllData() {
         loadDemanda(currentRegionId),
         loadCorredores(),
         loadEmbalses(),
+        loadProvincias(),
     ]);
 }
 
 async function init() {
     await loadRegions();
     await loadAllData();
-    // Auto-refresh every 5 minutes
     setInterval(loadAllData, 5 * 60 * 1000);
 }
 
