@@ -99,6 +99,25 @@
             font-weight: 600;
         }
 
+        .nav-link.wip {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .nav-link.wip .nav-wip-badge {
+            margin-left: auto;
+            font-size: 0.65rem;
+            font-weight: 600;
+            background: rgba(234, 179, 8, 0.18);
+            color: #ca8a04;
+            border: 1px solid rgba(234, 179, 8, 0.35);
+            border-radius: 6px;
+            padding: 2px 6px;
+            white-space: nowrap;
+            letter-spacing: 0.03em;
+        }
+
         .nav-icon {
             margin-right: 12px;
             font-size: 1.1rem;
@@ -266,9 +285,10 @@
             </li>
 
             <li class="nav-item">
-                <a class="nav-link" onclick="loadPage('construccion.html', this)">
+                <a class="nav-link wip">
                     <span class="nav-icon">🏗️</span>
                     <span>Construcción — ISAC</span>
+                    <span class="nav-wip-badge">En construcción</span>
                 </a>
             </li>
 
@@ -289,18 +309,20 @@
             <div class="nav-group-label">Mercado Físico & Futuros</div>
             
             <li class="nav-item">
-                <a class="nav-link" onclick="loadPage('mercados.html', this)">
+                <a class="nav-link wip">
                     <span class="nav-icon">🌾</span>
                     <span>Agro & Carnes</span>
+                    <span class="nav-wip-badge">En construcción</span>
                 </a>
             </li>
             
             <div class="nav-group-label">Energía</div>
 
             <li class="nav-item">
-                <a class="nav-link" onclick="loadPage('combustible.html', this)">
+                <a class="nav-link wip">
                     <span class="nav-icon">⛽</span>
                     <span>Precios de Combustible</span>
+                    <span class="nav-wip-badge">En construcción</span>
                 </a>
             </li>
 
