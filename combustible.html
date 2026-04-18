@@ -296,9 +296,11 @@
         const res = await fetch(WORKER_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setProgress(70, 'Descargando datos...');
-        const data = await res.json();
+        const wrapper = await res.json();
         setProgress(90, 'Procesando...');
-        return data;
+        // El Worker devuelve { data: "{\"data\":[...]}" } — doble JSON
+        const inner = typeof wrapper.data === 'string' ? JSON.parse(wrapper.data) : wrapper;
+        return Array.isArray(inner) ? inner : (inner.data || []);
     }
 
     // ==================== INIT ====================
