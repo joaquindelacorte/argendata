@@ -146,7 +146,7 @@
 
     <div class="page-header stagger-1 fade-in">
         <h1 class="page-title">⛽ Precios de Combustible</h1>
-        <p class="page-subtitle">Precios en surtidor por provincia · Resolución 314/2016 · Datos: Secretaría de Energía de la Nación</p>
+        <p class="page-subtitle">Precios en surtidor por provincia · Actualización diaria · Datos: Secretaría de Energía de la Nación</p>
     </div>
 
     <!-- Progress bar -->
@@ -230,10 +230,7 @@
     <script>
     // ==================== CONFIG ====================
 
-    // CKAN Datastore API — JSON liviano, ruta por proxy (cert SSL inválido en el dominio .gob.ar)
-    const RESOURCE_ID = '80ac25de-a44a-4445-9215-090cf55cfda5';
-    const CKAN_BASE   = 'http://datos.energia.gob.ar/api/3/action/datastore_search';
-    const PAGE_SIZE   = 2000; // últimos 2000 registros — suficiente para el mes actual
+    const WORKER_URL = 'https://scrapeodata.joaquindelacorte98.workers.dev/datos';
 
     // Province centroids [lat, lng]
     const PROVINCE_COORDS = {
@@ -294,50 +291,14 @@
         document.getElementById('status-msg').textContent = '';
     }
 
-    async function fetchWithTimeout(url, ms) {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), ms);
-        try {
-            return await fetch(url, { signal: ctrl.signal });
-        } finally { clearTimeout(timer); }
-    }
-
-    // Fetch JSON via proxy — todos en paralelo, gana el más rápido
-    async function fetchViaProxy(url) {
-        const proxyUrls = [
-            `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
-        ];
-        const attempts = proxyUrls.map(proxyUrl =>
-            fetchWithTimeout(proxyUrl, 15000)
-                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
-                .then(text => JSON.parse(text))
-        );
-        return Promise.any(attempts);
-    }
-
     async function fetchAllRecords() {
-        setProgress(20, 'Conectando con la API...');
-
-        // Paso 1: obtener el total de registros
-        const countUrl = `${CKAN_BASE}?resource_id=${RESOURCE_ID}&limit=1`;
-        let total = 0;
-        try {
-            const j = await fetchViaProxy(countUrl);
-            total = j.result?.total || 0;
-        } catch(e) {
-            throw new Error('Sin conexión con datos.energia.gob.ar: ' + e.message);
-        }
-
-        // Paso 2: traer los últimos PAGE_SIZE registros (fecha más reciente)
-        const offset = Math.max(0, total - PAGE_SIZE);
-        setProgress(50, `Descargando últimos ${Math.min(PAGE_SIZE, total).toLocaleString()} registros...`);
-
-        const dataUrl = `${CKAN_BASE}?resource_id=${RESOURCE_ID}&limit=${PAGE_SIZE}&offset=${offset}`;
-        const j = await fetchViaProxy(dataUrl);
-        setProgress(80, 'Procesando...');
-        return j.result?.records || [];
+        setProgress(30, 'Conectando con la API...');
+        const res = await fetch(WORKER_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setProgress(70, 'Descargando datos...');
+        const data = await res.json();
+        setProgress(90, 'Procesando...');
+        return data;
     }
 
     // ==================== INIT ====================
@@ -360,7 +321,7 @@
         const html = `
             <div class="error-box" style="grid-column:1/-1; line-height:1.8;">
                 ⚠️ ${msg}<br>
-                <small style="opacity:0.7">Los datos provienen de la Secretaría de Energía vía proxy externo. Puede haber demora o indisponibilidad temporal.</small><br><br>
+                <small style="opacity:0.7">Los datos provienen de la Secretaría de Energía. Puede haber demora o indisponibilidad temporal.</small><br><br>
                 <button onclick="init()" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid rgba(239,68,68,0.4); padding:8px 20px; border-radius:8px; cursor:pointer; font-weight:600;">🔄 Reintentar</button>
             </div>`;
         document.getElementById('kpi-row').innerHTML = html;
