@@ -45,7 +45,7 @@
 
         /* Map */
         #map {
-            height: 480px; border-radius: 12px; overflow: hidden;
+            height: 520px; border-radius: 12px; overflow: hidden;
             border: 1px solid var(--border-color); background: #0f172a;
         }
         .leaflet-container { background: #0f172a !important; }
@@ -140,6 +140,36 @@
             font-size: 0.82rem; color: var(--text-secondary);
         }
         .ciudad-summary strong { color: #fff; }
+
+        /* Filter step indicators */
+        .filter-step { display: flex; flex-direction: column; }
+        .filter-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .filter-step-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: rgba(59,130,246,0.35); color: #fff;
+            font-size: 0.65rem; font-weight: 700; flex-shrink: 0; transition: background 0.3s;
+        }
+        .filter-step-num.done { background: #10b981; }
+        .filter-arrow { font-size: 1.3rem; color: rgba(255,255,255,0.15); align-self: flex-end; padding-bottom: 10px; user-select: none; }
+        @media (max-width: 640px) { .filter-arrow { display: none; } }
+        .filter-clear-btn {
+            align-self: flex-end; background: rgba(239,68,68,0.1); color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3); padding: 8px 14px; border-radius: 8px;
+            cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: all 0.2s; white-space: nowrap;
+        }
+        .filter-clear-btn:hover { background: rgba(239,68,68,0.22); }
+
+        /* Google Maps / in-map buttons */
+        .station-btn-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .maps-ext-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: rgba(16,185,129,0.1); color: #10b981;
+            border: 1px solid rgba(16,185,129,0.3); padding: 5px 10px;
+            border-radius: 6px; font-size: 0.72rem; font-weight: 600;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .maps-ext-btn:hover { background: rgba(16,185,129,0.22); color: #34d399; }
     </style>
 </head>
 <body>
@@ -167,24 +197,27 @@
     <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;" id="ciudad-section" style="display:none">
         <h2 class="section-title">📍 ¿Dónde me conviene cargar?</h2>
         <div class="ciudad-filters">
-            <div>
-                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:4px;">Provincia</div>
+            <div class="filter-step">
+                <div class="filter-label"><span class="filter-step-num" id="step-1">1</span> Provincia</div>
                 <select id="filter-prov" onchange="onProvChange()">
                     <option value="">— Seleccioná una provincia —</option>
                 </select>
             </div>
-            <div>
-                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:4px;">Ciudad / Localidad</div>
+            <span class="filter-arrow">›</span>
+            <div class="filter-step">
+                <div class="filter-label"><span class="filter-step-num" id="step-2">2</span> Ciudad / Localidad</div>
                 <select id="filter-ciudad" onchange="onCiudadChange()" disabled>
                     <option value="">— Primero elegí provincia —</option>
                 </select>
             </div>
-            <div>
-                <div style="font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; font-weight:600; margin-bottom:4px;">Combustible</div>
-                <select id="filter-fuel-ciudad" onchange="onCiudadChange()" disabled>
+            <span class="filter-arrow">›</span>
+            <div class="filter-step">
+                <div class="filter-label"><span class="filter-step-num" id="step-3">3</span> Combustible</div>
+                <select id="filter-fuel-ciudad" onchange="onFuelCiudadChange()" disabled>
                     <option value="">— Seleccioná ciudad antes —</option>
                 </select>
             </div>
+            <button class="filter-clear-btn" id="clear-filters-btn" onclick="clearCiudadFilters()" style="display:none">✕ Limpiar</button>
         </div>
         <div id="ciudad-results">
             <div class="info-box" style="padding:16px;">Seleccioná provincia y ciudad para ver las estaciones más baratas de tu zona.</div>
@@ -273,6 +306,7 @@
     let activeFuel    = '';
     let mapInstance   = null;
     let mapLayers     = [];
+    let stationMarkers = [];
     let chartProv     = null;
     let chartEmp      = null;
     let chartHist     = null;
@@ -390,7 +424,7 @@
         };
         const container = document.getElementById('fuel-tabs');
         container.innerHTML = types.slice(0, 8).map((t, i) => `
-            <button class="fuel-tab" onclick="setFuel('${t.replace(/'/g,"\\'")}', this)">${getIcon(t)} ${t}</button>
+            <button class="fuel-tab" data-fuel="${t.replace(/"/g,'&quot;')}" onclick="setFuel('${t.replace(/'/g,"\\'")}', this)">${getIcon(t)} ${t}</button>
         `).join('');
     }
 
@@ -399,9 +433,27 @@
         document.querySelectorAll('.fuel-tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         renderAll();
+
+        // Sync city section if a city is already selected
+        const prov   = document.getElementById('filter-prov').value;
+        const ciudad = document.getElementById('filter-ciudad').value;
+        if (prov && ciudad) {
+            const fuelSel = document.getElementById('filter-fuel-ciudad');
+            const fuelsEnCiudad = [...new Set(
+                allData.filter(r => r.prov === prov && r.localidad === ciudad).map(r => r.producto)
+            )];
+            if (fuelsEnCiudad.includes(fuel)) fuelSel.value = fuel;
+            renderCiudadResults(prov, ciudad, fuelSel.value);
+        }
+    }
+
+    function clearStationMarkers() {
+        stationMarkers.forEach(m => mapInstance && mapInstance.removeLayer(m));
+        stationMarkers = [];
     }
 
     function renderAll() {
+        clearStationMarkers();
         const filtered = allData.filter(r => r.producto === activeFuel);
         if (!filtered.length) return;
 
@@ -792,6 +844,15 @@
 
     // ==================== CIUDAD FILTER ====================
 
+    function updateStepIndicators(step) {
+        ['step-1','step-2','step-3'].forEach((id, i) => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('done', i < step);
+        });
+        const clearBtn = document.getElementById('clear-filters-btn');
+        if (clearBtn) clearBtn.style.display = step > 0 ? 'inline-flex' : 'none';
+    }
+
     function populateCiudadFilter() {
         const provSel = document.getElementById('filter-prov');
         const provincias = [...new Set(allData.map(r => r.prov))].sort();
@@ -806,11 +867,15 @@
         const fuelSel = document.getElementById('filter-fuel-ciudad');
         document.getElementById('ciudad-results').innerHTML =
             '<div class="info-box" style="padding:16px;">Elegí una ciudad para ver las estaciones disponibles.</div>';
+        clearStationMarkers();
 
         if (!prov) {
             ciudadSel.disabled = true;
             ciudadSel.innerHTML = '<option value="">— Primero elegí provincia —</option>';
             fuelSel.disabled = true;
+            fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+            updateStepIndicators(0);
+            renderAll();
             return;
         }
 
@@ -822,6 +887,8 @@
             ciudades.map(c => `<option value="${c}">${c.charAt(0) + c.slice(1).toLowerCase()}</option>`).join('');
         ciudadSel.disabled = false;
         fuelSel.disabled = true;
+        fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+        updateStepIndicators(1);
     }
 
     function onCiudadChange() {
@@ -831,10 +898,14 @@
 
         if (!ciudad) {
             fuelSel.disabled = true;
+            fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+            updateStepIndicators(1);
+            clearStationMarkers();
+            document.getElementById('ciudad-results').innerHTML =
+                '<div class="info-box" style="padding:16px;">Elegí una ciudad para ver las estaciones disponibles.</div>';
             return;
         }
 
-        // Populate fuel types available for this city
         const fuelsEnCiudad = [...new Set(
             allData.filter(r => r.prov === prov && r.localidad === ciudad).map(r => r.producto)
         )].sort();
@@ -842,10 +913,39 @@
         fuelSel.innerHTML = fuelsEnCiudad.map(f => `<option value="${f}">${f}</option>`).join('');
         fuelSel.disabled = false;
 
-        // If current activeFuel is available in this city, pre-select it
         if (fuelsEnCiudad.includes(activeFuel)) fuelSel.value = activeFuel;
-
+        updateStepIndicators(2);
         renderCiudadResults(prov, ciudad, fuelSel.value);
+    }
+
+    function onFuelCiudadChange() {
+        const prov   = document.getElementById('filter-prov').value;
+        const ciudad = document.getElementById('filter-ciudad').value;
+        const fuel   = document.getElementById('filter-fuel-ciudad').value;
+        if (!prov || !ciudad || !fuel) return;
+
+        // Sync global active fuel and highlight the matching tab
+        activeFuel = fuel;
+        document.querySelectorAll('.fuel-tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.fuel === fuel);
+        });
+        renderAll();
+        renderCiudadResults(prov, ciudad, fuel);
+    }
+
+    function clearCiudadFilters() {
+        document.getElementById('filter-prov').value = '';
+        const ciudadSel = document.getElementById('filter-ciudad');
+        ciudadSel.innerHTML = '<option value="">— Primero elegí provincia —</option>';
+        ciudadSel.disabled = true;
+        const fuelSel = document.getElementById('filter-fuel-ciudad');
+        fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
+        fuelSel.disabled = true;
+        document.getElementById('ciudad-results').innerHTML =
+            '<div class="info-box" style="padding:16px;">Seleccioná provincia y ciudad para ver las estaciones más baratas de tu zona.</div>';
+        updateStepIndicators(0);
+        clearStationMarkers();
+        renderAll();
     }
 
     function renderCiudadResults(prov, ciudad, fuel) {
@@ -856,10 +956,10 @@
         if (!records.length) {
             document.getElementById('ciudad-results').innerHTML =
                 '<div class="info-box" style="padding:16px;">Sin datos para esta combinación.</div>';
+            clearStationMarkers();
             return;
         }
 
-        // Group by empresa + dirección (una estación puede tener Diurno/Nocturno)
         const byStation = {};
         records.forEach(r => {
             const key = `${r.empresa}||${r.direccion}`;
@@ -870,7 +970,6 @@
             byStation[key].precios[r.tipohorario || 'Diurno'] = r.precio;
         });
 
-        // Use precio Diurno (or first available) for ranking
         const stations = Object.values(byStation).map(s => ({
             ...s,
             precio: s.precios['Diurno'] || Object.values(s.precios)[0]
@@ -879,32 +978,67 @@
         if (!stations.length) {
             document.getElementById('ciudad-results').innerHTML =
                 '<div class="info-box" style="padding:16px;">Sin precios válidos para esta ciudad.</div>';
+            clearStationMarkers();
             return;
         }
 
-        const cheapest = stations[0].precio;
-        const mostExp  = stations[stations.length - 1].precio;
-        const savings  = mostExp - cheapest;
-        const avg      = stations.reduce((s, r) => s + r.precio, 0) / stations.length;
+        updateStepIndicators(3);
+
+        const cheapestP = stations[0].precio;
+        const mostExpP  = stations[stations.length - 1].precio;
+        const savings   = mostExpP - cheapestP;
+
+        // Replace province circles with individual station markers
+        clearStationMarkers();
+        mapLayers.forEach(l => mapInstance.removeLayer(l));
+        mapLayers = [];
+        const existingLegend = document.querySelector('.map-legend');
+        if (existingLegend) existingLegend.remove();
+
+        const bounds = [];
+        stations.forEach((s, i) => {
+            if (!s.lat || !s.lng) return;
+            bounds.push([s.lat, s.lng]);
+            const col = priceColor(s.precio, cheapestP, mostExpP);
+            const marker = L.circleMarker([s.lat, s.lng], {
+                radius: 10,
+                color: i === 0 ? '#fff' : 'rgba(255,255,255,0.45)',
+                weight: i === 0 ? 2 : 1,
+                fillColor: col,
+                fillOpacity: 0.92
+            }).bindPopup(`
+                <div style="font-family:'Inter',sans-serif; min-width:155px;">
+                    <strong style="font-size:0.9rem;">${s.brand}</strong><br>
+                    <span style="font-size:1.1rem; font-weight:800; color:${col}">$${fmtNum(s.precio,0)}<span style="font-size:0.7rem; color:#94a3b8; font-weight:400;">/L</span></span><br>
+                    <span style="color:#94a3b8; font-size:0.73rem; line-height:1.4;">${s.direccion || ''}</span>
+                </div>
+            `).addTo(mapInstance);
+            stationMarkers.push(marker);
+        });
+
+        if (bounds.length >= 2) {
+            mapInstance.fitBounds(bounds, { padding: [40, 40] });
+        } else if (bounds.length === 1) {
+            mapInstance.setView(bounds[0], 15);
+        }
 
         // Summary bar
         let html = `
             <div class="ciudad-summary">
-                <span>🏪 <strong>${stations.length}</strong> estaciones encontradas</span>
+                <span>🏪 <strong>${stations.length}</strong> estaciones</span>
                 <span>⛽ <strong>${fuel}</strong></span>
                 <span>📍 <strong>${ciudad.charAt(0) + ciudad.slice(1).toLowerCase()}</strong></span>
-                <span>💰 Ahorro max: <strong style="color:#10b981">$${fmtNum(savings, 0)}/L</strong> entre la más cara y más barata</span>
+                <span>💰 Ahorro máx: <strong style="color:#10b981">$${fmtNum(savings, 0)}/L</strong> entre la más cara y más barata</span>
             </div>
             <div class="station-grid">`;
 
         stations.forEach((s, i) => {
             const isCheapest = i === 0;
-            const diff = s.precio - cheapest;
+            const diff = s.precio - cheapestP;
             const diffLabel = diff === 0 ? '✅ La más barata' : `+$${fmtNum(diff, 0)} vs más barata`;
-            const priceColor = isCheapest ? '#10b981' : diff <= savings * 0.25 ? '#84cc16' : diff <= savings * 0.6 ? '#f59e0b' : '#ef4444';
+            const priceCol = isCheapest ? '#10b981' : diff <= savings * 0.25 ? '#84cc16' : diff <= savings * 0.6 ? '#f59e0b' : '#ef4444';
             const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
 
-            // Nocturno price if different
             let noctLabel = '';
             if (s.precios['Nocturno'] && s.precios['Nocturno'] !== s.precio) {
                 noctLabel = `<div class="station-horario">🌙 Nocturno: $${fmtNum(s.precios['Nocturno'], 0)}</div>`;
@@ -912,39 +1046,41 @@
 
             const mapBtn = (s.lat && s.lng)
                 ? `<button onclick="zoomToStation(${s.lat},${s.lng},'${s.empresa.replace(/'/g,"\\'")} — $${fmtNum(s.precio,0)}/L')"
-                    style="margin-top:8px; background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);
-                    padding:4px 10px; border-radius:6px; font-size:0.72rem; cursor:pointer; font-weight:600;">🗺 Ver en mapa</button>`
+                    style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);
+                    padding:5px 10px; border-radius:6px; font-size:0.72rem; cursor:pointer; font-weight:600;">🗺 Ver en mapa</button>`
                 : '';
+
+            const mapsUrl = (s.lat && s.lng)
+                ? `https://maps.google.com/?q=${s.lat},${s.lng}`
+                : `https://maps.google.com/?q=${encodeURIComponent((s.direccion || '') + ', ' + ciudad + ', Argentina')}`;
+            const mapsExtBtn = `<a href="${mapsUrl}" target="_blank" rel="noopener" class="maps-ext-btn">📍 Abrir en Maps</a>`;
 
             html += `
                 <div class="station-card ${isCheapest ? 'cheapest' : ''}">
                     <div class="station-rank">${rankEmoji}</div>
                     <div class="station-brand">${s.brand}</div>
-                    <div class="station-price" style="color:${priceColor}">$${fmtNum(s.precio, 0)}</div>
+                    <div class="station-price" style="color:${priceCol}">$${fmtNum(s.precio, 0)}</div>
                     <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:2px;">por litro · Diurno</div>
                     ${noctLabel}
                     <div class="station-addr">📍 ${s.direccion || 'Dirección no disponible'}</div>
-                    ${diff > 0 ? `<div class="station-horario" style="color:${priceColor}; margin-top:6px; font-weight:600;">${diffLabel}</div>` : `<div class="savings-badge">✅ Precio más bajo</div>`}
-                    ${mapBtn}
+                    ${diff > 0 ? `<div class="station-horario" style="color:${priceCol}; margin-top:6px; font-weight:600;">${diffLabel}</div>` : `<div class="savings-badge">✅ Precio más bajo</div>`}
+                    <div class="station-btn-row">
+                        ${mapBtn}
+                        ${mapsExtBtn}
+                    </div>
                 </div>`;
         });
 
         html += '</div>';
         document.getElementById('ciudad-results').innerHTML = html;
-
-        // Zoom map to city
-        if (stations[0].lat && stations[0].lng) {
-            mapInstance.setView([stations[0].lat, stations[0].lng], 13);
-        }
     }
 
     function zoomToStation(lat, lng, label) {
-        mapInstance.setView([lat, lng], 15);
+        mapInstance.setView([lat, lng], 16);
         L.popup()
             .setLatLng([lat, lng])
             .setContent(`<div style="font-family:'Inter',sans-serif; font-size:0.85rem; font-weight:600;">${label}</div>`)
             .openOn(mapInstance);
-        // Scroll to map
         document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
