@@ -192,6 +192,180 @@
         .sig-neutral { background: rgba(100,116,139,0.14); color: #94a3b8; }
         .sig-estable { background: rgba(16,185,129,0.14);  color: #10b981; }
 
+        /* ── 3D Bubble labels (HTML overlay) ── */
+        .label-layer {
+            position: absolute; inset: 0; pointer-events: none;
+            z-index: 5; overflow: hidden;
+        }
+        .node-lbl {
+            position: absolute; left: 0; top: 0;
+            background: rgba(10,18,36,0.86);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 7px; padding: 3px 8px;
+            font-size: 0.68rem; line-height: 1.15;
+            white-space: nowrap; text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+            font-family: 'Inter', sans-serif;
+            transition: opacity 0.2s;
+            will-change: transform;
+        }
+        .nl-name { color: #e2e8f0; font-weight: 600; font-size: 0.68rem; }
+        .nl-pct  { font-weight: 700; font-size: 0.66rem; margin-top: 1px; }
+        .nl-pct.pos { color: #10b981; }
+        .nl-pct.neg { color: #ef4444; }
+        .nl-pct.neu { color: #94a3b8; }
+
+        /* ── Insights + Brechas section ── */
+        .insights-section { margin: 0 32px 18px; }
+        .insights-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 14px;
+        }
+        .insights-card { padding: 18px 20px; }
+        .insights-title {
+            display: flex; align-items: center; gap: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem; font-weight: 700; color: #fff;
+            margin-bottom: 14px;
+        }
+        .insights-title .help-btn {
+            margin-left: auto; font-size: 0.65rem; font-weight: 600;
+            padding: 3px 9px; border-radius: 5px;
+            background: rgba(59,130,246,0.12); color: #60a5fa;
+            border: 1px solid rgba(59,130,246,0.25);
+            cursor: pointer; transition: all 0.18s;
+        }
+        .insights-title .help-btn:hover { background: rgba(59,130,246,0.22); }
+
+        .insight-row {
+            display: flex; gap: 12px; align-items: flex-start;
+            padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .insight-row:first-of-type { border-top: none; padding-top: 4px; }
+        .insight-emoji {
+            font-size: 1.4rem; line-height: 1; flex-shrink: 0;
+            width: 32px; text-align: center;
+        }
+        .insight-body { flex: 1; }
+        .insight-head {
+            font-size: 0.82rem; font-weight: 700; color: #e2e8f0;
+            margin-bottom: 2px;
+        }
+        .insight-text {
+            font-size: 0.74rem; color: var(--text-secondary);
+            line-height: 1.45;
+        }
+        .insight-action {
+            display: inline-block; margin-top: 6px;
+            font-size: 0.7rem; font-weight: 600; color: #60a5fa;
+            background: rgba(59,130,246,0.08); border-radius: 4px;
+            padding: 2px 8px; border: 1px solid rgba(59,130,246,0.2);
+        }
+
+        /* ── Brechas (derived metrics) ── */
+        .brechas-list { display: flex; flex-direction: column; gap: 10px; }
+        .brecha-card {
+            background: rgba(0,0,0,0.22);
+            border-radius: 10px; padding: 12px 14px;
+            border-left: 3px solid var(--accent);
+        }
+        .brecha-head {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 6px;
+        }
+        .brecha-name {
+            font-size: 0.78rem; font-weight: 600; color: #e2e8f0;
+        }
+        .brecha-tip {
+            font-size: 0.62rem; color: var(--text-muted);
+            cursor: help; border-bottom: 1px dashed var(--text-muted);
+        }
+        .brecha-value {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem; font-weight: 700; color: #fff;
+            line-height: 1; margin: 4px 0;
+        }
+        .brecha-meta { font-size: 0.7rem; color: var(--text-secondary); }
+        .brecha-bar-wrap {
+            margin-top: 7px; height: 5px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px; overflow: hidden;
+        }
+        .brecha-bar { height: 100%; transition: width 0.4s ease; border-radius: 3px; }
+
+        /* Stress meter */
+        .stress-meter {
+            background: rgba(0,0,0,0.22);
+            border-radius: 10px; padding: 14px;
+            text-align: center;
+        }
+        .stress-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem; font-weight: 800;
+            line-height: 1; margin: 6px 0;
+        }
+        .stress-label {
+            font-size: 0.65rem; text-transform: uppercase;
+            letter-spacing: 0.1em; font-weight: 700;
+            margin-top: 4px;
+        }
+        .stress-bar-wrap {
+            margin-top: 10px; height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px; overflow: hidden;
+            position: relative;
+        }
+        .stress-bar {
+            height: 100%; border-radius: 3px;
+            background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #ef4444 100%);
+            transition: width 0.4s ease;
+        }
+
+        /* Help modal */
+        .help-overlay {
+            position: fixed; inset: 0; z-index: 9000;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+            display: none; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .help-overlay.open { display: flex; }
+        .help-box {
+            background: #0f172a; border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; padding: 28px 32px;
+            max-width: 620px; width: 100%; max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .help-box h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem; margin-bottom: 6px; color: #fff;
+        }
+        .help-box .help-sub {
+            font-size: 0.78rem; color: var(--text-muted); margin-bottom: 18px;
+        }
+        .help-section { margin-bottom: 18px; }
+        .help-section h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem; color: #60a5fa;
+            margin-bottom: 6px;
+        }
+        .help-section p {
+            font-size: 0.82rem; color: var(--text-secondary);
+            line-height: 1.55; margin-bottom: 4px;
+        }
+        .help-close {
+            position: sticky; bottom: 0; margin-top: 12px;
+            background: var(--accent); color: #fff; border: none;
+            padding: 10px 22px; border-radius: 8px;
+            font-weight: 600; cursor: pointer; font-size: 0.85rem;
+            display: block; margin-left: auto;
+        }
+
+        @media (max-width: 900px) {
+            .insights-section { margin: 0 16px 16px; }
+            .insights-grid { grid-template-columns: 1fr; }
+        }
+
         @media (max-width: 900px) {
             .flujos-header { padding: 16px 16px 0; }
             .flujos-controls { margin: 12px 16px; padding: 12px 14px; gap: 12px; }
@@ -299,6 +473,63 @@
 <!-- Floating tooltip -->
 <div class="node-tt" id="node-tt"></div>
 
+<!-- ══════════════ INSIGHTS + BRECHAS ══════════════ -->
+<div class="insights-section fade-in stagger-3">
+    <div class="insights-grid">
+        <div class="glass-card insights-card">
+            <div class="insights-title">
+                💡 Insights del Momento
+                <button class="help-btn" onclick="openHelp()">¿Cómo leer esto?</button>
+            </div>
+            <div id="insights-list">
+                <p style="color:var(--text-muted);font-size:0.8rem;">Cargando…</p>
+            </div>
+        </div>
+        <div class="glass-card insights-card">
+            <div class="insights-title">📊 Métricas Derivadas</div>
+            <div class="brechas-list" id="brechas-list">
+                <p style="color:var(--text-muted);font-size:0.8rem;">Cargando…</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help modal -->
+<div class="help-overlay" id="help-overlay" onclick="if(event.target===this)closeHelp()">
+    <div class="help-box">
+        <h3>Cómo interpretar esta página</h3>
+        <p class="help-sub">Una guía rápida para sacarle el jugo a la red 3D y al análisis macro.</p>
+
+        <div class="help-section">
+            <h4>🔮 Las burbujas (nodos)</h4>
+            <p>Cada burbuja es una variable financiera (dólar, riesgo país, reservas, etc.). El <strong>tamaño</strong> indica cuánto cambió en el período seleccionado. El <strong>color</strong> dice si el cambio es bueno (verde) o malo (rojo) desde el punto de vista del peso argentino.</p>
+            <p style="margin-top:6px;"><em>Ejemplo:</em> Si el riesgo país sube, la burbuja aparece <span style="color:#ef4444;">roja</span> y grande. Si las reservas suben, la burbuja sale <span style="color:#10b981;">verde</span>.</p>
+        </div>
+
+        <div class="help-section">
+            <h4>🔗 Las flechas (flujos)</h4>
+            <p>Las líneas conectan variables que se influyen entre sí. Las <strong>partículas viajan en la dirección de causalidad</strong> (de la "causa" al "efecto" según teoría macro). El grosor refleja qué tan fuerte es esa relación históricamente.</p>
+        </div>
+
+        <div class="help-section">
+            <h4>⏱ El slicer de tiempo</h4>
+            <p>Cambiá el horizonte (7D, 30D, 90D…) o moví el slider para ver cómo se transformó la red en distintos momentos. El botón <strong>▶ Animar</strong> reproduce la evolución cronológica para detectar patrones.</p>
+        </div>
+
+        <div class="help-section">
+            <h4>📊 Insights y métricas</h4>
+            <p>Los <strong>Insights</strong> destacan las 3-4 cosas más importantes del momento (auto-generados). Las <strong>Métricas Derivadas</strong> muestran indicadores compuestos que un analista mira primero: brecha cambiaria, tasa real, y el termómetro de estrés del mercado.</p>
+        </div>
+
+        <div class="help-section">
+            <h4>🎯 Para qué sirve</h4>
+            <p>Para entender de un vistazo <strong>dónde está la presión del sistema</strong> y cómo se transmite entre variables. Útil para: anticipar movimientos del dólar tras cambios en reservas, detectar pass-through de tipo de cambio a precios, evaluar el régimen monetario actual.</p>
+        </div>
+
+        <button class="help-close" onclick="closeHelp()">Entendido</button>
+    </div>
+</div>
+
 <!-- ══════════════ FLOW TABLE ══════════════ -->
 <div class="flow-section fade-in stagger-3">
     <h2 class="section-title" style="margin-top:0;">Análisis de Flujos — Señales de Mercado</h2>
@@ -375,6 +606,8 @@ let currentPeriod = 30;
 let viewMode = 'cumulative';
 let graphInst = null;
 let animating = false, animRAF = null;
+let labelMap = {};      // id → HTMLDivElement for 3D labels
+let labelLayer = null;
 
 // ─────────────────────────────────────────────────────────────────
 // UTILITIES
@@ -602,6 +835,48 @@ function buildGD(nodeArr) {
     return { nodes, links };
 }
 
+function createLabelLayer(wrap, nodeArr) {
+    // Remove old layer if exists
+    if (labelLayer && labelLayer.parentNode) labelLayer.parentNode.removeChild(labelLayer);
+    labelLayer = document.createElement('div');
+    labelLayer.className = 'label-layer';
+    wrap.appendChild(labelLayer);
+    labelMap = {};
+    nodeArr.forEach(n => {
+        const div = document.createElement('div');
+        div.className = 'node-lbl';
+        labelLayer.appendChild(div);
+        labelMap[n.id] = div;
+    });
+    refreshLabelContent(nodeArr);
+}
+
+function refreshLabelContent(nodeArr) {
+    nodeArr.forEach(n => {
+        const lbl = labelMap[n.id];
+        if (!lbl) return;
+        const bc = badgeClass(n.pctChange, n.posIsGood);
+        lbl.innerHTML =
+            `<div class="nl-name">${n.label}</div>` +
+            `<div class="nl-pct ${bc}">${fmtPct(n.pctChange)}</div>`;
+    });
+}
+
+function syncLabelPositions() {
+    if (!graphInst || !labelLayer) return;
+    const data = graphInst.graphData();
+    data.nodes.forEach(node => {
+        const lbl = labelMap[node.id];
+        if (!lbl || node.x == null) return;
+        try {
+            const c = graphInst.graph2ScreenCoords(node.x, node.y, node.z);
+            const off = (node.val || 2) * 1.4 + 16;
+            lbl.style.transform =
+                `translate(${c.x}px, ${c.y - off}px) translate(-50%, -100%)`;
+        } catch(_) {}
+    });
+}
+
 function initGraph(nodeArr) {
     const wrap = document.getElementById('graph-wrap');
     const cont = document.getElementById('fg-container');
@@ -642,7 +917,21 @@ function initGraph(nodeArr) {
                 node, 800
             );
             highlightCard(node.id);
-        });
+        })
+        .onEngineTick(syncLabelPositions);
+
+    // Also sync on every animation frame for smoother label tracking during camera moves
+    graphInst.onZoom && graphInst.onZoom(syncLabelPositions);
+
+    // Create the HTML overlay labels
+    createLabelLayer(wrap, gd.nodes);
+
+    // Sync labels every frame using requestAnimationFrame
+    function tickLabels() {
+        syncLabelPositions();
+        requestAnimationFrame(tickLabels);
+    }
+    requestAnimationFrame(tickLabels);
 
     // Mouse tracker for tooltip
     cont.addEventListener('mousemove', e=>{
@@ -659,7 +948,209 @@ function updateGraph(nodeArr) {
     if (!graphInst) return;
     const gd = buildGD(nodeArr);
     graphInst.graphData(gd);
+    refreshLabelContent(nodeArr);
 }
+
+// ─────────────────────────────────────────────────────────────────
+// DERIVED METRICS — Insights, Brechas, Stress
+// ─────────────────────────────────────────────────────────────────
+function computeStress(nodeArr) {
+    // Promedio ponderado de cambios "malos" en variables direccionales
+    let sum = 0, count = 0;
+    nodeArr.forEach(n => {
+        if (n.pctChange == null || n.posIsGood === null) return;
+        const isBad = n.posIsGood ? n.pctChange < 0 : n.pctChange > 0;
+        const mag = Math.min(Math.abs(n.pctChange), 25);
+        if (isBad) sum += mag * 4; else sum += -mag * 0.5; // small reward for good moves
+        count++;
+    });
+    if (!count) return 0;
+    let stress = sum / count;
+    return Math.max(0, Math.min(100, stress + 25)); // baseline 25
+}
+
+function computeBrechas(nodeArr) {
+    const get = id => nodeArr.find(n => n.id === id);
+    const blue    = get('dolar_blue');
+    const oficial = get('dolar_oficial');
+    const ccl     = get('dolar_ccl');
+    const inflac  = get('inflacion');
+    const badlar  = get('badlar');
+
+    const out = [];
+
+    if (blue?.currentValue && oficial?.currentValue) {
+        const v = ((blue.currentValue - oficial.currentValue) / oficial.currentValue) * 100;
+        let level, color, msg;
+        if (v > 60)      { level='ALTA';     color='#ef4444'; msg='Brecha crítica — fuerte desconfianza'; }
+        else if (v > 30) { level='MODERADA'; color='#f59e0b'; msg='Brecha relevante — vigilar'; }
+        else if (v > 10) { level='CONTENIDA'; color='#3b82f6'; msg='Brecha bajo control'; }
+        else             { level='BAJA';     color='#10b981'; msg='Brecha muy baja — convergencia FX'; }
+        out.push({
+            name:'Brecha Blue / Oficial',
+            tip:'Diferencia entre Dólar Blue y Oficial — termómetro de confianza en el régimen cambiario',
+            value:`${fmt(v,1)}%`,
+            color,
+            barPct: Math.min(100, v),
+            meta:`${level} · ${msg}`,
+        });
+    }
+
+    if (ccl?.currentValue && oficial?.currentValue) {
+        const v = ((ccl.currentValue - oficial.currentValue) / oficial.currentValue) * 100;
+        const color = v > 50 ? '#ef4444' : v > 20 ? '#f59e0b' : '#10b981';
+        out.push({
+            name:'Brecha CCL / Oficial',
+            tip:'Spread entre dólar financiero (CCL) y oficial — indica fuga de capitales',
+            value:`${fmt(v,1)}%`,
+            color,
+            barPct: Math.min(100, v),
+            meta: v > 50 ? 'Presión de capital' : v > 20 ? 'Spread normal AR' : 'Spread bajo',
+        });
+    }
+
+    if (inflac?.currentValue != null && badlar?.currentValue != null) {
+        // IPC mensual → anualizado; BADLAR ya es % anual
+        const inflAnual = (Math.pow(1 + inflac.currentValue/100, 12) - 1) * 100;
+        const tasaReal  = badlar.currentValue - inflAnual;
+        const color = tasaReal > 5 ? '#10b981' : tasaReal > 0 ? '#3b82f6' : '#ef4444';
+        const barPct = Math.min(100, Math.max(0, (tasaReal + 30) / 60 * 100));
+        out.push({
+            name:'Tasa Real (BADLAR vs IPC)',
+            tip:'BADLAR menos inflación anualizada — incentivo al ahorro en pesos',
+            value:`${fmtPct(tasaReal)}`,
+            color,
+            barPct,
+            meta: tasaReal > 0 ? 'Tasa real positiva — ahorro en pesos rinde' : 'Tasa real negativa — desincentivo a pesos',
+        });
+    }
+
+    return out;
+}
+
+function generateInsights(nodeArr) {
+    const insights = [];
+    const get = id => nodeArr.find(n => n.id === id);
+
+    // 1) Mover principal
+    const movers = [...nodeArr]
+        .filter(n => n.pctChange != null)
+        .sort((a,b) => Math.abs(b.pctChange) - Math.abs(a.pctChange));
+    if (movers[0]) {
+        const n = movers[0];
+        const isGood = n.posIsGood===null ? n.pctChange>0 : (n.posIsGood ? n.pctChange>0 : n.pctChange<0);
+        insights.push({
+            emoji: isGood ? '🟢' : (Math.abs(n.pctChange)>5 ? '🚨' : '⚠️'),
+            title:`${n.label}: ${fmtPct(n.pctChange)}`,
+            text:`Es la variable que más se movió en el período. ${isGood ? 'Lectura positiva.' : 'Requiere atención del analista.'}`,
+            action: isGood ? null : `Vigilar transmisión a otras variables`,
+        });
+    }
+
+    // 2) Brecha cambiaria
+    const blue = get('dolar_blue'), oficial = get('dolar_oficial');
+    if (blue?.currentValue && oficial?.currentValue) {
+        const brecha = ((blue.currentValue - oficial.currentValue) / oficial.currentValue) * 100;
+        if (brecha > 50) insights.push({
+            emoji:'🚨', title:`Brecha cambiaria alta: ${fmt(brecha)}%`,
+            text:'El blue cotiza muy por encima del oficial — señal de desconfianza en el régimen.',
+            action:'Considerar cobertura en CCL/MEP',
+        });
+        else if (brecha < 15) insights.push({
+            emoji:'✅', title:`Brecha cambiaria contenida: ${fmt(brecha)}%`,
+            text:'Convergencia entre paralelo y oficial — régimen creíble por el momento.',
+            action:null,
+        });
+    }
+
+    // 3) Tasa real
+    const inflac = get('inflacion'), badlar = get('badlar');
+    if (inflac?.currentValue!=null && badlar?.currentValue!=null) {
+        const inflAnual = (Math.pow(1 + inflac.currentValue/100, 12) - 1) * 100;
+        const real = badlar.currentValue - inflAnual;
+        if (real < -5) insights.push({
+            emoji:'📉', title:`Tasa real fuertemente negativa: ${fmtPct(real)}`,
+            text:'Los plazos fijos pierden poder de compra. Incentivo a dolarizar carteras.',
+            action:'Revisar exposición a pesos en cartera',
+        });
+        else if (real > 5) insights.push({
+            emoji:'💰', title:`Tasa real positiva: ${fmtPct(real)}`,
+            text:'BADLAR supera ampliamente a la inflación. Atractivo del ahorro en pesos.',
+            action:null,
+        });
+    }
+
+    // 4) Reservas
+    const reservas = get('reservas');
+    if (reservas?.pctChange != null && Math.abs(reservas.pctChange) > 1.5) {
+        insights.push({
+            emoji: reservas.pctChange > 0 ? '💪' : '📉',
+            title:`Reservas BCRA ${reservas.pctChange > 0 ? 'crecen' : 'caen'} ${fmtPct(reservas.pctChange)}`,
+            text: reservas.pctChange > 0
+                ? 'Mejora la posición externa — alivio para el riesgo país.'
+                : 'Vulnerabilidad externa creciente — esperar presión sobre el oficial.',
+            action: reservas.pctChange < 0 ? 'Monitorear riesgo país y dólar' : null,
+        });
+    }
+
+    // Limit to 4 insights for clarity
+    return insights.slice(0, 4);
+}
+
+function renderInsights(nodeArr) {
+    const list = generateInsights(nodeArr);
+    const cont = document.getElementById('insights-list');
+    if (!list.length) {
+        cont.innerHTML = `<p style="color:var(--text-muted);font-size:0.8rem;">Sin insights destacados — mercado en calma.</p>`;
+        return;
+    }
+    cont.innerHTML = list.map(i => `
+        <div class="insight-row">
+            <div class="insight-emoji">${i.emoji}</div>
+            <div class="insight-body">
+                <div class="insight-head">${i.title}</div>
+                <div class="insight-text">${i.text}</div>
+                ${i.action ? `<span class="insight-action">→ ${i.action}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderBrechas(nodeArr) {
+    const list = computeBrechas(nodeArr);
+    const stress = computeStress(nodeArr);
+    let stressLabel, stressColor, stressMsg;
+    if (stress > 65)      { stressLabel='ALTO';      stressColor='#ef4444'; stressMsg='Múltiples señales de presión'; }
+    else if (stress > 35) { stressLabel='MODERADO';  stressColor='#f59e0b'; stressMsg='Algunas variables tensionadas'; }
+    else                  { stressLabel='BAJO';      stressColor='#10b981'; stressMsg='Mercado en relativa calma'; }
+
+    const cont = document.getElementById('brechas-list');
+    cont.innerHTML = `
+        <div class="stress-meter">
+            <div style="font-size:0.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;font-weight:700;">🌡 Termómetro de Estrés</div>
+            <div class="stress-val" style="color:${stressColor}">${Math.round(stress)}<span style="font-size:1rem;color:var(--text-muted);">/100</span></div>
+            <div class="stress-label" style="color:${stressColor}">${stressLabel}</div>
+            <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:4px;">${stressMsg}</div>
+            <div class="stress-bar-wrap">
+                <div class="stress-bar" style="width:${Math.round(stress)}%"></div>
+            </div>
+        </div>
+        ${list.map(b => `
+            <div class="brecha-card" style="border-left-color:${b.color}">
+                <div class="brecha-head">
+                    <span class="brecha-name">${b.name}</span>
+                    <span class="brecha-tip" title="${b.tip}">?</span>
+                </div>
+                <div class="brecha-value" style="color:${b.color}">${b.value}</div>
+                <div class="brecha-meta">${b.meta}</div>
+                <div class="brecha-bar-wrap"><div class="brecha-bar" style="width:${b.barPct}%;background:${b.color};"></div></div>
+            </div>
+        `).join('')}
+    `;
+}
+
+function openHelp() { document.getElementById('help-overlay').classList.add('open'); }
+function closeHelp() { document.getElementById('help-overlay').classList.remove('open'); }
 
 function buildTT(node) {
     const pct = node.pctChange;
@@ -858,6 +1349,8 @@ function refreshAll() {
     const nodeArr = computeNodes();
     renderVarPanel(nodeArr);
     updateGraph(nodeArr);
+    renderInsights(nodeArr);
+    renderBrechas(nodeArr);
     renderFlowTable(nodeArr);
 }
 
@@ -908,6 +1401,8 @@ async function init() {
         const nodeArr = computeNodes();
         renderVarPanel(nodeArr);
         initGraph(nodeArr);
+        renderInsights(nodeArr);
+        renderBrechas(nodeArr);
         renderFlowTable(nodeArr);
     } catch(e) {
         console.error(e);
