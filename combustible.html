@@ -438,7 +438,7 @@
         provSel.innerHTML = '<option value="">— Promedio nacional —</option>' +
             provincias.map(p => `<option value="${p}">${p.charAt(0) + p.slice(1).toLowerCase()}</option>`).join('');
 
-        const dateStr = latestDate ? `Datos al ${latestDate}` : '';
+        const dateStr = allData.length ? `${allData.length.toLocaleString('es-AR')} registros` : '';
         document.getElementById('map-update-label').textContent = dateStr;
 
         renderAll();
