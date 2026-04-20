@@ -227,7 +227,7 @@
     <!-- Historical price chart with province slicer -->
     <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;" id="historico-section">
         <h2 class="section-title">
-            📈 Evolución Histórica de Precios
+            📈 Precio promedio por mes de vigencia
             <span class="update-tag" id="historico-label"></span>
         </h2>
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
@@ -413,14 +413,10 @@
 
         if (!parsed.length) { showError('Los datos no contienen precios válidos (esperado > $100/L).'); return; }
 
-        // Guardar historial completo antes de filtrar por fecha
+        // fecha_vigencia es la fecha de actualización de cada estación (no un período histórico).
+        // Usamos todos los registros como datos vigentes.
         historicalData = parsed;
-
-        // Use latest period available
-        const fechas = [...new Set(parsed.map(r => r.fecha).filter(Boolean))].sort();
-        const latestDate = fechas[fechas.length - 1];
-        allData = latestDate ? parsed.filter(r => r.fecha === latestDate) : parsed;
-        if (!allData.length) allData = parsed;
+        allData = parsed;
 
         // Unique fuel types sorted by frequency
         const fuelCount = {};
@@ -1105,19 +1101,23 @@
             return;
         }
 
+        // Agrupar por estación física; si una estación tiene múltiples registros
+        // (distintas fechas de vigencia), quedarse con el precio más reciente.
         const byStation = {};
         records.forEach((r, i) => {
-            // Clave única por estación: idestacion > coordenadas > empresa+dirección > fallback con índice
-            const key = r.idestacion
-                ? r.idestacion
-                : (r.lat && r.lng)
-                    ? `${r.empresa}||${r.lat.toFixed(5)}||${r.lng.toFixed(5)}`
-                    : `${r.empresa}||${r.direccion || i}`;
+            const key = (r.lat && r.lng)
+                ? `${r.empresa}||${r.lat.toFixed(5)}||${r.lng.toFixed(5)}`
+                : `${r.empresa}||${r.direccion || i}`;
+            const horario = r.tipohorario || 'Diurno';
             if (!byStation[key]) byStation[key] = {
                 empresa: r.empresa, brand: r.empresa, direccion: r.direccion,
-                lat: r.lat, lng: r.lng, precios: {}
+                lat: r.lat, lng: r.lng, precios: {}, fechas: {}
             };
-            byStation[key].precios[r.tipohorario || 'Diurno'] = r.precio;
+            // Conservar precio más reciente por horario
+            if (!byStation[key].fechas[horario] || r.fecha >= byStation[key].fechas[horario]) {
+                byStation[key].precios[horario] = r.precio;
+                byStation[key].fechas[horario] = r.fecha;
+            }
         });
 
         const stations = Object.values(byStation).map(s => ({
