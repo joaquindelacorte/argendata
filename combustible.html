@@ -188,13 +188,8 @@
     <!-- Fuel type tabs -->
     <div class="fuel-tabs stagger-1 fade-in" id="fuel-tabs"></div>
 
-    <!-- KPI row -->
-    <div class="kpi-row stagger-2 fade-in" id="kpi-row">
-        <div class="kpi-card"><div class="kpi-label">Cargando datos...</div><div class="kpi-value" style="color:var(--text-muted)">—</div></div>
-    </div>
-
-    <!-- Ciudad filter -->
-    <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;" id="ciudad-section" style="display:none">
+    <!-- Ciudad filter — primera sección visible -->
+    <div class="glass-card stagger-2 fade-in" style="margin-bottom: 24px;" id="ciudad-section">
         <h2 class="section-title">📍 ¿Dónde me conviene cargar?</h2>
         <div class="ciudad-filters">
             <div class="filter-step">
@@ -224,12 +219,25 @@
         </div>
     </div>
 
-    <!-- Historical price chart -->
+    <!-- KPI row -->
+    <div class="kpi-row stagger-3 fade-in" id="kpi-row">
+        <div class="kpi-card"><div class="kpi-label">Cargando datos...</div><div class="kpi-value" style="color:var(--text-muted)">—</div></div>
+    </div>
+
+    <!-- Historical price chart with province slicer -->
     <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;" id="historico-section">
         <h2 class="section-title">
             📈 Evolución Histórica de Precios
             <span class="update-tag" id="historico-label"></span>
         </h2>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+            <label style="font-size:0.75rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">Comparar con:</label>
+            <select id="historico-prov-filter" onchange="onHistoricoProvChange()"
+                style="background:rgba(15,23,42,0.8); color:white; border:1px solid var(--border-color);
+                padding:6px 12px; border-radius:8px; font-family:'Inter',sans-serif; font-size:0.82rem; outline:none; cursor:pointer;">
+                <option value="">— Promedio nacional —</option>
+            </select>
+        </div>
         <div id="historico-wrap" class="chart-wrapper" style="height:220px;">
             <canvas id="chart-historico"></canvas>
         </div>
@@ -427,6 +435,12 @@
         // Default to most common fuel
         activeFuel = fuelTypes[0];
         document.querySelector('.fuel-tab')?.classList.add('active');
+
+        // Populate province slicer for historical chart
+        const provSel = document.getElementById('historico-prov-filter');
+        const provincias = [...new Set(historicalData.map(r => r.prov))].sort();
+        provSel.innerHTML = '<option value="">— Promedio nacional —</option>' +
+            provincias.map(p => `<option value="${p}">${p.charAt(0) + p.slice(1).toLowerCase()}</option>`).join('');
 
         const dateStr = latestDate ? `Datos al ${latestDate}` : '';
         document.getElementById('map-update-label').textContent = dateStr;
@@ -793,67 +807,94 @@
     }
 
     function renderChartHistorico(data) {
-        const wrap = document.getElementById('historico-wrap');
         const section = document.getElementById('historico-section');
+        const selectedProv = document.getElementById('historico-prov-filter')?.value || '';
 
-        const filtered = data.filter(r => r.producto === activeFuel && r.fecha);
-        const byFecha = {};
-        filtered.forEach(r => {
-            if (!byFecha[r.fecha]) byFecha[r.fecha] = { sum: 0, n: 0 };
-            byFecha[r.fecha].sum += r.precio;
-            byFecha[r.fecha].n++;
-        });
+        // Aggregate national average by month
+        function avgByMonth(records) {
+            const byF = {};
+            records.filter(r => r.producto === activeFuel && r.fecha).forEach(r => {
+                if (!byF[r.fecha]) byF[r.fecha] = { sum: 0, n: 0 };
+                byF[r.fecha].sum += r.precio;
+                byF[r.fecha].n++;
+            });
+            return byF;
+        }
 
-        const fechas = Object.keys(byFecha).sort();
+        const national = avgByMonth(data);
+        const fechas = Object.keys(national).sort();
+
         if (fechas.length < 2) {
             section.style.display = 'none';
             return;
         }
         section.style.display = 'block';
 
-        const avgs = fechas.map(f => +(byFecha[f].sum / byFecha[f].n).toFixed(2));
-        const minV = Math.min(...avgs);
-        const maxV = Math.max(...avgs);
-        const deltaLabel = avgs.length >= 2
-            ? ` · ${avgs[avgs.length-1] >= avgs[0] ? '+' : ''}${fmtPeso(avgs[avgs.length-1] - avgs[0])} vs primer registro`
+        const natAvgs = fechas.map(f => +(national[f].sum / national[f].n).toFixed(2));
+        const allVals = [...natAvgs];
+
+        // Province overlay (if selected)
+        let provAvgs = null;
+        if (selectedProv) {
+            const provByF = avgByMonth(data.filter(r => r.prov === selectedProv));
+            provAvgs = fechas.map(f => provByF[f] ? +(provByF[f].sum / provByF[f].n).toFixed(2) : null);
+            allVals.push(...provAvgs.filter(Boolean));
+        }
+
+        const minV = Math.min(...allVals);
+        const maxV = Math.max(...allVals);
+
+        const deltaLabel = natAvgs.length >= 2
+            ? ` · ${natAvgs.at(-1) >= natAvgs[0] ? '+' : ''}${fmtPeso(natAvgs.at(-1) - natAvgs[0])} desde primer registro`
             : '';
         document.getElementById('historico-label').textContent = activeFuel + deltaLabel;
 
-        wrap.innerHTML = '<canvas id="chart-historico"></canvas>';
+        document.getElementById('historico-wrap').innerHTML = '<canvas id="chart-historico"></canvas>';
         const ctx = document.getElementById('chart-historico').getContext('2d');
         if (chartHistorico) chartHistorico.destroy();
 
+        const datasets = [{
+            label: 'Promedio nacional',
+            data: natAvgs,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59,130,246,0.07)',
+            borderWidth: 2.5,
+            pointRadius: natAvgs.map((v, i) =>
+                i === natAvgs.lastIndexOf(Math.min(...natAvgs)) || i === natAvgs.lastIndexOf(Math.max(...natAvgs)) ? 6 : 3),
+            pointBackgroundColor: natAvgs.map((v, i) =>
+                v === Math.min(...natAvgs) ? '#10b981' : v === Math.max(...natAvgs) ? '#ef4444' : '#3b82f6'),
+            tension: 0.35,
+            fill: !selectedProv
+        }];
+
+        if (provAvgs) {
+            datasets.push({
+                label: selectedProv,
+                data: provAvgs,
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245,158,11,0.07)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#f59e0b',
+                tension: 0.35,
+                fill: false,
+                borderDash: []
+            });
+        }
+
         chartHistorico = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: fechas,
-                datasets: [{
-                    label: 'Promedio nacional $/L',
-                    data: avgs,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59,130,246,0.08)',
-                    borderWidth: 2.5,
-                    pointRadius: avgs.map((v, i) =>
-                        i === avgs.indexOf(minV) || i === avgs.indexOf(maxV) ? 7 : 4),
-                    pointBackgroundColor: avgs.map((v, i) =>
-                        i === avgs.indexOf(minV) ? '#10b981' :
-                        i === avgs.indexOf(maxV) ? '#ef4444' : '#3b82f6'),
-                    tension: 0.35,
-                    fill: true
-                }]
-            },
+            data: { labels: fechas, datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
                 plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: item => ' ' + fmtPeso(item.raw) + '/L' } }
+                    legend: { display: !!selectedProv, labels: { color: '#94a3b8', font: { size: 11 } } },
+                    tooltip: { callbacks: { label: item => ` ${item.dataset.label}: ${fmtPeso(item.raw)}/L` } }
                 },
                 scales: {
-                    x: {
-                        grid: { color: 'rgba(255,255,255,0.04)' },
-                        ticks: { color: '#64748b', font: { size: 10 } }
-                    },
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 10 } } },
                     y: {
                         grid: { color: 'rgba(255,255,255,0.04)' },
                         ticks: { color: '#64748b', callback: v => '$' + fmtNum(v, 0) },
@@ -863,6 +904,10 @@
                 }
             }
         });
+    }
+
+    function onHistoricoProvChange() {
+        renderChartHistorico(historicalData);
     }
 
     // ==================== TABLE ====================
@@ -952,7 +997,6 @@
         const provincias = [...new Set(allData.map(r => r.prov))].sort();
         provSel.innerHTML = '<option value="">— Seleccioná una provincia —</option>' +
             provincias.map(p => `<option value="${p}">${p.charAt(0) + p.slice(1).toLowerCase()}</option>`).join('');
-        document.getElementById('ciudad-section').style.display = 'block';
     }
 
     function onProvChange() {
