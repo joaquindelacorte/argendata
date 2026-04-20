@@ -6,8 +6,7 @@
     <title>Flujos Macroeconómicos — ArgentData</title>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7056671058245686" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="estilos_compartidos.css">
-    <script src="https://unpkg.com/3d-force-graph/dist/3d-force-graph.min.js"></script>
-    <script src="https://unpkg.com/three-spritetext/dist/three-spritetext.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
     <style>
         body { padding: 0; background-color: transparent; }
 
@@ -108,8 +107,9 @@
         .graph-wrap {
             position: relative; padding: 0; overflow: hidden;
             border-radius: 16px; background: rgba(5,10,22,0.9);
+            height: 570px;
         }
-        #fg-container { width: 100%; height: 100%; }
+        #fg-container { width: 100%; height: 100%; display: block; }
 
         .graph-overlay {
             position: absolute; top: 12px; right: 12px;
@@ -608,26 +608,19 @@ function initGraph(nodeArr) {
     const gd   = buildGD(nodeArr);
     const tt   = document.getElementById('node-tt');
 
+    const W = wrap.clientWidth  || 700;
+    const H = wrap.clientHeight || 570;
+
     graphInst = ForceGraph3D()(cont)
-        .width(wrap.clientWidth)
-        .height(wrap.clientHeight)
+        .width(W)
+        .height(H)
         .backgroundColor('#050A16')
         .graphData(gd)
         // Nodes
         .nodeColor(n=>n.color)
         .nodeVal(n=>n.val)
-        .nodeLabel(()=>'')
+        .nodeLabel(n=>`<div style="background:rgba(10,18,36,0.92);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:8px 12px;font-family:Inter,sans-serif;font-size:12px;color:#e2e8f0;pointer-events:none"><b>${n.label}</b><br>${fmtPct(n.pctChange)} · ${fmt(n.currentValue)} ${n.unit}</div>`)
         .nodeOpacity(0.92)
-        .nodeThreeObject(n=>{
-            const sprite = new SpriteText(n.label);
-            sprite.color = '#cbd5e1';
-            sprite.textHeight = 6.5;
-            sprite.backgroundColor = 'rgba(0,0,0,0.55)';
-            sprite.padding = 1.5;
-            sprite.borderRadius = 3;
-            return sprite;
-        })
-        .nodeThreeObjectExtend(true)
         // Links
         .linkColor(l=>l.color)
         .linkWidth(l=>l.strength*1.6)
