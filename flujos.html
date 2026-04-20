@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flujos Macroeconómicos — ArgentData</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7056671058245686" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="estilos_compartidos.css">
+    <script src="https://unpkg.com/3d-force-graph/dist/3d-force-graph.min.js"></script>
+    <script src="https://unpkg.com/three-spritetext/dist/three-spritetext.min.js"></script>
+    <style>
+        body { padding: 0; background-color: transparent; }
+
+        /* ── Header ── */
+        .flujos-header { padding: 24px 32px 0; }
+
+        /* ── Controls bar ── */
+        .flujos-controls {
+            margin: 14px 32px;
+            padding: 14px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+        .ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+        .ctrl-label {
+            font-size: 0.62rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+        }
+        .pill-row { display: flex; gap: 5px; flex-wrap: wrap; }
+        .pill-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 5px 13px; border-radius: 6px;
+            cursor: pointer; font-size: 0.78rem; font-weight: 600;
+            transition: all 0.18s; white-space: nowrap;
+            font-family: 'Inter', sans-serif;
+        }
+        .pill-btn:hover { background: var(--bg-hover); color: #fff; }
+        .pill-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .pill-btn.view-active { background: rgba(16,185,129,0.18); color: #10b981; border-color: rgba(16,185,129,0.4); }
+        .ctrl-sep { width: 1px; height: 36px; background: rgba(255,255,255,0.07); align-self: center; }
+
+        /* Slider (reutiliza estilos de finanzas.html) */
+        .emae-range-wrap { margin: 0; touch-action: pan-y; }
+        .emae-range-labels { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 0.72rem; }
+        .emae-range-labels .lbl { font-weight: 600; color: #e2e8f0; background: rgba(59,130,246,0.15); padding: 2px 8px; border-radius: 5px; min-width: 72px; text-align: center; }
+        .emae-range-labels .sep { color: var(--text-muted); }
+        .emae-range-track { position: relative; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 12px 8px; }
+        .emae-range-fill { position: absolute; top: 0; height: 100%; background: var(--accent); border-radius: 2px; pointer-events: none; }
+        .emae-slider { position: absolute; width: calc(100% + 16px); left: -8px; top: 50%; transform: translateY(-50%);
+            -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none;
+            height: 20px; margin: 0; padding: 0; outline: none; touch-action: none; }
+        .emae-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; pointer-events: all; border: 2px solid #0f172a; box-shadow: 0 0 0 3px rgba(59,130,246,0.25); }
+        .emae-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%;
+            background: var(--accent); cursor: pointer; pointer-events: all; border: 2px solid #0f172a; }
+
+        /* ── Main layout ── */
+        .flujos-main {
+            display: grid;
+            grid-template-columns: 268px 1fr;
+            gap: 14px;
+            margin: 0 32px 14px;
+            height: 570px;
+        }
+
+        /* ── Variable panel ── */
+        .var-panel {
+            overflow-y: auto;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .var-panel-title {
+            font-size: 0.65rem; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .var-card {
+            background: rgba(0, 0, 0, 0.22);
+            border-radius: 10px; padding: 10px 12px;
+            cursor: pointer; transition: all 0.18s;
+            border: 1px solid transparent;
+        }
+        .var-card:hover { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.25); }
+        .var-card.highlighted { border-color: rgba(59,130,246,0.55); background: rgba(59,130,246,0.1); }
+        .var-card-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+        .var-cat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .var-name { font-size: 0.78rem; font-weight: 600; color: #e2e8f0; }
+        .var-badge {
+            font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+            white-space: nowrap;
+        }
+        .var-badge.pos { background: rgba(16,185,129,0.15); color: #10b981; }
+        .var-badge.neg { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .var-badge.neu { background: rgba(100,116,139,0.18); color: #94a3b8; }
+        .var-bottom { display: flex; align-items: baseline; gap: 5px; margin-top: 4px; }
+        .var-value { font-family: 'Outfit', sans-serif; font-size: 1.05rem; font-weight: 700; color: #fff; }
+        .var-unit { font-size: 0.63rem; color: var(--text-muted); }
+        .var-bar-wrap { margin-top: 5px; height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+        .var-bar { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+
+        /* ── Graph container ── */
+        .graph-wrap {
+            position: relative; padding: 0; overflow: hidden;
+            border-radius: 16px; background: rgba(5,10,22,0.9);
+        }
+        #fg-container { width: 100%; height: 100%; }
+
+        .graph-overlay {
+            position: absolute; top: 12px; right: 12px;
+            display: flex; flex-direction: column; gap: 8px; z-index: 10;
+            pointer-events: none;
+        }
+        .legend-card {
+            background: rgba(10,18,36,0.88);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 10px; padding: 11px 13px;
+            font-size: 0.7rem; pointer-events: auto;
+        }
+        .legend-title { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 7px; font-size: 0.62rem; }
+        .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--text-secondary); }
+        .ldot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .lline { width: 18px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+        .graph-hint {
+            background: rgba(10,18,36,0.82);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 9px; padding: 8px 11px;
+            font-size: 0.68rem; color: var(--text-muted); text-align: center;
+            pointer-events: none;
+        }
+
+        .graph-loading {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(5,10,22,0.85);
+            z-index: 20; border-radius: 16px;
+            flex-direction: column; gap: 10px;
+            color: var(--text-secondary); font-size: 0.82rem;
+        }
+        .graph-error-msg { text-align: center; color: var(--text-muted); }
+
+        /* ── Tooltip ── */
+        .node-tt {
+            position: fixed;
+            background: rgba(10, 18, 36, 0.97);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px; padding: 13px 15px;
+            pointer-events: none; z-index: 9999; display: none;
+            min-width: 190px; max-width: 240px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        .tt-header { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+        .tt-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .tt-title { font-family: 'Outfit', sans-serif; font-size: 0.88rem; font-weight: 700; color: #fff; }
+        .tt-row { display: flex; justify-content: space-between; gap: 14px; font-size: 0.75rem; margin-bottom: 3px; }
+        .tt-lbl { color: var(--text-muted); }
+        .tt-val { color: #e2e8f0; font-weight: 600; }
+        .tt-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 7px 0; }
+        .tt-change { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; }
+        .tt-date { font-size: 0.65rem; color: var(--text-muted); text-align: right; margin-top: 6px; }
+
+        /* ── Flow table ── */
+        .flow-section { margin: 0 32px 28px; }
+        .flow-scroll { overflow-x: auto; }
+        .flow-tbl { width: 100%; border-collapse: collapse; font-size: 0.77rem; }
+        .flow-tbl th {
+            text-align: left; padding: 9px 14px;
+            font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.06);
+            white-space: nowrap; font-weight: 700;
+        }
+        .flow-tbl td {
+            padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: var(--text-secondary); vertical-align: middle;
+        }
+        .flow-tbl tr:hover td { background: rgba(59,130,246,0.04); }
+        .rel-names strong { color: #e2e8f0; }
+        .rel-arrow { color: var(--text-muted); margin: 0 5px; }
+        .str-bar-wrap { display: flex; align-items: center; gap: 6px; }
+        .str-bar { height: 4px; border-radius: 2px; }
+        .sig-badge {
+            font-size: 0.62rem; font-weight: 700; padding: 2px 7px; border-radius: 5px;
+            text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+        }
+        .sig-alerta  { background: rgba(239,68,68,0.14);   color: #ef4444; }
+        .sig-presion { background: rgba(245,158,11,0.14);  color: #f59e0b; }
+        .sig-neutral { background: rgba(100,116,139,0.14); color: #94a3b8; }
+        .sig-estable { background: rgba(16,185,129,0.14);  color: #10b981; }
+
+        @media (max-width: 900px) {
+            .flujos-header { padding: 16px 16px 0; }
+            .flujos-controls { margin: 12px 16px; padding: 12px 14px; gap: 12px; }
+            .flujos-main { grid-template-columns: 1fr; height: auto; margin: 0 16px 14px; }
+            .var-panel { max-height: 210px; }
+            .graph-wrap { height: 430px; }
+            .flow-section { margin: 0 16px 24px; }
+        }
+        @media (max-width: 480px) {
+            .ctrl-sep { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<div class="flujos-header fade-in stagger-1">
+    <div class="page-header">
+        <h1 class="page-title">Flujos Macroeconómicos</h1>
+        <p class="page-subtitle">Red de interconexiones financieras — seguí el movimiento del dinero entre variables clave</p>
+    </div>
+</div>
+
+<!-- ══════════════ CONTROLS ══════════════ -->
+<div class="flujos-controls glass-card fade-in stagger-1">
+    <div class="ctrl-group">
+        <div class="ctrl-label">Horizonte</div>
+        <div class="pill-row">
+            <button class="pill-btn" onclick="setPeriod(7,this)">7D</button>
+            <button class="pill-btn active" onclick="setPeriod(30,this)">30D</button>
+            <button class="pill-btn" onclick="setPeriod(90,this)">90D</button>
+            <button class="pill-btn" onclick="setPeriod(180,this)">6M</button>
+            <button class="pill-btn" onclick="setPeriod(365,this)">1A</button>
+        </div>
+    </div>
+
+    <div class="ctrl-sep"></div>
+
+    <div class="ctrl-group">
+        <div class="ctrl-label">Variación</div>
+        <div class="pill-row">
+            <button class="pill-btn view-active" id="btn-cumul" onclick="setViewMode('cumulative',this)">Acumulada</button>
+            <button class="pill-btn" id="btn-daily" onclick="setViewMode('daily',this)">Último día</button>
+        </div>
+    </div>
+
+    <div class="ctrl-sep"></div>
+
+    <div class="ctrl-group" style="flex:1; min-width:200px;">
+        <div class="ctrl-label">Rango de fechas</div>
+        <div class="emae-range-wrap">
+            <div class="emae-range-labels">
+                <span class="lbl" id="fl-lbl-from">—</span>
+                <span class="sep">→</span>
+                <span class="lbl" id="fl-lbl-to">—</span>
+            </div>
+            <div class="emae-range-track">
+                <div class="emae-range-fill" id="fl-fill"></div>
+                <input type="range" class="emae-slider" id="fl-from" min="0" max="100" value="0">
+                <input type="range" class="emae-slider" id="fl-to"   min="0" max="100" value="100">
+            </div>
+        </div>
+    </div>
+
+    <div class="ctrl-group" style="justify-content:flex-end; align-self:flex-end;">
+        <button class="pill-btn" id="anim-btn" onclick="toggleAnimation()" title="Reproducir evolución en el tiempo">▶ Animar</button>
+    </div>
+</div>
+
+<!-- ══════════════ MAIN GRID ══════════════ -->
+<div class="flujos-main fade-in stagger-2">
+
+    <!-- Left: variable cards -->
+    <div class="var-panel glass-card" id="var-panel">
+        <div class="var-panel-title"><span>Variables</span></div>
+        <div class="loader-container"><div class="spinner"></div></div>
+    </div>
+
+    <!-- Right: 3-D network -->
+    <div class="graph-wrap glass-card" id="graph-wrap">
+        <div id="fg-container"></div>
+        <div class="graph-loading" id="graph-loading">
+            <div class="spinner"></div>
+            <span>Construyendo red financiera…</span>
+        </div>
+        <div class="graph-overlay">
+            <div class="legend-card">
+                <div class="legend-title">Nodos (burbujas)</div>
+                <div class="legend-row"><div class="ldot" style="background:#10b981"></div>Mejora / Sube positivo</div>
+                <div class="legend-row"><div class="ldot" style="background:#ef4444"></div>Presión / Señal negativa</div>
+                <div class="legend-row"><div class="ldot" style="background:#475569"></div>Sin cambio significativo</div>
+                <div class="legend-title" style="margin-top:9px;">Tamaño = magnitud del cambio</div>
+                <div class="legend-title" style="margin-top:9px;">Aristas (flujos)</div>
+                <div class="legend-row"><div class="lline" style="background:#3b82f6"></div>FX / Tipo de cambio</div>
+                <div class="legend-row"><div class="lline" style="background:#8b5cf6"></div>Monetario / BCRA</div>
+                <div class="legend-row"><div class="lline" style="background:#f59e0b"></div>Precios / Riesgo</div>
+                <div class="legend-row"><div class="lline" style="background:#06b6d4"></div>Tasas</div>
+                <div class="legend-row"><div class="lline" style="background:#10b981"></div>Actividad real</div>
+            </div>
+            <div class="graph-hint">Rotá con el mouse · Zoom con scroll<br>Click en nodo para enfocar</div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating tooltip -->
+<div class="node-tt" id="node-tt"></div>
+
+<!-- ══════════════ FLOW TABLE ══════════════ -->
+<div class="flow-section fade-in stagger-3">
+    <h2 class="section-title" style="margin-top:0;">Análisis de Flujos — Señales de Mercado</h2>
+    <div class="glass-card" style="padding:0; overflow:hidden;">
+        <div class="flow-scroll">
+            <table class="flow-tbl">
+                <thead>
+                    <tr>
+                        <th>Relación causal</th>
+                        <th>Tipo</th>
+                        <th>Intensidad</th>
+                        <th>Estado del período</th>
+                        <th>Señal</th>
+                        <th style="min-width:260px;">Lectura del analista</th>
+                    </tr>
+                </thead>
+                <tbody id="flow-tbody">
+                    <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">Cargando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════ JAVASCRIPT ══════════════ -->
+<script>
+// ─────────────────────────────────────────────────────────────────
+// CONFIG — Variables y relaciones financieras
+// ─────────────────────────────────────────────────────────────────
+
+const CAT_COLOR = {
+    FX:        '#3b82f6',
+    Riesgo:    '#ef4444',
+    Precios:   '#f59e0b',
+    Monetario: '#8b5cf6',
+    Tasas:     '#06b6d4',
+    Actividad: '#10b981',
+};
+
+// posIsGood: true = subir es bueno, false = subir es malo, null = neutral
+const VARS = [
+    { id:'dolar_blue',    label:'Dólar Blue',     cat:'FX',        unit:'ARS', posIsGood: false },
+    { id:'dolar_oficial', label:'Dólar Oficial',  cat:'FX',        unit:'ARS', posIsGood: false },
+    { id:'dolar_ccl',     label:'CCL',            cat:'FX',        unit:'ARS', posIsGood: false },
+    { id:'riesgo_pais',   label:'Riesgo País',    cat:'Riesgo',    unit:'pb',  posIsGood: false },
+    { id:'inflacion',     label:'IPC Mensual',    cat:'Precios',   unit:'%',   posIsGood: false },
+    { id:'reservas',      label:'Reservas BCRA',  cat:'Monetario', unit:'M USD', posIsGood: true },
+    { id:'base_mon',      label:'Base Monetaria', cat:'Monetario', unit:'M ARS', posIsGood: false },
+    { id:'badlar',        label:'Tasa BADLAR',    cat:'Tasas',     unit:'%',   posIsGood: null  },
+    { id:'tc_mayorista',  label:'TC Mayorista',   cat:'FX',        unit:'ARS', posIsGood: false },
+];
+
+// Relaciones con dirección de causalidad (source → target)
+const LINKS = [
+    { source:'dolar_blue',   target:'dolar_ccl',    type:'FX',        strength:0.90, label:'Brecha Blue↔CCL',     desc:'El diferencial entre blue y CCL señala presión de dolarización.' },
+    { source:'tc_mayorista', target:'dolar_oficial', type:'FX',        strength:0.95, label:'TC Referencia',       desc:'El tipo de cambio mayorista ancla al oficial; su suba presiona la brecha.' },
+    { source:'riesgo_pais',  target:'dolar_blue',   type:'Riesgo',    strength:0.78, label:'Riesgo → Brecha',     desc:'Mayor riesgo soberano dispara la demanda de cobertura en dólares.' },
+    { source:'reservas',     target:'riesgo_pais',  type:'Monetario', strength:0.82, label:'Reservas → Riesgo',   desc:'Acumulación de reservas comprime el riesgo país al mejorar la solvencia externa.' },
+    { source:'reservas',     target:'dolar_oficial', type:'Monetario', strength:0.85, label:'Reservas → Oficial',  desc:'La escasez de reservas presiona al dólar oficial hacia la devaluación.' },
+    { source:'base_mon',     target:'inflacion',    type:'Monetario', strength:0.72, label:'Emisión → Precios',   desc:'La expansión de base monetaria se traslada a inflación vía demanda agregada.' },
+    { source:'badlar',       target:'base_mon',     type:'Tasas',     strength:0.65, label:'Tasa → Base',         desc:'Tasas altas contraen la demanda de crédito y drenan base monetaria.' },
+    { source:'inflacion',    target:'badlar',       type:'Precios',   strength:0.68, label:'IPC → BADLAR',        desc:'El BCRA sube la BADLAR para contener la inflación vía tasa real positiva.' },
+    { source:'dolar_blue',   target:'inflacion',    type:'FX',        strength:0.66, label:'Pass-through',        desc:'La suba del dólar informal se traslada a precios domésticos (pass-through).' },
+    { source:'dolar_ccl',    target:'riesgo_pais',  type:'Riesgo',    strength:0.60, label:'CCL → Riesgo',        desc:'Presión sobre CCL refleja fuga de capitales que eleva el riesgo país.' },
+];
+
+// ─────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────
+let allData    = {};   // id → [{date:'YYYY-MM-DD', value:number}] asc
+let globalDates = [];  // sorted union of all dates
+let fromIdx = 0, toIdx = 0;
+let currentPeriod = 30;
+let viewMode = 'cumulative';
+let graphInst = null;
+let animating = false, animRAF = null;
+
+// ─────────────────────────────────────────────────────────────────
+// UTILITIES
+// ─────────────────────────────────────────────────────────────────
+function fmt(v, dec=1) {
+    if (v==null||isNaN(v)) return '—';
+    return v.toLocaleString('es-AR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+function fmtPct(v) {
+    if (v==null||isNaN(v)) return '—';
+    return (v>=0?'+':'')+fmt(v,2)+'%';
+}
+function fmtDate(s) {
+    if (!s) return '—';
+    const [y,m,d]=s.split('-');
+    return `${d}/${m}/${y}`;
+}
+function parseDate(s){ return s?s.substring(0,10):''; }
+
+function nodeColor(pct, posIsGood) {
+    if (pct==null||isNaN(pct)||Math.abs(pct)<0.05) return '#475569';
+    // Is this change "good" from a macro standpoint?
+    const isGood = posIsGood===null ? pct>0 : (posIsGood ? pct>0 : pct<0);
+    const t = Math.min(Math.abs(pct)/8, 1);
+    if (isGood) {
+        // dark green → bright green
+        return `rgb(${Math.round(16+20*(1-t))},${Math.round(130+55*t)},${Math.round(100+29*t)})`;
+    } else {
+        // dark red → bright red
+        return `rgb(${Math.round(150+89*t)},${Math.round(20+48*(1-t))},${Math.round(20+48*(1-t))})`;
+    }
+}
+
+function badgeClass(pct, posIsGood) {
+    if (pct==null||isNaN(pct)||Math.abs(pct)<0.02) return 'neu';
+    const good = posIsGood===null ? pct>0 : (posIsGood ? pct>0 : pct<0);
+    return good ? 'pos' : 'neg';
+}
+
+function signalFor(link, nodeMap) {
+    const src = nodeMap[link.source];
+    const tgt = nodeMap[link.target];
+    if (!src||!tgt) return { signal:'neutral', reading:'Sin datos suficientes.' };
+    const sp = src.pctChange, tp = tgt.pctChange;
+
+    const srcBad = src.posIsGood===false ? sp>0 : (src.posIsGood===true ? sp<0 : false);
+    const tgtBad = tgt.posIsGood===false ? tp>0 : (tgt.posIsGood===true ? tp<0 : false);
+
+    // Specific readings
+    if (link.source==='base_mon'&&link.target==='inflacion') {
+        if (sp>3)  return { signal:'alerta',  reading:`Base monetaria expandió ${fmtPct(sp)}. Presión inflacionaria elevada — monitorear aceleración de precios.` };
+        if (sp>0)  return { signal:'presion', reading:`Leve expansión monetaria (${fmtPct(sp)}). Inflación podría acelerarse si persiste.` };
+        return { signal:'estable', reading:`Base monetaria contractiva (${fmtPct(sp)}). Menor presión sobre precios.` };
+    }
+    if (link.source==='reservas'&&link.target==='riesgo_pais') {
+        if (sp<-1) return { signal:'alerta',  reading:`Reservas cayeron ${fmtPct(sp)}. El riesgo país debería escalar — señal de vulnerabilidad externa.` };
+        if (sp<0)  return { signal:'presion', reading:`Reservas en baja leve (${fmtPct(sp)}). Vigilar acumulación neta para sostener credibilidad.` };
+        return { signal:'estable', reading:`Reservas crecen (${fmtPct(sp)}). Señal positiva para riesgo soberano.` };
+    }
+    if (link.source==='riesgo_pais'&&link.target==='dolar_blue') {
+        if (sp>4)  return { signal:'alerta',  reading:`Riesgo país sube ${fmtPct(sp)}. Fuerte presión sobre brecha — posible corrida cambiaria.` };
+        if (sp>0)  return { signal:'presion', reading:`Riesgo en alza (${fmtPct(sp)}). Brecha cambiaria puede ampliarse.` };
+        return { signal:'estable', reading:`Riesgo país baja (${fmtPct(sp)}). Menor presión sobre dólar blue.` };
+    }
+    if (link.source==='dolar_blue'&&link.target==='inflacion') {
+        if (sp>4)  return { signal:'alerta',  reading:`Dólar blue sube ${fmtPct(sp)}. Pass-through activo — esperar suba de precios en 2–4 semanas.` };
+        if (sp>0)  return { signal:'presion', reading:`Blue en alza (${fmtPct(sp)}). Potencial presión inflacionaria vía importaciones.` };
+        return { signal:'neutral', reading:`Blue estable o baja. Pass-through contenido por el momento.` };
+    }
+    if (link.source==='inflacion'&&link.target==='badlar') {
+        if (sp>0&&tp<sp) return { signal:'alerta',  reading:`IPC (${fmtPct(sp)}) supera BADLAR (${fmtPct(tp)}). Tasa real negativa — desincentivo al ahorro en pesos.` };
+        if (sp>0&&tp>=sp) return { signal:'estable', reading:`BADLAR acompaña al IPC. Tasa real no negativa — ahorro en pesos sostenido.` };
+        return { signal:'neutral', reading:`Dinámica de tasas e inflación en equilibrio relativo.` };
+    }
+
+    // Genérico
+    if (srcBad&&tgtBad) return { signal:'alerta',  reading:`Ambas variables bajo presión simultánea (${fmtPct(sp)}, ${fmtPct(tp)}).` };
+    if (srcBad||tgtBad) return { signal:'presion', reading:`Una variable bajo presión. Monitorear transmisión a la otra.` };
+    return { signal:'estable', reading:`Relación en equilibrio para el período seleccionado.` };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DATA FETCHING
+// ─────────────────────────────────────────────────────────────────
+async function withTimeout(url, ms=13000) {
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), ms);
+    try {
+        const r = await fetch(url,{signal:ctrl.signal});
+        clearTimeout(t);
+        return r;
+    } catch(e) { clearTimeout(t); throw e; }
+}
+
+async function fetchDolares() {
+    const casas = ['blue','oficial','contadoconliqui'];
+    const out = {};
+    await Promise.all(casas.map(async casa => {
+        try {
+            const r = await withTimeout(`https://api.argentinadatos.com/v1/cotizaciones/dolares/${casa}`);
+            const data = await r.json();
+            out[casa] = data
+                .filter(d=>d.fecha&&d.venta!=null)
+                .map(d=>({date:parseDate(d.fecha), value:d.venta}))
+                .sort((a,b)=>a.date.localeCompare(b.date));
+        } catch(_) { out[casa]=[]; }
+    }));
+    return out;
+}
+
+async function fetchSerie(url) {
+    try {
+        const r = await withTimeout(url);
+        const data = await r.json();
+        return data
+            .filter(d=>d.fecha&&d.valor!=null)
+            .map(d=>({date:parseDate(d.fecha), value:d.valor}))
+            .sort((a,b)=>a.date.localeCompare(b.date));
+    } catch(_) { return []; }
+}
+
+async function fetchBCRA(idVar) {
+    try {
+        const r = await withTimeout(`https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias/${idVar}`, 14000);
+        if (!r.ok) throw new Error(r.status);
+        const json = await r.json();
+        let data = [];
+        if (json.results?.[0]?.detalle) data = json.results[0].detalle;
+        else if (json.detalle)           data = json.detalle;
+        else if (Array.isArray(json.results)) data = json.results;
+        return data
+            .filter(d=>d.fecha&&d.valor!=null)
+            .map(d=>({date:parseDate(d.fecha), value:d.valor}))
+            .sort((a,b)=>a.date.localeCompare(b.date));
+    } catch(_) { return []; }
+}
+
+async function fetchAllData() {
+    const [dolares, riesgo, inflacion, reservas, baseMon, badlar, tcMay] = await Promise.all([
+        fetchDolares(),
+        fetchSerie('https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais'),
+        fetchSerie('https://api.argentinadatos.com/v1/finanzas/indices/inflacion'),
+        fetchBCRA(1),
+        fetchBCRA(15),
+        fetchBCRA(7),
+        fetchBCRA(5),
+    ]);
+
+    allData = {
+        dolar_blue:    dolares.blue            || [],
+        dolar_oficial: dolares.oficial         || [],
+        dolar_ccl:     dolares.contadoconliqui || [],
+        riesgo_pais:   riesgo,
+        inflacion:     inflacion,
+        reservas:      reservas,
+        base_mon:      baseMon,
+        badlar:        badlar,
+        tc_mayorista:  tcMay,
+    };
+
+    // Global date index (last 400 days)
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate()-400);
+    const cutStr = cutoff.toISOString().substring(0,10);
+    const dateSet = new Set();
+    for (const s of Object.values(allData)) for (const d of s) if(d.date>=cutStr) dateSet.add(d.date);
+    globalDates = [...dateSet].sort();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// COMPUTE
+// ─────────────────────────────────────────────────────────────────
+function lastBefore(series, date) {
+    for (let i=series.length-1;i>=0;i--) if(series[i].date<=date) return series[i];
+    return null;
+}
+
+function computeNodes() {
+    const toDate   = globalDates[toIdx]   || globalDates.at(-1)  || '';
+    const fromDate = globalDates[fromIdx] || globalDates[0]      || '';
+
+    return VARS.map(v => {
+        const s = allData[v.id] || [];
+        const toE   = lastBefore(s, toDate);
+        let fromE, prevE;
+
+        if (viewMode === 'daily') {
+            // Previous data point before toE
+            if (toE) { for(let i=s.length-1;i>=0;i--) if(s[i].date<toE.date){prevE=s[i];break;} }
+            fromE = prevE;
+        } else {
+            fromE = lastBefore(s, fromDate);
+        }
+
+        let pctChange = null;
+        if (toE?.value!=null && fromE?.value!=null && fromE.value!==0) {
+            pctChange = ((toE.value - fromE.value) / Math.abs(fromE.value)) * 100;
+        }
+
+        return {
+            ...v,
+            pctChange,
+            currentValue: toE?.value ?? null,
+            prevValue:    fromE?.value ?? null,
+            currentDate:  toE?.date ?? null,
+        };
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// GRAPH
+// ─────────────────────────────────────────────────────────────────
+function buildGD(nodeArr) {
+    const nodes = nodeArr.map(n => ({
+        ...n,
+        color: nodeColor(n.pctChange, n.posIsGood),
+        val:   Math.max(1.5, Math.abs(n.pctChange??0)*2.5 + 1),
+        fx: null, fy: null, fz: null,  // let force layout run
+    }));
+    const links = LINKS.map(l=>({
+        ...l,
+        color: CAT_COLOR[l.type]||'#4a5568',
+        particleColor: CAT_COLOR[l.type]||'#4a5568',
+    }));
+    return { nodes, links };
+}
+
+function initGraph(nodeArr) {
+    const wrap = document.getElementById('graph-wrap');
+    const cont = document.getElementById('fg-container');
+    const gd   = buildGD(nodeArr);
+    const tt   = document.getElementById('node-tt');
+
+    graphInst = ForceGraph3D()(cont)
+        .width(wrap.clientWidth)
+        .height(wrap.clientHeight)
+        .backgroundColor('#050A16')
+        .graphData(gd)
+        // Nodes
+        .nodeColor(n=>n.color)
+        .nodeVal(n=>n.val)
+        .nodeLabel(()=>'')
+        .nodeOpacity(0.92)
+        .nodeThreeObject(n=>{
+            const sprite = new SpriteText(n.label);
+            sprite.color = '#cbd5e1';
+            sprite.textHeight = 6.5;
+            sprite.backgroundColor = 'rgba(0,0,0,0.55)';
+            sprite.padding = 1.5;
+            sprite.borderRadius = 3;
+            return sprite;
+        })
+        .nodeThreeObjectExtend(true)
+        // Links
+        .linkColor(l=>l.color)
+        .linkWidth(l=>l.strength*1.6)
+        .linkOpacity(0.45)
+        .linkDirectionalParticles(5)
+        .linkDirectionalParticleWidth(l=>l.strength*1.8)
+        .linkDirectionalParticleSpeed(l=>l.strength*0.006)
+        .linkDirectionalParticleColor(l=>l.particleColor)
+        // Interaction
+        .onNodeHover(node=>{
+            document.body.style.cursor = node ? 'pointer' : 'default';
+            if (node) { tt.style.display='block'; tt.innerHTML=buildTT(node); }
+            else tt.style.display='none';
+        })
+        .onNodeClick(node=>{
+            // Fly camera to node
+            graphInst.cameraPosition(
+                { x:node.x*1.8, y:node.y*1.8, z:node.z*1.8 },
+                node, 800
+            );
+            highlightCard(node.id);
+        });
+
+    // Mouse tracker for tooltip
+    cont.addEventListener('mousemove', e=>{
+        const x = Math.min(e.clientX+16, window.innerWidth-250);
+        const y = Math.max(e.clientY-10, 8);
+        tt.style.left = x+'px';
+        tt.style.top  = y+'px';
+    });
+
+    document.getElementById('graph-loading').style.display='none';
+}
+
+function updateGraph(nodeArr) {
+    if (!graphInst) return;
+    const gd = buildGD(nodeArr);
+    graphInst.graphData(gd);
+}
+
+function buildTT(node) {
+    const pct = node.pctChange;
+    const bc  = badgeClass(pct, node.posIsGood);
+    const col = CAT_COLOR[node.cat]||'#64748b';
+    const mLabel = viewMode==='daily' ? 'Var. diaria' : `Var. ${currentPeriod}D`;
+    return `
+        <div class="tt-header">
+            <div class="tt-dot" style="background:${col}"></div>
+            <div class="tt-title">${node.label}</div>
+        </div>
+        <div class="tt-row"><span class="tt-lbl">Categoría</span><span class="tt-val">${node.cat}</span></div>
+        <div class="tt-row"><span class="tt-lbl">Valor actual</span><span class="tt-val">${fmt(node.currentValue)} ${node.unit}</span></div>
+        <div class="tt-row"><span class="tt-lbl">Valor base</span><span class="tt-val">${fmt(node.prevValue)} ${node.unit}</span></div>
+        <hr class="tt-divider">
+        <div class="tt-change">
+            <span class="tt-lbl">${mLabel}</span>
+            <span class="var-badge ${bc}" style="font-size:0.75rem;">${fmtPct(pct)}</span>
+        </div>
+        <div class="tt-date">${fmtDate(node.currentDate)}</div>
+    `;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// VARIABLE PANEL
+// ─────────────────────────────────────────────────────────────────
+function renderVarPanel(nodeArr) {
+    const modeLabel = viewMode==='daily' ? 'Último día' : `Acum. ${currentPeriod}D`;
+    const panel = document.getElementById('var-panel');
+    const maxAbs = Math.max(1, ...nodeArr.map(n=>Math.abs(n.pctChange??0)));
+
+    panel.innerHTML = `
+        <div class="var-panel-title">
+            <span>Variables</span>
+            <span style="font-weight:400;font-size:0.6rem;">${modeLabel}</span>
+        </div>
+        ${nodeArr.map(n=>{
+            const pct = n.pctChange;
+            const bc  = badgeClass(pct, n.posIsGood);
+            const col = CAT_COLOR[n.cat]||'#64748b';
+            const barW = Math.min(100, Math.abs(pct??0)/maxAbs*100);
+            const barCol = bc==='pos'?'#10b981':bc==='neg'?'#ef4444':'#475569';
+            return `
+            <div class="var-card" id="vc-${n.id}" onclick="highlightNode('${n.id}')">
+                <div class="var-card-top">
+                    <span style="display:flex;align-items:center;gap:5px;">
+                        <span class="var-cat-dot" style="background:${col}"></span>
+                        <span class="var-name">${n.label}</span>
+                    </span>
+                    <span class="var-badge ${bc}">${fmtPct(pct)}</span>
+                </div>
+                <div class="var-bottom">
+                    <span class="var-value">${fmt(n.currentValue)}</span>
+                    <span class="var-unit">${n.unit}</span>
+                </div>
+                <div class="var-bar-wrap">
+                    <div class="var-bar" style="width:${barW}%;background:${barCol};"></div>
+                </div>
+            </div>`;
+        }).join('')}
+    `;
+}
+
+function highlightCard(id) {
+    document.querySelectorAll('.var-card').forEach(c=>c.classList.remove('highlighted'));
+    const c = document.getElementById(`vc-${id}`);
+    if (c) { c.classList.add('highlighted'); c.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+
+function highlightNode(id) {
+    highlightCard(id);
+    if (graphInst) {
+        const n = graphInst.graphData().nodes.find(n=>n.id===id);
+        if (n) graphInst.cameraPosition({x:n.x*1.8,y:n.y*1.8,z:n.z*1.8},n,800);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FLOW TABLE
+// ─────────────────────────────────────────────────────────────────
+function renderFlowTable(nodeArr) {
+    const nodeMap = Object.fromEntries(nodeArr.map(n=>[n.id,n]));
+    const tbody = document.getElementById('flow-tbody');
+    const sigLabels = { alerta:'ALERTA', presion:'PRESIÓN', neutral:'NEUTRAL', estable:'ESTABLE' };
+
+    tbody.innerHTML = LINKS.map(l => {
+        const src = nodeMap[l.source], tgt = nodeMap[l.target];
+        const {signal, reading} = signalFor(l, nodeMap);
+        const typeCol = CAT_COLOR[l.type]||'#64748b';
+        const barW = Math.round(l.strength*60);
+        const srcPct = fmtPct(src?.pctChange);
+        const tgtPct = fmtPct(tgt?.pctChange);
+        const srcBc  = badgeClass(src?.pctChange, src?.posIsGood);
+        const tgtBc  = badgeClass(tgt?.pctChange, tgt?.posIsGood);
+        return `
+        <tr>
+            <td class="rel-names">
+                <strong>${src?.label??l.source}</strong>
+                <span class="rel-arrow">→</span>
+                <strong>${tgt?.label??l.target}</strong>
+                <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${l.label}</div>
+            </td>
+            <td><span style="color:${typeCol};font-weight:700;font-size:0.7rem;">${l.type}</span></td>
+            <td>
+                <div class="str-bar-wrap">
+                    <div class="str-bar" style="width:${barW}px;background:${typeCol};opacity:0.7;"></div>
+                    <span style="color:var(--text-muted);font-size:0.7rem;">${Math.round(l.strength*100)}%</span>
+                </div>
+            </td>
+            <td style="font-size:0.72rem;white-space:nowrap;">
+                <span style="color:var(--text-muted);">${src?.label??''}:</span>
+                <span class="var-badge ${srcBc}" style="font-size:0.65rem;">${srcPct}</span><br>
+                <span style="color:var(--text-muted);">${tgt?.label??''}:</span>
+                <span class="var-badge ${tgtBc}" style="font-size:0.65rem;">${tgtPct}</span>
+            </td>
+            <td><span class="sig-badge sig-${signal}">${sigLabels[signal]??signal}</span></td>
+            <td style="color:var(--text-secondary);font-size:0.73rem;line-height:1.4;">${reading}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// SLIDER
+// ─────────────────────────────────────────────────────────────────
+function setupSlider() {
+    const n = globalDates.length;
+    if (!n) return;
+    applyPeriodToSlider();
+    const slFrom = document.getElementById('fl-from');
+    const slTo   = document.getElementById('fl-to');
+    slFrom.max = slTo.max = n-1;
+
+    function sync(src) {
+        fromIdx = parseInt(slFrom.value);
+        toIdx   = parseInt(slTo.value);
+        const gap=2;
+        if (fromIdx >= toIdx-gap) {
+            if (src==='from') { fromIdx=toIdx-gap; slFrom.value=fromIdx; }
+            else              { toIdx=fromIdx+gap;  slTo.value=toIdx; }
+        }
+        updateSliderUI(); refreshAll();
+    }
+    slFrom.addEventListener('input', ()=>sync('from'));
+    slTo.addEventListener('input',   ()=>sync('to'));
+}
+
+function applyPeriodToSlider() {
+    const n = globalDates.length;
+    if (!n) return;
+    toIdx = n-1;
+    const toDate = globalDates[toIdx];
+    const tgt = new Date(toDate);
+    tgt.setDate(tgt.getDate()-currentPeriod);
+    const tgtStr = tgt.toISOString().substring(0,10);
+    fromIdx=0;
+    for (let i=0;i<n;i++) { if(globalDates[i]>=tgtStr){fromIdx=i;break;} }
+    const slFrom = document.getElementById('fl-from');
+    const slTo   = document.getElementById('fl-to');
+    if (slFrom) { slFrom.value=fromIdx; slTo.value=toIdx; }
+    updateSliderUI();
+}
+
+function updateSliderUI() {
+    const n = globalDates.length;
+    if (!n) return;
+    document.getElementById('fl-lbl-from').textContent = fmtDate(globalDates[fromIdx]||'');
+    document.getElementById('fl-lbl-to').textContent   = fmtDate(globalDates[toIdx]  ||'');
+    const fp = (fromIdx/(n-1))*100;
+    const tp = (toIdx  /(n-1))*100;
+    const fill = document.getElementById('fl-fill');
+    fill.style.left  = fp+'%';
+    fill.style.width = (tp-fp)+'%';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────────────────────────────
+function setPeriod(days, btn) {
+    currentPeriod = days;
+    document.querySelectorAll('.pill-btn:not(#anim-btn):not(#btn-cumul):not(#btn-daily)').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    applyPeriodToSlider();
+    refreshAll();
+}
+
+function setViewMode(mode, btn) {
+    viewMode = mode;
+    document.getElementById('btn-cumul').classList.toggle('view-active', mode==='cumulative');
+    document.getElementById('btn-daily').classList.toggle('view-active', mode==='daily');
+    document.getElementById('btn-cumul').classList.remove('active');
+    document.getElementById('btn-daily').classList.remove('active');
+    refreshAll();
+}
+
+function refreshAll() {
+    const nodeArr = computeNodes();
+    renderVarPanel(nodeArr);
+    updateGraph(nodeArr);
+    renderFlowTable(nodeArr);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ANIMATION
+// ─────────────────────────────────────────────────────────────────
+function toggleAnimation() {
+    const btn = document.getElementById('anim-btn');
+    if (animating) {
+        animating=false;
+        cancelAnimationFrame(animRAF);
+        btn.textContent='▶ Animar';
+        btn.classList.remove('active');
+        return;
+    }
+    animating=true;
+    btn.textContent='⏸ Pausar';
+    btn.classList.add('active');
+    const n = globalDates.length;
+    const windowSize = toIdx-fromIdx;
+    // Start animation from the beginning of the series
+    let curTo = Math.max(windowSize+2, Math.round(n*0.2));
+    let curFrom = curTo - windowSize;
+    const step = Math.max(1, Math.round(n/80));
+
+    function tick() {
+        if (!animating) return;
+        curTo   = Math.min(n-1, curTo+step);
+        curFrom = Math.max(0, curTo-windowSize);
+        fromIdx=curFrom; toIdx=curTo;
+        const slFrom=document.getElementById('fl-from'), slTo=document.getElementById('fl-to');
+        slFrom.value=fromIdx; slTo.value=toIdx;
+        updateSliderUI(); refreshAll();
+        if (curTo>=n-1) { animating=false; btn.textContent='▶ Animar'; btn.classList.remove('active'); return; }
+        animRAF = setTimeout(()=>requestAnimationFrame(tick), 220);
+    }
+    tick();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────
+async function init() {
+    try {
+        await fetchAllData();
+        if (!globalDates.length) throw new Error('Sin datos');
+        setupSlider();
+        const nodeArr = computeNodes();
+        renderVarPanel(nodeArr);
+        initGraph(nodeArr);
+        renderFlowTable(nodeArr);
+    } catch(e) {
+        console.error(e);
+        document.getElementById('graph-loading').innerHTML = `
+            <div class="graph-error-msg">
+                <div style="font-size:1.8rem;margin-bottom:8px;">⚠️</div>
+                <div>No se pudieron cargar los datos.</div>
+                <button class="pill-btn" onclick="init()" style="margin-top:12px;">Reintentar</button>
+            </div>`;
+        document.getElementById('var-panel').innerHTML =
+            '<p style="color:var(--text-muted);text-align:center;font-size:0.8rem;padding:16px;">Sin datos disponibles.</p>';
+    }
+}
+
+window.addEventListener('resize', ()=>{
+    if (!graphInst) return;
+    const w = document.getElementById('graph-wrap');
+    graphInst.width(w.clientWidth).height(w.clientHeight);
+});
+
+init();
+</script>
+</body>
+</html>
