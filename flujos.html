@@ -201,16 +201,16 @@
             position: absolute; left: 0; top: 0;
             background: rgba(10,18,36,0.86);
             border: 1px solid rgba(255,255,255,0.10);
-            border-radius: 7px; padding: 3px 8px;
-            font-size: 0.68rem; line-height: 1.15;
+            border-radius: 6px; padding: 2px 6px;
+            font-size: 0.62rem; line-height: 1.12;
             white-space: nowrap; text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
             font-family: 'Inter', sans-serif;
             transition: opacity 0.2s;
             will-change: transform;
         }
-        .nl-name { color: #e2e8f0; font-weight: 600; font-size: 0.68rem; }
-        .nl-pct  { font-weight: 700; font-size: 0.66rem; margin-top: 1px; }
+        .nl-name { color: #e2e8f0; font-weight: 600; font-size: 0.62rem; }
+        .nl-pct  { font-weight: 700; font-size: 0.6rem; margin-top: 1px; }
         .nl-pct.pos { color: #10b981; }
         .nl-pct.neg { color: #ef4444; }
         .nl-pct.neu { color: #94a3b8; }
@@ -460,10 +460,10 @@
                 <div class="legend-title" style="margin-top:9px;">Tamaño = magnitud del cambio</div>
                 <div class="legend-title" style="margin-top:9px;">Aristas (flujos)</div>
                 <div class="legend-row"><div class="lline" style="background:#3b82f6"></div>FX / Tipo de cambio</div>
-                <div class="legend-row"><div class="lline" style="background:#8b5cf6"></div>Monetario / BCRA</div>
-                <div class="legend-row"><div class="lline" style="background:#f59e0b"></div>Precios / Riesgo</div>
+                <div class="legend-row"><div class="lline" style="background:#8b5cf6"></div>Monetario / Agregados</div>
+                <div class="legend-row"><div class="lline" style="background:#14b8a6"></div>Depósitos</div>
                 <div class="legend-row"><div class="lline" style="background:#06b6d4"></div>Tasas</div>
-                <div class="legend-row"><div class="lline" style="background:#10b981"></div>Actividad real</div>
+                <div class="legend-row"><div class="lline" style="background:#f59e0b"></div>Precios / Riesgo</div>
             </div>
             <div class="graph-hint">Rotá con el mouse · Zoom con scroll<br>Click en nodo para enfocar</div>
         </div>
@@ -565,35 +565,66 @@ const CAT_COLOR = {
     Riesgo:    '#ef4444',
     Precios:   '#f59e0b',
     Monetario: '#8b5cf6',
+    Depósitos: '#14b8a6',
     Tasas:     '#06b6d4',
     Actividad: '#10b981',
 };
 
 // posIsGood: true = subir es bueno, false = subir es malo, null = neutral
 const VARS = [
+    // ── FX ──
     { id:'dolar_blue',    label:'Dólar Blue',     cat:'FX',        unit:'ARS', posIsGood: false },
     { id:'dolar_oficial', label:'Dólar Oficial',  cat:'FX',        unit:'ARS', posIsGood: false },
     { id:'dolar_ccl',     label:'CCL',            cat:'FX',        unit:'ARS', posIsGood: false },
+    { id:'tc_mayorista',  label:'TC Mayorista',   cat:'FX',        unit:'ARS', posIsGood: false },
+    // ── Riesgo / Precios ──
     { id:'riesgo_pais',   label:'Riesgo País',    cat:'Riesgo',    unit:'pb',  posIsGood: false },
     { id:'inflacion',     label:'IPC Mensual',    cat:'Precios',   unit:'%',   posIsGood: false },
-    { id:'reservas',      label:'Reservas BCRA',  cat:'Monetario', unit:'M USD', posIsGood: true },
+    // ── Agregados monetarios ──
+    { id:'reservas',      label:'Reservas BCRA',  cat:'Monetario', unit:'M USD', posIsGood: true  },
     { id:'base_mon',      label:'Base Monetaria', cat:'Monetario', unit:'M ARS', posIsGood: false },
-    { id:'badlar',        label:'Tasa BADLAR',    cat:'Tasas',     unit:'%',   posIsGood: null  },
-    { id:'tc_mayorista',  label:'TC Mayorista',   cat:'FX',        unit:'ARS', posIsGood: false },
+    { id:'circulacion',   label:'Circulación Monetaria', cat:'Monetario', unit:'M ARS', posIsGood: false },
+    { id:'byp_publico',   label:'Billetes y monedas en público', cat:'Monetario', unit:'M ARS', posIsGood: false },
+    // ── Depósitos ──
+    { id:'dep_cc',        label:'Dep. Cta Cte (FUCO)', cat:'Depósitos', unit:'M ARS', posIsGood: null },
+    { id:'dep_plazo',     label:'Dep. a Plazo',   cat:'Depósitos', unit:'M ARS', posIsGood: true  },
+    // ── Tasas ──
+    { id:'badlar',        label:'BADLAR',         cat:'Tasas',     unit:'%',   posIsGood: null },
+    { id:'tm20',          label:'TM20',           cat:'Tasas',     unit:'%',   posIsGood: null },
+    { id:'baibar',        label:'BAIBAR',         cat:'Tasas',     unit:'%',   posIsGood: null },
+    { id:'pf_30d',        label:'PF Minorista 30d', cat:'Tasas',  unit:'%',   posIsGood: null },
 ];
 
 // Relaciones con dirección de causalidad (source → target)
 const LINKS = [
+    // ── FX ──
     { source:'dolar_blue',   target:'dolar_ccl',    type:'FX',        strength:0.90, label:'Brecha Blue↔CCL',     desc:'El diferencial entre blue y CCL señala presión de dolarización.' },
     { source:'tc_mayorista', target:'dolar_oficial', type:'FX',        strength:0.95, label:'TC Referencia',       desc:'El tipo de cambio mayorista ancla al oficial; su suba presiona la brecha.' },
+    { source:'dolar_blue',   target:'inflacion',    type:'FX',        strength:0.66, label:'Pass-through',        desc:'La suba del dólar informal se traslada a precios domésticos (pass-through).' },
+    // ── Riesgo ──
     { source:'riesgo_pais',  target:'dolar_blue',   type:'Riesgo',    strength:0.78, label:'Riesgo → Brecha',     desc:'Mayor riesgo soberano dispara la demanda de cobertura en dólares.' },
+    { source:'dolar_ccl',    target:'riesgo_pais',  type:'Riesgo',    strength:0.60, label:'CCL → Riesgo',        desc:'Presión sobre CCL refleja fuga de capitales que eleva el riesgo país.' },
+    // ── Monetario / Reservas ──
     { source:'reservas',     target:'riesgo_pais',  type:'Monetario', strength:0.82, label:'Reservas → Riesgo',   desc:'Acumulación de reservas comprime el riesgo país al mejorar la solvencia externa.' },
     { source:'reservas',     target:'dolar_oficial', type:'Monetario', strength:0.85, label:'Reservas → Oficial',  desc:'La escasez de reservas presiona al dólar oficial hacia la devaluación.' },
     { source:'base_mon',     target:'inflacion',    type:'Monetario', strength:0.72, label:'Emisión → Precios',   desc:'La expansión de base monetaria se traslada a inflación vía demanda agregada.' },
-    { source:'badlar',       target:'base_mon',     type:'Tasas',     strength:0.65, label:'Tasa → Base',         desc:'Tasas altas contraen la demanda de crédito y drenan base monetaria.' },
+    // ── Agregados (composición) ──
+    { source:'base_mon',     target:'circulacion',  type:'Monetario', strength:0.88, label:'Composición Base',    desc:'La circulación monetaria es el principal componente de la base.' },
+    { source:'circulacion',  target:'byp_publico',  type:'Monetario', strength:0.82, label:'Circulación → Público', desc:'Los billetes y monedas en poder del público son fracción de la circulación.' },
+    { source:'byp_publico',  target:'inflacion',    type:'Monetario', strength:0.55, label:'Liquidez → Precios',  desc:'Mayor efectivo en manos del público presiona la demanda agregada.' },
+    // ── Depósitos ──
+    { source:'dep_cc',       target:'base_mon',     type:'Depósitos', strength:0.55, label:'Encajes',             desc:'Los depósitos cta cte requieren encajes que afectan la base monetaria.' },
+    { source:'badlar',       target:'dep_plazo',    type:'Tasas',     strength:0.80, label:'BADLAR → Plazo Fijo', desc:'BADLAR alta atrae depósitos a plazo del público (mayoristas).' },
+    { source:'pf_30d',       target:'dep_plazo',    type:'Tasas',     strength:0.72, label:'Tasa Min. → Plazo',   desc:'La tasa minorista de plazo fijo influye en captación retail.' },
+    { source:'dep_plazo',    target:'dolar_blue',   type:'Depósitos', strength:0.50, label:'Plazo ↔ Dólar',       desc:'Caída de depósitos a plazo suele anticipar dolarización de carteras.' },
+    // ── Tasas ──
     { source:'inflacion',    target:'badlar',       type:'Precios',   strength:0.68, label:'IPC → BADLAR',        desc:'El BCRA sube la BADLAR para contener la inflación vía tasa real positiva.' },
-    { source:'dolar_blue',   target:'inflacion',    type:'FX',        strength:0.66, label:'Pass-through',        desc:'La suba del dólar informal se traslada a precios domésticos (pass-through).' },
-    { source:'dolar_ccl',    target:'riesgo_pais',  type:'Riesgo',    strength:0.60, label:'CCL → Riesgo',        desc:'Presión sobre CCL refleja fuga de capitales que eleva el riesgo país.' },
+    { source:'badlar',       target:'tm20',         type:'Tasas',     strength:0.88, label:'BADLAR ↔ TM20',       desc:'BADLAR y TM20 (mayoristas) se mueven prácticamente en conjunto.' },
+    { source:'tm20',         target:'baibar',       type:'Tasas',     strength:0.70, label:'TM20 → BAIBAR',       desc:'Las tasas de depósitos mayoristas correlacionan con la interbancaria BAIBAR.' },
+    { source:'baibar',       target:'badlar',       type:'Tasas',     strength:0.65, label:'BAIBAR → BADLAR',     desc:'Las tasas interbancarias señalan la dirección de la BADLAR.' },
+    { source:'badlar',       target:'pf_30d',       type:'Tasas',     strength:0.62, label:'Mayorista → Minorista', desc:'BADLAR (mayorista) influye con rezago en la tasa minorista PF 30d.' },
+    { source:'inflacion',    target:'pf_30d',       type:'Precios',   strength:0.55, label:'IPC → PF Minorista',  desc:'IPC alto presiona al BCRA a subir tasas minoristas para evitar pérdida real.' },
+    { source:'badlar',       target:'base_mon',     type:'Tasas',     strength:0.55, label:'Tasa → Base',         desc:'Tasas altas contraen la demanda de crédito y drenan base monetaria.' },
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -746,14 +777,26 @@ async function fetchBCRA(idVar) {
 }
 
 async function fetchAllData() {
-    const [dolares, riesgo, inflacion, reservas, baseMon, badlar, tcMay] = await Promise.all([
+    const [
+        dolares, riesgo, inflacion,
+        reservas, baseMon, badlar, tcMay,
+        circulacion, bypPublico, depCC, depPlazo,
+        tm20, baibar, pf30d
+    ] = await Promise.all([
         fetchDolares(),
         fetchSerie('https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais'),
         fetchSerie('https://api.argentinadatos.com/v1/finanzas/indices/inflacion'),
-        fetchBCRA(1),
-        fetchBCRA(15),
-        fetchBCRA(7),
-        fetchBCRA(5),
+        fetchBCRA(1),   // Reservas
+        fetchBCRA(15),  // Base Monetaria
+        fetchBCRA(7),   // BADLAR
+        fetchBCRA(5),   // TC Mayorista
+        fetchBCRA(16),  // Circulación Monetaria
+        fetchBCRA(17),  // Billetes y monedas en poder del público
+        fetchBCRA(22),  // Depósitos cta cte (neto FUCO)
+        fetchBCRA(24),  // Depósitos a plazo (incl inversiones)
+        fetchBCRA(8),   // TM20
+        fetchBCRA(11),  // BAIBAR
+        fetchBCRA(12),  // Plazo Fijo 30d minorista
     ]);
 
     allData = {
@@ -766,6 +809,13 @@ async function fetchAllData() {
         base_mon:      baseMon,
         badlar:        badlar,
         tc_mayorista:  tcMay,
+        circulacion:   circulacion,
+        byp_publico:   bypPublico,
+        dep_cc:        depCC,
+        dep_plazo:     depPlazo,
+        tm20:          tm20,
+        baibar:        baibar,
+        pf_30d:        pf30d,
     };
 
     // Global date index (last 400 days)
