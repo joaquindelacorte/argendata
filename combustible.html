@@ -115,9 +115,14 @@
         }
         .station-card:hover { background: rgba(30,41,59,0.8); transform: translateY(-2px); }
         .station-card.cheapest { border-color: #10b981; box-shadow: 0 0 12px rgba(16,185,129,0.2); }
-        .station-rank {
+        .freshness-pill {
             position: absolute; top: 10px; right: 12px;
-            font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.1rem;
+            font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; gap: 4px;
+        }
+        .freshness-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .stale-warning {
+            font-size: 0.68rem; color: #f59e0b; margin-top: 6px; font-weight: 600;
+            background: rgba(245,158,11,0.08); padding: 3px 8px; border-radius: 4px; display: inline-block;
         }
         .station-brand {
             display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700;
@@ -408,7 +413,8 @@
             // Campos necesarios para identificar estaciones individuales
             direccion:   String(r.direccion || r.domicilio || '').trim(),
             tipohorario: String(r.tipohorario || 'Diurno').trim(),
-            idestacion:  String(r.idestacion || r.id_estacion || r.id || '').trim()
+            idestacion:  String(r.idestacion || r.id_estacion || r.id || '').trim(),
+            fechaFull:   String(r.indice_tiempo || r.fecha_vigencia || '').substring(0, 10)
         })).filter(r => r.precio > 100 && r.prov && r.producto);
 
         if (!parsed.length) { showError('Los datos no contienen precios válidos (esperado > $100/L).'); return; }
@@ -977,6 +983,29 @@
         renderTable(filtered);
     }
 
+    // ==================== DATE HELPERS ====================
+
+    function fmtFechaCorta(dateStr) {
+        if (!dateStr || dateStr.length < 7) return '';
+        const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        const parts = dateStr.substring(0, 10).split('-');
+        if (parts.length === 3 && parts[2]) return `${parseInt(parts[2])} ${meses[parseInt(parts[1])-1]}`;
+        if (parts.length >= 2) return `${meses[parseInt(parts[1])-1]} ${parts[0].slice(2)}`;
+        return dateStr.substring(0, 7);
+    }
+
+    function freshnessInfo(dateStr) {
+        if (!dateStr || dateStr.length < 7) return { label: '', color: 'var(--text-muted)', stale: false };
+        const today = new Date(); today.setHours(0,0,0,0);
+        const d = new Date(dateStr.substring(0, 10) + 'T00:00:00');
+        if (isNaN(d.getTime())) return { label: fmtFechaCorta(dateStr), color: 'var(--text-muted)', stale: false };
+        const diffDays = Math.round((today - d) / 86400000);
+        const label = fmtFechaCorta(dateStr);
+        if (diffDays <= 7)  return { label, color: '#10b981', stale: false };
+        if (diffDays <= 45) return { label, color: '#f59e0b', stale: false };
+        return { label, color: '#ef4444', stale: true };
+    }
+
     // ==================== CIUDAD FILTER ====================
 
     function updateStepIndicators(step) {
@@ -1111,19 +1140,22 @@
             const horario = r.tipohorario || 'Diurno';
             if (!byStation[key]) byStation[key] = {
                 empresa: r.empresa, brand: r.empresa, direccion: r.direccion,
-                lat: r.lat, lng: r.lng, precios: {}, fechas: {}
+                lat: r.lat, lng: r.lng, precios: {}, fechas: {}, fechaReciente: ''
             };
-            // Conservar precio más reciente por horario
-            if (!byStation[key].fechas[horario] || r.fecha >= byStation[key].fechas[horario]) {
+            if (!byStation[key].fechas[horario] || r.fechaFull >= byStation[key].fechas[horario]) {
                 byStation[key].precios[horario] = r.precio;
-                byStation[key].fechas[horario] = r.fecha;
+                byStation[key].fechas[horario] = r.fechaFull;
             }
+            if (r.fechaFull > byStation[key].fechaReciente) byStation[key].fechaReciente = r.fechaFull;
         });
 
         const stations = Object.values(byStation).map(s => ({
             ...s,
             precio: s.precios['Diurno'] || Object.values(s.precios)[0]
-        })).filter(s => s.precio > 0).sort((a, b) => a.precio - b.precio);
+        })).filter(s => s.precio > 0).sort((a, b) => {
+            const d = (b.fechaReciente || '').localeCompare(a.fechaReciente || '');
+            return d !== 0 ? d : a.precio - b.precio;
+        });
 
         if (!stations.length) {
             document.getElementById('ciudad-results').innerHTML =
@@ -1134,8 +1166,8 @@
 
         updateStepIndicators(3);
 
-        const cheapestP = stations[0].precio;
-        const mostExpP  = stations[stations.length - 1].precio;
+        const cheapestP = Math.min(...stations.map(s => s.precio));
+        const mostExpP  = Math.max(...stations.map(s => s.precio));
         const savings   = mostExpP - cheapestP;
 
         // Replace province circles with individual station markers
@@ -1150,17 +1182,20 @@
             if (!s.lat || !s.lng) return;
             bounds.push([s.lat, s.lng]);
             const col = priceColor(s.precio, cheapestP, mostExpP);
+            const isCheapestMarker = s.precio === cheapestP;
+            const freshM = freshnessInfo(s.fechaReciente);
             const marker = L.circleMarker([s.lat, s.lng], {
                 radius: 10,
-                color: i === 0 ? '#fff' : 'rgba(255,255,255,0.45)',
-                weight: i === 0 ? 2 : 1,
+                color: isCheapestMarker ? '#fff' : 'rgba(255,255,255,0.45)',
+                weight: isCheapestMarker ? 2 : 1,
                 fillColor: col,
                 fillOpacity: 0.92
             }).bindPopup(`
                 <div style="font-family:'Inter',sans-serif; min-width:155px;">
                     <strong style="font-size:0.9rem;">${s.brand}</strong><br>
                     <span style="font-size:1.1rem; font-weight:800; color:${col}">$${fmtNum(s.precio,0)}<span style="font-size:0.7rem; color:#94a3b8; font-weight:400;">/L</span></span><br>
-                    <span style="color:#94a3b8; font-size:0.73rem; line-height:1.4;">${s.direccion || ''}</span>
+                    <span style="color:#94a3b8; font-size:0.73rem; line-height:1.4;">${s.direccion || ''}</span><br>
+                    <span style="color:${freshM.color}; font-size:0.7rem;">📅 ${fmtFechaCorta(s.fechaReciente) || 'sin fecha'}</span>
                 </div>
             `).addTo(mapInstance);
             stationMarkers.push(marker);
@@ -1178,16 +1213,16 @@
                 <span>🏪 <strong>${stations.length}</strong> estaciones</span>
                 <span>⛽ <strong>${fuel}</strong></span>
                 <span>📍 <strong>${ciudad.charAt(0) + ciudad.slice(1).toLowerCase()}</strong></span>
-                <span>💰 Ahorro máx: <strong style="color:#10b981">$${fmtNum(savings, 0)}/L</strong> entre la más cara y más barata</span>
+                <span>💰 Ahorro máx: <strong style="color:#10b981">$${fmtNum(savings, 0)}/L</strong></span>
+                <span style="color:var(--text-muted); font-size:0.78rem;">🔄 ordenado por última actualización</span>
             </div>
             <div class="station-grid">`;
 
         stations.forEach((s, i) => {
-            const isCheapest = i === 0;
+            const isCheapest = s.precio === cheapestP;
             const diff = s.precio - cheapestP;
-            const diffLabel = diff === 0 ? '✅ La más barata' : `+$${fmtNum(diff, 0)} vs más barata`;
             const priceCol = isCheapest ? '#10b981' : diff <= savings * 0.25 ? '#84cc16' : diff <= savings * 0.6 ? '#f59e0b' : '#ef4444';
-            const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+            const fresh = freshnessInfo(s.fechaReciente);
 
             let noctLabel = '';
             if (s.precios['Nocturno'] && s.precios['Nocturno'] !== s.precio) {
@@ -1207,13 +1242,19 @@
 
             html += `
                 <div class="station-card ${isCheapest ? 'cheapest' : ''}">
-                    <div class="station-rank">${rankEmoji}</div>
+                    <div class="freshness-pill" style="color:${fresh.color}">
+                        <span class="freshness-dot" style="background:${fresh.color}"></span>
+                        ${fresh.label || '—'}
+                    </div>
                     <div class="station-brand">${s.brand}</div>
                     <div class="station-price" style="color:${priceCol}">$${fmtNum(s.precio, 0)}</div>
                     <div style="font-size:0.68rem; color:var(--text-muted); margin-bottom:2px;">por litro · Diurno</div>
                     ${noctLabel}
                     <div class="station-addr">📍 ${s.direccion || 'Dirección no disponible'}</div>
-                    ${diff > 0 ? `<div class="station-horario" style="color:${priceCol}; margin-top:6px; font-weight:600;">${diffLabel}</div>` : `<div class="savings-badge">✅ Precio más bajo</div>`}
+                    ${isCheapest
+                        ? `<div class="savings-badge">✅ Precio más bajo</div>`
+                        : `<div class="station-horario" style="color:${priceCol}; margin-top:6px; font-weight:600;">+$${fmtNum(diff, 0)} vs más barata</div>`}
+                    ${fresh.stale ? `<div class="stale-warning">⚠️ Precio puede estar desactualizado</div>` : ''}
                     <div class="station-btn-row">
                         ${mapBtn}
                         ${mapsExtBtn}
