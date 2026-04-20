@@ -224,6 +224,17 @@
         </div>
     </div>
 
+    <!-- Historical price chart -->
+    <div class="glass-card stagger-3 fade-in" style="margin-bottom: 24px;" id="historico-section">
+        <h2 class="section-title">
+            📈 Evolución Histórica de Precios
+            <span class="update-tag" id="historico-label"></span>
+        </h2>
+        <div id="historico-wrap" class="chart-wrapper" style="height:220px;">
+            <canvas id="chart-historico"></canvas>
+        </div>
+    </div>
+
     <!-- Map + Chart row -->
     <div class="grid-2 stagger-3 fade-in" style="margin-bottom: 24px;">
         <div class="glass-card" style="padding:16px;">
@@ -301,16 +312,18 @@
     };
 
     // State
-    let allData       = [];
-    let fuelTypes     = [];
-    let activeFuel    = '';
-    let mapInstance   = null;
-    let mapLayers     = [];
+    let allData        = [];
+    let historicalData = [];
+    let fuelTypes      = [];
+    let activeFuel     = '';
+    let mapInstance    = null;
+    let mapLayers      = [];
     let stationMarkers = [];
-    let chartProv     = null;
-    let chartEmp      = null;
-    let chartHist     = null;
-    let tableData     = [];
+    let chartProv      = null;
+    let chartEmp       = null;
+    let chartHist      = null;
+    let chartHistorico = null;
+    let tableData      = [];
 
     // ==================== FETCH ====================
 
@@ -375,18 +388,25 @@
 
         // Use exact CKAN field names (confirmed from API response)
         const parsed = rows.map(r => ({
-            fecha:    String(r.indice_tiempo || r.fecha_vigencia || '').substring(0, 7), // "2026-04"
-            prov:     String(r.provincia     || 'Sin dato').trim().toUpperCase(),
-            empresa:  String(r.empresabandera || r.empresa || 'Sin dato').trim(),
-            producto: String(r.producto      || 'Sin dato').trim(),
-            precio:   typeof r.precio === 'number' ? r.precio : parseFloat(String(r.precio || '0').replace(',', '.')) || 0,
-            lat:      typeof r.latitud  === 'number' ? r.latitud  : parseFloat(r.latitud)  || null,
-            lng:      typeof r.longitud === 'number' ? r.longitud : parseFloat(r.longitud) || null,
-            region:   String(r.region   || '').trim(),
-            localidad:String(r.localidad|| '').trim()
-        })).filter(r => r.precio > 100 && r.prov && r.producto); // precio > 100 filtra datos inválidos
+            fecha:       String(r.indice_tiempo || r.fecha_vigencia || '').substring(0, 7),
+            prov:        String(r.provincia     || 'Sin dato').trim().toUpperCase(),
+            empresa:     String(r.empresabandera || r.empresa || 'Sin dato').trim(),
+            producto:    String(r.producto      || 'Sin dato').trim(),
+            precio:      typeof r.precio === 'number' ? r.precio : parseFloat(String(r.precio || '0').replace(',', '.')) || 0,
+            lat:         typeof r.latitud  === 'number' ? r.latitud  : parseFloat(r.latitud)  || null,
+            lng:         typeof r.longitud === 'number' ? r.longitud : parseFloat(r.longitud) || null,
+            region:      String(r.region    || '').trim(),
+            localidad:   String(r.localidad || '').trim(),
+            // Campos necesarios para identificar estaciones individuales
+            direccion:   String(r.direccion || r.domicilio || '').trim(),
+            tipohorario: String(r.tipohorario || 'Diurno').trim(),
+            idestacion:  String(r.idestacion || r.id_estacion || r.id || '').trim()
+        })).filter(r => r.precio > 100 && r.prov && r.producto);
 
         if (!parsed.length) { showError('Los datos no contienen precios válidos (esperado > $100/L).'); return; }
+
+        // Guardar historial completo antes de filtrar por fecha
+        historicalData = parsed;
 
         // Use latest period available
         const fechas = [...new Set(parsed.map(r => r.fecha).filter(Boolean))].sort();
@@ -489,6 +509,7 @@
 
         renderKPIs(provStats, globalAvg, globalMin, globalMax, filtered.length);
         updateMap(provStats, globalMin, globalMax);
+        renderChartHistorico(historicalData);
         renderChartProv(provStats);
         renderChartEmpresa(empStats);
         renderChartHistogram(prices);
@@ -771,6 +792,79 @@
         });
     }
 
+    function renderChartHistorico(data) {
+        const wrap = document.getElementById('historico-wrap');
+        const section = document.getElementById('historico-section');
+
+        const filtered = data.filter(r => r.producto === activeFuel && r.fecha);
+        const byFecha = {};
+        filtered.forEach(r => {
+            if (!byFecha[r.fecha]) byFecha[r.fecha] = { sum: 0, n: 0 };
+            byFecha[r.fecha].sum += r.precio;
+            byFecha[r.fecha].n++;
+        });
+
+        const fechas = Object.keys(byFecha).sort();
+        if (fechas.length < 2) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = 'block';
+
+        const avgs = fechas.map(f => +(byFecha[f].sum / byFecha[f].n).toFixed(2));
+        const minV = Math.min(...avgs);
+        const maxV = Math.max(...avgs);
+        const deltaLabel = avgs.length >= 2
+            ? ` · ${avgs[avgs.length-1] >= avgs[0] ? '+' : ''}${fmtPeso(avgs[avgs.length-1] - avgs[0])} vs primer registro`
+            : '';
+        document.getElementById('historico-label').textContent = activeFuel + deltaLabel;
+
+        wrap.innerHTML = '<canvas id="chart-historico"></canvas>';
+        const ctx = document.getElementById('chart-historico').getContext('2d');
+        if (chartHistorico) chartHistorico.destroy();
+
+        chartHistorico = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: fechas,
+                datasets: [{
+                    label: 'Promedio nacional $/L',
+                    data: avgs,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,0.08)',
+                    borderWidth: 2.5,
+                    pointRadius: avgs.map((v, i) =>
+                        i === avgs.indexOf(minV) || i === avgs.indexOf(maxV) ? 7 : 4),
+                    pointBackgroundColor: avgs.map((v, i) =>
+                        i === avgs.indexOf(minV) ? '#10b981' :
+                        i === avgs.indexOf(maxV) ? '#ef4444' : '#3b82f6'),
+                    tension: 0.35,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: item => ' ' + fmtPeso(item.raw) + '/L' } }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#64748b', font: { size: 10 } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#64748b', callback: v => '$' + fmtNum(v, 0) },
+                        suggestedMin: minV * 0.97,
+                        suggestedMax: maxV * 1.03
+                    }
+                }
+            }
+        });
+    }
+
     // ==================== TABLE ====================
 
     let sortCol = 'avg'; let sortAsc = true;
@@ -889,6 +983,13 @@
         fuelSel.disabled = true;
         fuelSel.innerHTML = '<option value="">— Seleccioná ciudad antes —</option>';
         updateStepIndicators(1);
+
+        // Zoom map to selected province as visual feedback
+        const provKey = normalizeProv(prov);
+        const provCenter = PROVINCE_COORDS[provKey];
+        if (provCenter && mapInstance) mapInstance.setView(provCenter, 7, { animate: true });
+        document.getElementById('ciudad-results').innerHTML =
+            `<div class="info-box" style="padding:16px;">📍 <strong>${ciudades.length}</strong> localidades en esta provincia. Elegí una ciudad para ver las estaciones.</div>`;
     }
 
     function onCiudadChange() {
@@ -961,8 +1062,13 @@
         }
 
         const byStation = {};
-        records.forEach(r => {
-            const key = `${r.empresa}||${r.direccion}`;
+        records.forEach((r, i) => {
+            // Clave única por estación: idestacion > coordenadas > empresa+dirección > fallback con índice
+            const key = r.idestacion
+                ? r.idestacion
+                : (r.lat && r.lng)
+                    ? `${r.empresa}||${r.lat.toFixed(5)}||${r.lng.toFixed(5)}`
+                    : `${r.empresa}||${r.direccion || i}`;
             if (!byStation[key]) byStation[key] = {
                 empresa: r.empresa, brand: r.empresa, direccion: r.direccion,
                 lat: r.lat, lng: r.lng, precios: {}
