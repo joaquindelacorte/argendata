@@ -7,227 +7,276 @@
     <link href="estilos_compartidos.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        body { padding: 0; background: var(--bg-main); }
+        /* ─── Base ─────────────────────────────────── */
+        body { background: var(--bg-main); }
 
         .page-wrapper {
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 32px 24px;
+            padding: 28px 24px;
         }
 
-        /* Tab navigation */
-        .calc-tabs {
+        /* Popup mode: sin header, layout compacto */
+        body.popup-mode .page-header { display: none; }
+        body.popup-mode .page-wrapper { padding: 16px; max-width: 100%; }
+        body.popup-mode .tool-selector { display: none; }
+        body.popup-mode .tool-topbar { display: none; }
+        body.popup-mode .popup-btn { display: none; }
+        body.popup-mode .popup-header { display: flex; }
+        body.popup-mode .panel-layout { grid-template-columns: 1fr; }
+        body.popup-mode .glass-card { padding: 16px; }
+
+        /* ─── Tool selector ─────────────────────────── */
+        .tool-selector {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 28px;
+            margin-bottom: 20px;
         }
 
-        .calc-tab {
-            padding: 10px 18px;
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 16px;
             border-radius: 10px;
             border: 1px solid var(--border-color);
             background: var(--bg-card);
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.875rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
             white-space: nowrap;
         }
-
-        .calc-tab:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .calc-tab.active {
+        .tool-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .tool-btn.active {
             background: var(--accent);
             color: #fff;
             border-color: var(--accent);
-            box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+            box-shadow: 0 4px 14px rgba(59,130,246,0.35);
         }
+        .tool-btn .icon { font-size: 1.1rem; line-height: 1; }
 
-        /* Calculator panels */
-        .calc-panel { display: none; }
-        .calc-panel.active { display: block; }
-
-        /* Two column layout */
-        .calc-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            align-items: start;
+        /* ─── Panel header ──────────────────────────── */
+        .tool-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
         }
+        .tool-info h2 { font-size: 1.25rem; margin-bottom: 2px; }
+        .tool-info p  { font-size: 0.82rem; color: var(--text-muted); }
 
-        .calc-layout.wide {
-            grid-template-columns: 380px 1fr;
+        .popup-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 9px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s;
+            white-space: nowrap;
         }
+        .popup-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
 
-        @media (max-width: 900px) {
-            .calc-layout, .calc-layout.wide {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Form elements */
-        .form-group {
+        /* Popup mode header */
+        .popup-header {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0 16px;
+            border-bottom: 1px solid var(--border-color);
             margin-bottom: 16px;
         }
+        .popup-header h2 { font-size: 1rem; }
+        .popup-close-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 7px;
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .popup-close-btn:hover { background: var(--danger-bg); color: var(--danger); }
+
+        /* ─── Panels ────────────────────────────────── */
+        .calc-panel { display: none; animation: fadeIn 0.25s ease; }
+        .calc-panel.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── Layout ────────────────────────────────── */
+        .panel-layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+        @media (max-width: 860px) {
+            .panel-layout { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Inputs ────────────────────────────────── */
+        .form-group { margin-bottom: 14px; }
 
         .form-label {
             display: block;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             font-weight: 600;
-            color: var(--text-secondary);
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
         }
 
         .form-input, .form-select {
             width: 100%;
             padding: 11px 14px;
-            background: rgba(15, 23, 42, 0.7);
+            background: rgba(15, 23, 42, 0.8);
             border: 1px solid var(--border-color);
             border-radius: 10px;
             color: var(--text-primary);
-            font-size: 0.95rem;
+            font-size: 1rem;
             font-family: 'Inter', sans-serif;
             font-weight: 500;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-
         .form-input:focus, .form-select:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
         }
-
+        .form-input::placeholder { color: var(--text-muted); font-weight: 400; }
         .form-select { cursor: pointer; }
 
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 10px;
         }
 
-        /* Result display */
-        .result-main {
+        /* ─── Results ───────────────────────────────── */
+        .result-hero {
             font-family: 'Outfit', sans-serif;
-            font-size: 2.2rem;
+            font-size: 2.6rem;
             font-weight: 800;
+            line-height: 1;
             color: #fff;
-            line-height: 1.1;
-            margin: 4px 0 2px;
         }
+        .result-hero.positive { color: var(--success); }
+        .result-hero.negative { color: var(--danger); }
 
         .result-label {
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.72rem;
+            font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
         }
 
         .result-sub {
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             color: var(--text-secondary);
-            margin-top: 2px;
+            margin-top: 6px;
         }
 
-        .result-card {
-            background: rgba(15, 23, 42, 0.5);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 12px;
-        }
-
-        .result-grid {
+        .result-mini-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 12px;
+            gap: 10px;
+            margin-top: 14px;
         }
-
-        .result-grid-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-
+        .result-mini-grid.three { grid-template-columns: 1fr 1fr 1fr; }
         @media (max-width: 500px) {
-            .result-grid, .result-grid-3 { grid-template-columns: 1fr; }
+            .result-mini-grid, .result-mini-grid.three { grid-template-columns: 1fr; }
             .form-row { grid-template-columns: 1fr; }
         }
 
-        /* Variation indicator */
-        .var-positive { color: var(--success); }
-        .var-negative { color: var(--danger); }
-        .var-neutral  { color: var(--text-secondary); }
+        .mini-card {
+            background: rgba(15,23,42,0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 14px;
+        }
+        .mini-card .val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 3px;
+        }
+        .mini-card .val.pos { color: var(--success); }
+        .mini-card .val.neg { color: var(--danger); }
+        .mini-card .val.accent { color: var(--accent); }
 
-        .big-badge {
+        /* Pill badge */
+        .pill {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             padding: 6px 14px;
             border-radius: 8px;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 700;
             font-family: 'Outfit', sans-serif;
-            margin-top: 8px;
+            margin: 10px 0;
         }
+        .pill.up   { background: var(--success-bg); color: var(--success); }
+        .pill.down { background: var(--danger-bg);  color: var(--danger); }
+        .pill.flat { background: rgba(148,163,184,0.08); color: var(--text-secondary); }
+        .pill.blue { background: var(--accent-light); color: var(--accent); }
 
-        .big-badge.up   { background: var(--success-bg); color: var(--success); }
-        .big-badge.down { background: var(--danger-bg);  color: var(--danger);  }
-        .big-badge.flat { background: rgba(148,163,184,0.1); color: var(--text-secondary); }
-
-        /* Action button */
-        .btn-primary {
-            width: 100%;
-            padding: 13px;
-            background: var(--accent);
-            color: #fff;
+        /* ─── Divider ───────────────────────────────── */
+        .divider {
             border: none;
-            border-radius: 10px;
-            font-size: 0.95rem;
+            border-top: 1px solid var(--border-color);
+            margin: 16px 0;
+        }
+
+        /* ─── Section label ─────────────────────────── */
+        .section-label {
+            font-size: 0.72rem;
             font-weight: 700;
-            cursor: pointer;
-            transition: background 0.2s, box-shadow 0.2s;
-            margin-top: 4px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
         }
 
-        .btn-primary:hover {
-            background: var(--accent-hover);
-            box-shadow: 0 4px 12px rgba(59,130,246,0.35);
-        }
-
-        .btn-secondary {
+        /* ─── Fetch button ──────────────────────────── */
+        .btn-fetch {
             width: 100%;
             padding: 11px;
-            background: transparent;
-            color: var(--accent);
-            border: 1px solid var(--accent);
+            background: rgba(59,130,246,0.1);
+            border: 1px solid rgba(59,130,246,0.3);
             border-radius: 10px;
+            color: var(--accent);
             font-size: 0.9rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
-            margin-top: 8px;
+            margin-bottom: 14px;
         }
+        .btn-fetch:hover { background: rgba(59,130,246,0.18); }
+        .btn-fetch:disabled { opacity: 0.5; cursor: default; }
 
-        .btn-secondary:hover {
-            background: var(--accent-light);
-        }
-
-        /* FX table */
+        /* ─── FX table ──────────────────────────────── */
         .fx-table { width: 100%; border-collapse: separate; border-spacing: 0; }
         .fx-table th {
             text-align: left;
-            padding: 10px 14px;
-            font-size: 0.72rem;
+            padding: 8px 12px;
+            font-size: 0.7rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -235,282 +284,179 @@
             border-bottom: 1px solid var(--border-color);
         }
         .fx-table td {
-            padding: 13px 14px;
-            color: var(--text-primary);
+            padding: 11px 12px;
+            font-size: 0.9rem;
             font-weight: 500;
             border-bottom: 1px solid rgba(255,255,255,0.03);
-            font-size: 0.92rem;
         }
         .fx-table tr:last-child td { border-bottom: none; }
-        .fx-table tr:hover td { background: rgba(255,255,255,0.025); }
-        .fx-casa { font-weight: 700; color: var(--text-primary); }
-        .fx-highlight { color: var(--accent); font-weight: 700; font-family: 'Outfit', sans-serif; font-size: 1.0rem; }
-        .brecha-badge {
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 5px;
-            background: rgba(245,158,11,0.12);
-            color: #f59e0b;
-        }
+        .fx-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .fx-highlight { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--accent); font-size: 1rem; }
+        .brecha-tag { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 5px; background: rgba(245,158,11,0.12); color: #f59e0b; }
 
-        /* Chart container */
-        .chart-box {
-            position: relative;
-            height: 260px;
-            margin-top: 16px;
-        }
+        /* ─── Chart ─────────────────────────────────── */
+        .chart-wrap { position: relative; height: 220px; margin-top: 16px; }
 
-        /* Projection table */
-        .proj-table-wrap {
-            max-height: 280px;
-            overflow-y: auto;
-            margin-top: 16px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-        }
-
+        /* ─── Proj table ─────────────────────────────── */
+        .proj-wrap { max-height: 240px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--border-color); margin-top: 14px; }
         .proj-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .proj-table th {
-            position: sticky;
-            top: 0;
-            background: #1a2540;
-            padding: 9px 14px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid var(--border-color);
-            z-index: 1;
-        }
-        .proj-table td {
-            padding: 10px 14px;
-            font-size: 0.88rem;
-            color: var(--text-primary);
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-        }
-        .proj-table tr:last-child td { border-bottom: none; font-weight: 700; }
-        .proj-table tr:last-child td { color: var(--accent); }
+        .proj-table th { position: sticky; top: 0; background: #1a2540; padding: 8px 12px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-color); }
+        .proj-table td { padding: 9px 12px; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .proj-table tr:last-child td { border-bottom: none; font-weight: 700; color: var(--accent); }
 
-        /* Divider */
-        .section-divider {
-            border: none;
-            border-top: 1px solid var(--border-color);
-            margin: 20px 0;
-        }
-
-        /* Comparison bars */
-        .comp-bar-wrap { margin-bottom: 14px; }
-        .comp-bar-label {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 5px;
-        }
+        /* ─── Comp bars ──────────────────────────────── */
+        .comp-bar { margin-bottom: 12px; }
+        .comp-bar-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
         .comp-bar-name { font-size: 0.88rem; font-weight: 600; }
-        .comp-bar-val  { font-size: 0.88rem; font-weight: 700; font-family: 'Outfit', sans-serif; }
-        .comp-bar-track {
-            height: 10px;
-            border-radius: 6px;
-            background: rgba(255,255,255,0.06);
-            overflow: hidden;
-        }
-        .comp-bar-fill {
-            height: 100%;
-            border-radius: 6px;
-            transition: width 0.5s ease;
-        }
+        .comp-bar-val  { font-size: 0.9rem; font-weight: 700; font-family: 'Outfit', sans-serif; }
+        .comp-bar-track { height: 9px; border-radius: 5px; background: rgba(255,255,255,0.06); overflow: hidden; }
+        .comp-bar-fill  { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
 
-        /* Tag */
-        .info-tag {
+        /* ─── Toggle ─────────────────────────────────── */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .toggle-lbl { font-size: 0.85rem; color: var(--text-secondary); }
+        .toggle { position: relative; width: 40px; height: 21px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-track { position: absolute; inset: 0; background: var(--border-color); border-radius: 21px; cursor: pointer; transition: background 0.2s; }
+        .toggle-track:before { content: ''; position: absolute; width: 15px; height: 15px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+        .toggle input:checked + .toggle-track { background: var(--accent); }
+        .toggle input:checked + .toggle-track:before { transform: translateX(19px); }
+
+        /* ─── Mode tabs (for % rápido) ───────────────── */
+        .mode-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+        .mode-tab { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.18s; }
+        .mode-tab.active { background: var(--bg-card); color: var(--text-primary); border-color: var(--accent); }
+
+        /* ─── Cuotas table ──────────────────────────── */
+        .cuotas-tag {
             display: inline-block;
-            font-size: 0.72rem;
-            font-weight: 600;
+            background: rgba(16,185,129,0.1);
+            color: var(--success);
+            border-radius: 6px;
             padding: 2px 8px;
-            border-radius: 5px;
-            background: var(--accent-light);
-            color: var(--accent);
-            margin-left: 8px;
-            vertical-align: middle;
-        }
-
-        /* Loading state for FX */
-        .loading-text {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            text-align: center;
-            padding: 20px;
-        }
-
-        /* Slider */
-        .range-wrap { display: flex; align-items: center; gap: 12px; }
-        .form-range {
-            flex: 1;
-            -webkit-appearance: none;
-            appearance: none;
-            height: 6px;
-            border-radius: 3px;
-            background: var(--border-color);
-            outline: none;
-        }
-        .form-range::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px; height: 18px;
-            border-radius: 50%;
-            background: var(--accent);
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(59,130,246,0.4);
-        }
-        .range-val {
-            font-weight: 700;
-            font-family: 'Outfit', sans-serif;
-            min-width: 50px;
-            text-align: right;
-        }
-
-        /* Disclaimer */
-        .disclaimer {
             font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 12px;
-            padding: 10px 14px;
-            background: rgba(245,158,11,0.07);
-            border: 1px solid rgba(245,158,11,0.15);
-            border-radius: 8px;
+            font-weight: 700;
+            margin-left: 6px;
         }
-
-        /* Toggle switch */
-        .toggle-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-        .toggle-label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
-        .toggle-switch {
-            position: relative;
-            width: 42px; height: 22px;
-        }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider {
-            position: absolute; inset: 0;
-            background: var(--border-color);
-            border-radius: 22px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .toggle-slider:before {
-            content: '';
-            position: absolute;
-            width: 16px; height: 16px;
-            left: 3px; bottom: 3px;
-            background: white;
-            border-radius: 50%;
-            transition: transform 0.2s;
-        }
-        .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
-        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body>
 <div class="page-wrapper">
 
-    <!-- Header -->
+    <!-- Header (oculto en popup mode) -->
     <div class="page-header fade-in">
-        <div class="page-title">🧮 Calculadora Financiera</div>
-        <div class="page-subtitle">Herramientas para análisis de inversiones, tipo de cambio y rendimientos</div>
+        <div class="page-title">🧮 Calculadoras</div>
+        <div class="page-subtitle">Herramientas para el día a día — invertir, comparar y decidir</div>
     </div>
 
-    <!-- Tab navigation -->
-    <div class="calc-tabs fade-in stagger-1">
-        <button class="calc-tab active" onclick="switchTab('variacion', this)">📈 Variación %</button>
-        <button class="calc-tab" onclick="switchTab('interes', this)">💹 Interés Compuesto</button>
-        <button class="calc-tab" onclick="switchTab('cambio', this)">💱 Tipo de Cambio</button>
-        <button class="calc-tab" onclick="switchTab('comparar', this)">⚖️ Comparar Inversiones</button>
-        <button class="calc-tab" onclick="switchTab('roi', this)">📊 ROI / Retorno</button>
-        <button class="calc-tab" onclick="switchTab('regla72', this)">⏳ Regla del 72</button>
+    <!-- Selector de herramienta -->
+    <div class="tool-selector fade-in" id="tool-selector">
+        <button class="tool-btn active" onclick="showTool('variacion',this)"><span class="icon">📈</span> Variación %</button>
+        <button class="tool-btn" onclick="showTool('interes',this)"><span class="icon">💹</span> Interés compuesto</button>
+        <button class="tool-btn" onclick="showTool('cambio',this)"><span class="icon">💱</span> Tipo de cambio</button>
+        <button class="tool-btn" onclick="showTool('comparar',this)"><span class="icon">⚖️</span> Comparar inversiones</button>
+        <button class="tool-btn" onclick="showTool('cuotas',this)"><span class="icon">📋</span> Cuotas / Financiación</button>
+        <button class="tool-btn" onclick="showTool('roi',this)"><span class="icon">📊</span> ROI / Retorno</button>
+        <button class="tool-btn" onclick="showTool('pct',this)"><span class="icon">🔢</span> % Rápido</button>
+        <button class="tool-btn" onclick="showTool('regla72',this)"><span class="icon">⏳</span> Regla del 72</button>
     </div>
 
-    <!-- ===================== TAB 1: VARIACIÓN % ===================== -->
-    <div id="panel-variacion" class="calc-panel active fade-in stagger-2">
-        <div class="calc-layout">
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: VARIACIÓN %                                       -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-variacion" class="calc-panel active">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>Variación de precio</h2>
+                <p>¿Cuánto subió o bajó? Comparás dos valores y ves el % de cambio al instante.</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('variacion')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header" id="popup-header-variacion">
+            <h2>📈 Variación %</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
+
+        <div class="panel-layout">
             <!-- Inputs -->
             <div class="glass-card">
-                <h3 style="margin-bottom:20px;font-size:1.1rem;">Comparar precios o valores</h3>
-
                 <div class="form-group">
-                    <label class="form-label">Precio / Valor anterior</label>
-                    <input class="form-input" type="number" id="var-prev" placeholder="100" oninput="calcVariacion()">
+                    <label class="form-label">Valor anterior</label>
+                    <input class="form-input" type="number" id="var-prev" placeholder="ej: 1000" oninput="calcVariacion()">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Precio / Valor nuevo</label>
-                    <input class="form-input" type="number" id="var-new" placeholder="115" oninput="calcVariacion()">
+                    <label class="form-label">Valor nuevo</label>
+                    <input class="form-input" type="number" id="var-new" placeholder="ej: 1350" oninput="calcVariacion()">
                 </div>
 
-                <hr class="section-divider">
-                <h3 style="margin-bottom:16px;font-size:1rem;color:var(--text-secondary);">¿A qué precio llegar?</h3>
+                <hr class="divider">
+                <div class="section-label">¿A qué precio llegar?</div>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Precio base</label>
-                        <input class="form-input" type="number" id="var-base2" placeholder="100" oninput="calcPrecioObjetivo()">
+                        <input class="form-input" type="number" id="var-base2" placeholder="ej: 1000" oninput="calcPrecioObj()">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Variación objetivo (%)</label>
-                        <input class="form-input" type="number" id="var-pct" placeholder="25" oninput="calcPrecioObjetivo()">
+                        <label class="form-label">Variación deseada %</label>
+                        <input class="form-input" type="number" id="var-pct" placeholder="ej: 25" oninput="calcPrecioObj()">
                     </div>
                 </div>
-                <div class="result-card" id="precio-objetivo-res" style="display:none">
-                    <div class="result-label">Precio objetivo</div>
-                    <div class="result-main" id="precio-objetivo-val">—</div>
+                <div id="var-obj-res" style="display:none;">
+                    <div class="mini-card">
+                        <div class="result-label">Precio objetivo</div>
+                        <div class="val" id="var-obj-val" style="font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:700;margin-top:3px;">—</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Results -->
-            <div>
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="result-label">Variación</div>
-                    <div id="var-badge" style="margin:8px 0;"><span class="big-badge flat">— %</span></div>
-                    <div class="result-grid">
-                        <div class="result-card">
-                            <div class="result-label">Diferencia</div>
-                            <div class="result-main" id="var-diff">—</div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-label">Multiplicador</div>
-                            <div class="result-main" id="var-mult">—</div>
-                        </div>
+            <!-- Resultados -->
+            <div class="glass-card">
+                <div class="result-label">Variación</div>
+                <div id="var-pill"><span class="pill flat">— ingresá dos valores</span></div>
+
+                <div class="result-mini-grid" style="margin-top:16px;">
+                    <div class="mini-card">
+                        <div class="result-label">Diferencia</div>
+                        <div class="val" id="var-diff">—</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="result-label">Multiplicador</div>
+                        <div class="val" id="var-mult">—</div>
                     </div>
                 </div>
 
-                <div class="glass-card">
-                    <h3 style="margin-bottom:16px;font-size:1rem;">Escala de variaciones acumuladas</h3>
-                    <div id="var-scale">
-                        <div class="loading-text" style="padding:10px">Ingresá un precio anterior para ver proyecciones</div>
-                    </div>
-                </div>
+                <hr class="divider">
+                <div class="section-label">Si el precio anterior fuera ese, ¿cuánto sería con estas variaciones?</div>
+                <div id="var-scale" style="margin-top:4px;"></div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== TAB 2: INTERÉS COMPUESTO ===================== -->
-    <div id="panel-interes" class="calc-panel fade-in">
-        <div class="calc-layout wide">
-            <!-- Inputs -->
-            <div class="glass-card">
-                <h3 style="margin-bottom:20px;font-size:1.1rem;">Parámetros</h3>
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: INTERÉS COMPUESTO                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-interes" class="calc-panel">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>Interés compuesto</h2>
+                <p>Calculás cuánto crece tu capital con una tasa y capitalización dada. Incluye TEM y TEA.</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('interes')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header">
+            <h2>💹 Interés compuesto</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
 
+        <div class="panel-layout">
+            <div class="glass-card">
                 <div class="form-group">
                     <label class="form-label">Capital inicial (ARS)</label>
                     <input class="form-input" type="number" id="ci-capital" value="1000000" oninput="calcInteres()">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Tasa Nominal Anual — TNA (%)</label>
-                    <div class="range-wrap">
-                        <input class="form-range" type="range" id="ci-tna-range" min="1" max="300" value="90" oninput="document.getElementById('ci-tna').value=this.value; calcInteres()">
-                        <span class="range-val" id="ci-tna-display">90%</span>
-                    </div>
-                    <input class="form-input" type="number" id="ci-tna" value="90" placeholder="TNA %" oninput="document.getElementById('ci-tna-range').value=this.value; document.getElementById('ci-tna-display').textContent=this.value+'%'; calcInteres()" style="margin-top:8px;">
+                    <input class="form-input" type="number" id="ci-tna" value="90" placeholder="ej: 90" oninput="calcInteres()">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -528,31 +474,26 @@
                 <div class="form-group">
                     <label class="form-label">Capitalización</label>
                     <select class="form-select" id="ci-cap" onchange="calcInteres()">
-                        <option value="12">Mensual</option>
+                        <option value="12">Mensual (la más común)</option>
                         <option value="4">Trimestral</option>
                         <option value="2">Semestral</option>
                         <option value="1">Anual</option>
-                        <option value="365">Diaria</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Aporte periódico (ARS, opcional)</label>
+                    <label class="form-label">Aporte mensual extra (opcional)</label>
                     <input class="form-input" type="number" id="ci-aporte" value="0" placeholder="0" oninput="calcInteres()">
-                    <select class="form-select" id="ci-aporte-freq" onchange="calcInteres()" style="margin-top:8px;">
-                        <option value="mensual">Aporte mensual</option>
-                        <option value="trimestral">Aporte trimestral</option>
-                        <option value="anual">Aporte anual</option>
-                    </select>
                 </div>
 
+                <hr class="divider">
                 <div class="toggle-row">
-                    <span class="toggle-label">Mostrar inflación estimada</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="ci-show-inf" onchange="calcInteres()">
-                        <span class="toggle-slider"></span>
+                    <span class="toggle-lbl">Mostrar rendimiento real vs inflación</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="ci-show-inf" onchange="toggleInfRow()">
+                        <span class="toggle-track"></span>
                     </label>
                 </div>
-                <div id="ci-inf-row" style="display:none">
+                <div id="ci-inf-row" style="display:none;">
                     <div class="form-group">
                         <label class="form-label">Inflación anual estimada (%)</label>
                         <input class="form-input" type="number" id="ci-inf" value="60" oninput="calcInteres()">
@@ -560,63 +501,54 @@
                 </div>
             </div>
 
-            <!-- Results -->
             <div>
                 <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="result-grid-3">
-                        <div class="result-card">
-                            <div class="result-label">Capital final</div>
-                            <div class="result-main" id="ci-final">—</div>
-                        </div>
-                        <div class="result-card">
+                    <div class="result-label">Capital final</div>
+                    <div class="result-hero" id="ci-final">—</div>
+                    <div class="result-sub" id="ci-sub">Ingresá capital y tasa</div>
+
+                    <div class="result-mini-grid" style="margin-top:16px;">
+                        <div class="mini-card">
                             <div class="result-label">Intereses ganados</div>
-                            <div class="result-main var-positive" id="ci-intereses">—</div>
+                            <div class="val pos" id="ci-intereses">—</div>
                         </div>
-                        <div class="result-card">
+                        <div class="mini-card">
                             <div class="result-label">Rendimiento total</div>
-                            <div class="result-main" id="ci-rend-total">—</div>
+                            <div class="val pos" id="ci-rend">—</div>
+                        </div>
+                        <div class="mini-card">
+                            <div class="result-label">TEM</div>
+                            <div class="val accent" id="ci-tem">—</div>
+                        </div>
+                        <div class="mini-card">
+                            <div class="result-label">TEA efectiva</div>
+                            <div class="val accent" id="ci-tea">—</div>
                         </div>
                     </div>
-                    <div class="result-grid" id="ci-inf-results" style="display:none;">
-                        <div class="result-card">
-                            <div class="result-label">Capital real (ajustado)</div>
-                            <div class="result-main" id="ci-real">—</div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-label">Rendimiento real</div>
-                            <div class="result-main" id="ci-rend-real">—</div>
-                        </div>
-                    </div>
-                    <div class="result-grid">
-                        <div class="result-card">
-                            <div class="result-label">TEM (tasa efectiva mensual)</div>
-                            <div class="result-main" id="ci-tem">—</div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-label">TEA (tasa efectiva anual)</div>
-                            <div class="result-main" id="ci-tea">—</div>
+
+                    <div id="ci-inf-res" style="display:none;margin-top:10px;">
+                        <div class="result-mini-grid">
+                            <div class="mini-card">
+                                <div class="result-label">Capital real (ajustado inflación)</div>
+                                <div class="val" id="ci-real">—</div>
+                            </div>
+                            <div class="mini-card">
+                                <div class="result-label">Rendimiento real</div>
+                                <div class="val" id="ci-rend-real">—</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="chart-box">
-                        <canvas id="ci-chart"></canvas>
-                    </div>
+                    <div class="chart-wrap"><canvas id="ci-chart"></canvas></div>
                 </div>
 
                 <div class="glass-card">
-                    <h3 style="margin-bottom:12px;font-size:1rem;">Evolución período a período</h3>
-                    <div class="proj-table-wrap">
+                    <div class="section-label">Evolución mes a mes</div>
+                    <div class="proj-wrap">
                         <table class="proj-table">
-                            <thead>
-                                <tr>
-                                    <th>Período</th>
-                                    <th>Capital</th>
-                                    <th>Intereses</th>
-                                    <th>Acumulado</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>Período</th><th>Capital</th><th>Intereses acum.</th></tr></thead>
                             <tbody id="ci-tabla"></tbody>
                         </table>
                     </div>
@@ -625,185 +557,179 @@
         </div>
     </div>
 
-    <!-- ===================== TAB 3: TIPO DE CAMBIO ===================== -->
-    <div id="panel-cambio" class="calc-panel fade-in">
-        <div class="calc-layout">
-            <!-- Inputs -->
-            <div class="glass-card">
-                <h3 style="margin-bottom:6px;font-size:1.1rem;">Convertidor de divisas</h3>
-                <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:20px;">Cotizaciones del mercado argentino</p>
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: TIPO DE CAMBIO                                    -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-cambio" class="calc-panel">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>Tipo de cambio</h2>
+                <p>Convertís pesos a dólares (o viceversa) en los distintos mercados: oficial, blue, MEP, CCL, tarjeta.</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('cambio')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header">
+            <h2>💱 Tipo de cambio</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
 
-                <div class="form-row" style="margin-bottom:16px;">
+        <div class="panel-layout">
+            <div class="glass-card">
+                <div class="form-row" style="margin-bottom:14px;">
                     <div class="form-group">
-                        <label class="form-label">Monto</label>
+                        <label class="form-label">Monto a convertir</label>
                         <input class="form-input" type="number" id="fx-monto" value="100000" oninput="calcFx()">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Moneda origen</label>
+                        <label class="form-label">Moneda</label>
                         <select class="form-select" id="fx-moneda" onchange="calcFx()">
-                            <option value="ARS">Pesos (ARS)</option>
-                            <option value="USD">Dólares (USD)</option>
+                            <option value="ARS">Pesos → USD</option>
+                            <option value="USD">Dólares → ARS</option>
                         </select>
                     </div>
                 </div>
 
-                <button class="btn-primary" onclick="fetchFxRates()" id="fx-fetch-btn">
-                    🔄 Cargar cotizaciones actuales
-                </button>
+                <button class="btn-fetch" onclick="fetchFxRates()" id="fx-btn">🔄 Cargar cotizaciones actuales</button>
+                <p id="fx-ts" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:10px;"></p>
 
-                <hr class="section-divider">
-                <h3 style="margin-bottom:14px;font-size:1rem;color:var(--text-secondary);">O ingresá manualmente</h3>
+                <hr class="divider" style="margin-top:4px;">
+                <div class="section-label">O ingresá manualmente</div>
 
-                <div id="fx-manual-inputs">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Oficial (venta)</label>
-                            <input class="form-input" type="number" id="fx-oficial" placeholder="1050" oninput="calcFx()">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Blue (venta)</label>
-                            <input class="form-input" type="number" id="fx-blue" placeholder="1200" oninput="calcFx()">
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Oficial</label>
+                        <input class="form-input" type="number" id="fx-oficial" placeholder="—" oninput="calcFx()">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">MEP / Bolsa</label>
-                            <input class="form-input" type="number" id="fx-mep" placeholder="1180" oninput="calcFx()">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">CCL / Cable</label>
-                            <input class="form-input" type="number" id="fx-ccl" placeholder="1220" oninput="calcFx()">
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">Blue</label>
+                        <input class="form-input" type="number" id="fx-blue" placeholder="—" oninput="calcFx()">
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Tarjeta / Turista</label>
-                            <input class="form-input" type="number" id="fx-tarjeta" placeholder="1365" oninput="calcFx()">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Mayorista</label>
-                            <input class="form-input" type="number" id="fx-mayorista" placeholder="1040" oninput="calcFx()">
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">MEP / Bolsa</label>
+                        <input class="form-input" type="number" id="fx-mep" placeholder="—" oninput="calcFx()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CCL / Cable</label>
+                        <input class="form-input" type="number" id="fx-ccl" placeholder="—" oninput="calcFx()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tarjeta / Turista</label>
+                        <input class="form-input" type="number" id="fx-tarjeta" placeholder="—" oninput="calcFx()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mayorista</label>
+                        <input class="form-input" type="number" id="fx-mayorista" placeholder="—" oninput="calcFx()">
                     </div>
                 </div>
-
-                <p id="fx-last-update" style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;"></p>
             </div>
 
-            <!-- Results -->
             <div class="glass-card">
-                <h3 style="margin-bottom:16px;font-size:1.1rem;">Equivalencias</h3>
-                <div id="fx-results">
-                    <div class="loading-text">Ingresá un monto y cotizaciones para ver resultados</div>
+                <div class="section-label">Equivalencias</div>
+                <div id="fx-results" style="margin-bottom:16px;">
+                    <p style="color:var(--text-muted);font-size:0.85rem;">Cargá cotizaciones para ver resultados</p>
                 </div>
-
-                <hr class="section-divider">
-                <h3 style="margin-bottom:12px;font-size:1rem;">Brecha cambiaria</h3>
+                <hr class="divider">
+                <div class="section-label">Brecha vs tipo oficial</div>
                 <div id="fx-brecha">
-                    <div class="loading-text">Calculando...</div>
+                    <p style="color:var(--text-muted);font-size:0.85rem;">—</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== TAB 4: COMPARAR INVERSIONES ===================== -->
-    <div id="panel-comparar" class="calc-panel fade-in">
-        <div class="calc-layout wide">
-            <!-- Inputs -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: COMPARAR INVERSIONES                              -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-comparar" class="calc-panel">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>Comparar inversiones</h2>
+                <p>Ponés el mismo capital en distintos instrumentos y ves cuánto ganás en cada uno al mismo plazo.</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('comparar')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header">
+            <h2>⚖️ Comparar inversiones</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
+
+        <div class="panel-layout">
             <div class="glass-card">
-                <h3 style="margin-bottom:20px;font-size:1.1rem;">Parámetros de comparación</h3>
-
-                <div class="form-group">
-                    <label class="form-label">Capital inicial (ARS)</label>
-                    <input class="form-input" type="number" id="comp-capital" value="1000000" oninput="calcComparar()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Período (meses)</label>
-                    <div class="range-wrap">
-                        <input class="form-range" type="range" id="comp-meses-range" min="1" max="60" value="12" oninput="document.getElementById('comp-meses').value=this.value; calcComparar()">
-                        <span class="range-val" id="comp-meses-display">12</span>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Capital (ARS)</label>
+                        <input class="form-input" type="number" id="comp-capital" value="1000000" oninput="calcComparar()">
                     </div>
-                    <input class="form-input" type="number" id="comp-meses" value="12" oninput="document.getElementById('comp-meses-range').value=this.value; document.getElementById('comp-meses-display').textContent=this.value; calcComparar()" style="margin-top:8px;">
+                    <div class="form-group">
+                        <label class="form-label">Plazo (meses)</label>
+                        <input class="form-input" type="number" id="comp-meses" value="12" oninput="calcComparar()">
+                    </div>
                 </div>
 
-                <hr class="section-divider">
-
-                <h4 style="margin-bottom:14px;font-size:0.9rem;color:var(--text-secondary);">INSTRUMENTO 1 — Plazo Fijo / FCI</h4>
-                <div class="form-group">
-                    <label class="form-label">TNA (%)</label>
-                    <input class="form-input" type="number" id="comp-pf-tna" value="37" placeholder="ej: 90" oninput="calcComparar()">
+                <hr class="divider">
+                <div class="section-label" style="color:var(--accent);">Instrumento 1 — Renta fija / Plazo fijo</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">TNA (%)</label>
+                        <input class="form-input" type="number" id="comp-pf-tna" value="37" oninput="calcComparar()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-input" type="text" id="comp-pf-nom" value="Plazo Fijo" oninput="calcComparar()">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Nombre / Descripción</label>
-                    <input class="form-input" type="text" id="comp-pf-nombre" value="Plazo Fijo" oninput="calcComparar()">
-                </div>
 
-                <hr class="section-divider">
-
-                <h4 style="margin-bottom:14px;font-size:0.9rem;color:var(--text-secondary);">INSTRUMENTO 2 — Dólar / Activo</h4>
+                <hr class="divider">
+                <div class="section-label" style="color:#f59e0b;">Instrumento 2 — Dólar / Crypto / Commodity</div>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Precio hoy (ARS)</label>
-                        <input class="form-input" type="number" id="comp-dol-hoy" value="1200" oninput="calcComparar()">
+                        <input class="form-input" type="number" id="comp-d-hoy" value="1200" oninput="calcComparar()">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Precio estimado futuro</label>
-                        <input class="form-input" type="number" id="comp-dol-fut" value="1600" oninput="calcComparar()">
+                        <label class="form-label">Precio futuro (ARS)</label>
+                        <input class="form-input" type="number" id="comp-d-fut" value="1700" oninput="calcComparar()">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Nombre / Descripción</label>
-                    <input class="form-input" type="text" id="comp-dol-nombre" value="Dólar Blue" oninput="calcComparar()">
+                    <label class="form-label">Nombre</label>
+                    <input class="form-input" type="text" id="comp-d-nom" value="Dólar Blue" oninput="calcComparar()">
                 </div>
 
-                <hr class="section-divider">
-
-                <h4 style="margin-bottom:14px;font-size:0.9rem;color:var(--text-secondary);">INSTRUMENTO 3 — Acciones / Crypto / FCI</h4>
-                <div class="form-group">
-                    <label class="form-label">Rendimiento mensual estimado (%)</label>
-                    <input class="form-input" type="number" id="comp-acc-rend" value="8" placeholder="ej: 8" oninput="calcComparar()">
+                <hr class="divider">
+                <div class="section-label" style="color:var(--success);">Instrumento 3 — Acciones / FCI / Crypto</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Rendimiento mensual (%)</label>
+                        <input class="form-input" type="number" id="comp-a-rend" value="8" oninput="calcComparar()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nombre</label>
+                        <input class="form-input" type="text" id="comp-a-nom" value="Merval / Acciones" oninput="calcComparar()">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Nombre / Descripción</label>
-                    <input class="form-input" type="text" id="comp-acc-nombre" value="Acciones / Merval" oninput="calcComparar()">
-                </div>
 
-                <hr class="section-divider">
-                <h4 style="margin-bottom:14px;font-size:0.9rem;color:var(--text-secondary);">INFLACIÓN (referencia)</h4>
+                <hr class="divider">
                 <div class="form-group">
-                    <label class="form-label">Inflación mensual estimada (%)</label>
-                    <input class="form-input" type="number" id="comp-inf-mensual" value="3" oninput="calcComparar()">
+                    <label class="form-label">Inflación mensual estimada (referencia)</label>
+                    <input class="form-input" type="number" id="comp-inf" value="3" oninput="calcComparar()">
                 </div>
             </div>
 
-            <!-- Results -->
             <div>
                 <div class="glass-card" style="margin-bottom:16px;">
-                    <h3 style="margin-bottom:16px;font-size:1.1rem;">Resultado en <span id="comp-meses-label">12</span> meses</h3>
-                    <div id="comp-bars"></div>
+                    <div class="section-label">Capital final en <span id="comp-plazo-lbl">12</span> meses</div>
+                    <div id="comp-bars" style="margin-top:12px;"></div>
                 </div>
-
                 <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="chart-box">
-                        <canvas id="comp-chart"></canvas>
-                    </div>
+                    <div class="chart-wrap"><canvas id="comp-chart"></canvas></div>
                 </div>
-
                 <div class="glass-card">
-                    <h3 style="margin-bottom:12px;font-size:1rem;">Tabla comparativa</h3>
+                    <div class="section-label">Resumen comparativo</div>
                     <div style="overflow-x:auto;">
-                        <table class="fx-table" id="comp-tabla">
-                            <thead>
-                                <tr>
-                                    <th>Instrumento</th>
-                                    <th>Capital final</th>
-                                    <th>Ganancia</th>
-                                    <th>Rend. total</th>
-                                    <th>TNA equiv.</th>
-                                    <th>Real (vs inf.)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="comp-tabla-body"></tbody>
+                        <table class="fx-table">
+                            <thead><tr><th>Instrumento</th><th>Capital final</th><th>Ganancia</th><th>Rend. total</th><th>TNA equiv.</th></tr></thead>
+                            <tbody id="comp-tabla"></tbody>
                         </table>
                     </div>
                 </div>
@@ -811,31 +737,129 @@
         </div>
     </div>
 
-    <!-- ===================== TAB 5: ROI / RETORNO ===================== -->
-    <div id="panel-roi" class="calc-panel fade-in">
-        <div class="calc-layout">
-            <!-- Inputs -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: CUOTAS / FINANCIACIÓN                             -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-cuotas" class="calc-panel">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>Cuotas / Financiación</h2>
+                <p>Calculás la cuota mensual, el total que terminás pagando y el costo financiero real de un crédito o compra en cuotas.</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('cuotas')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header">
+            <h2>📋 Cuotas / Financiación</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
+
+        <div class="panel-layout">
             <div class="glass-card">
-                <h3 style="margin-bottom:20px;font-size:1.1rem;">Calcular retorno de inversión</h3>
-
                 <div class="form-group">
-                    <label class="form-label">Inversión inicial / Precio de compra</label>
-                    <input class="form-input" type="number" id="roi-entrada" placeholder="1000000" oninput="calcROI()">
+                    <label class="form-label">Monto total a financiar (ARS)</label>
+                    <input class="form-input" type="number" id="cuo-monto" placeholder="ej: 500000" oninput="calcCuotas()">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Cantidad de cuotas</label>
+                        <input class="form-input" type="number" id="cuo-n" placeholder="ej: 24" oninput="calcCuotas()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tasa mensual (%)</label>
+                        <input class="form-input" type="number" id="cuo-tasa-men" placeholder="ej: 8" step="0.1" oninput="syncCuotasTNAFromMen(); calcCuotas()">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Valor final / Precio de venta</label>
-                    <input class="form-input" type="number" id="roi-salida" placeholder="1350000" oninput="calcROI()">
+                    <label class="form-label">O ingresá la TNA (%) — se convierte sola</label>
+                    <input class="form-input" type="number" id="cuo-tna" placeholder="ej: 96" oninput="syncCuotasMenFromTNA(); calcCuotas()">
                 </div>
 
+                <hr class="divider">
                 <div class="form-group">
-                    <label class="form-label">Ingresos intermedios (dividendos, rentas, etc.)</label>
+                    <label class="form-label">Enganche / pago inicial (opcional)</label>
+                    <input class="form-input" type="number" id="cuo-enganche" placeholder="0" value="0" oninput="calcCuotas()">
+                </div>
+
+                <div class="section-label" style="margin-top:4px;">Sistema de amortización</div>
+                <div class="mode-tabs" style="margin-top:8px;">
+                    <button class="mode-tab active" id="cuo-french-btn" onclick="setCuotasSistema('french')">Francés (cuota fija)</button>
+                    <button class="mode-tab" id="cuo-aleman-btn" onclick="setCuotasSistema('aleman')">Alemán (capital fijo)</button>
+                </div>
+                <p style="font-size:0.78rem;color:var(--text-muted);" id="cuo-sistema-desc">Cuota fija todos los meses. Es el sistema más común en préstamos personales, tarjetas y créditos.</p>
+            </div>
+
+            <div>
+                <div class="glass-card" style="margin-bottom:16px;">
+                    <div class="result-label">Cuota mensual</div>
+                    <div class="result-hero" id="cuo-cuota">—</div>
+
+                    <div class="result-mini-grid" style="margin-top:16px;">
+                        <div class="mini-card">
+                            <div class="result-label">Total a pagar</div>
+                            <div class="val" id="cuo-total">—</div>
+                        </div>
+                        <div class="mini-card">
+                            <div class="result-label">Costo financiero</div>
+                            <div class="val neg" id="cuo-costo">—</div>
+                        </div>
+                        <div class="mini-card">
+                            <div class="result-label">CFT estimado (TNA)</div>
+                            <div class="val accent" id="cuo-cft">—</div>
+                        </div>
+                        <div class="mini-card">
+                            <div class="result-label">Intereses pagados</div>
+                            <div class="val neg" id="cuo-intereses">—</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="section-label">Plan de pagos</div>
+                    <div class="proj-wrap">
+                        <table class="proj-table">
+                            <thead><tr><th>Cuota</th><th>Pago</th><th>Capital</th><th>Interés</th><th>Saldo</th></tr></thead>
+                            <tbody id="cuo-tabla"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: ROI / RETORNO                                     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-roi" class="calc-panel">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>ROI / Retorno de inversión</h2>
+                <p>¿Cuánto ganaste (o perdiste) en una operación? Obtenés el ROI%, la TNA equivalente y la ganancia neta descontando comisiones.</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('roi')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header">
+            <h2>📊 ROI / Retorno</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
+
+        <div class="panel-layout">
+            <div class="glass-card">
+                <div class="form-group">
+                    <label class="form-label">Precio de compra / Inversión inicial</label>
+                    <input class="form-input" type="number" id="roi-entrada" placeholder="ej: 1000000" oninput="calcROI()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Precio de venta / Valor final</label>
+                    <input class="form-input" type="number" id="roi-salida" placeholder="ej: 1350000" oninput="calcROI()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Dividendos / Rentas cobradas (opcional)</label>
                     <input class="form-input" type="number" id="roi-extra" placeholder="0" oninput="calcROI()">
                 </div>
-
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Duración</label>
-                        <input class="form-input" type="number" id="roi-duracion" placeholder="12" oninput="calcROI()">
+                        <input class="form-input" type="number" id="roi-dur" placeholder="ej: 12" oninput="calcROI()">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Unidad</label>
@@ -847,439 +871,503 @@
                     </div>
                 </div>
 
-                <hr class="section-divider">
-                <h4 style="margin-bottom:14px;font-size:0.9rem;color:var(--text-secondary);">Comisiones y costos</h4>
+                <hr class="divider">
+                <div class="section-label">Comisiones y costos (opcional)</div>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Comisión entrada (%)</label>
-                        <input class="form-input" type="number" id="roi-com-entrada" placeholder="0.5" step="0.1" oninput="calcROI()">
+                        <input class="form-input" type="number" id="roi-com-e" placeholder="0.5" step="0.1" oninput="calcROI()">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Comisión salida (%)</label>
-                        <input class="form-input" type="number" id="roi-com-salida" placeholder="0.5" step="0.1" oninput="calcROI()">
+                        <input class="form-input" type="number" id="roi-com-s" placeholder="0.5" step="0.1" oninput="calcROI()">
+                    </div>
+                </div>
+
+                <hr class="divider">
+                <div class="section-label">¿Cuánto necesito vender para ganar X%?</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">ROI objetivo (%)</label>
+                        <input class="form-input" type="number" id="roi-obj" placeholder="ej: 30" oninput="calcPrecioSalida()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Precio de salida necesario</label>
+                        <div class="mini-card" style="padding:10px 14px;margin-top:0;">
+                            <div class="val" id="roi-precio-salida" style="font-size:1.1rem;">—</div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Results -->
-            <div>
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="result-label">Ganancia / Pérdida neta</div>
-                    <div id="roi-badge" style="margin:8px 0;"><span class="big-badge flat">—</span></div>
-                    <div class="result-grid">
-                        <div class="result-card">
-                            <div class="result-label">ROI total</div>
-                            <div class="result-main" id="roi-pct">—</div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-label">Ganancia bruta</div>
-                            <div class="result-main" id="roi-ganancia-bruta">—</div>
-                        </div>
-                    </div>
-                    <div class="result-grid">
-                        <div class="result-card">
-                            <div class="result-label">TNA equivalente</div>
-                            <div class="result-main" id="roi-tna">—</div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-label">TEM equivalente</div>
-                            <div class="result-main" id="roi-tem">—</div>
-                        </div>
-                    </div>
-                    <div class="result-grid">
-                        <div class="result-card">
-                            <div class="result-label">Costo comisiones</div>
-                            <div class="result-main var-negative" id="roi-comisiones">—</div>
-                        </div>
-                        <div class="result-card">
-                            <div class="result-label">Ganancia neta</div>
-                            <div class="result-main" id="roi-ganancia-neta">—</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="glass-card">
+                <div class="result-label">Ganancia / Pérdida neta</div>
+                <div id="roi-pill"><span class="pill flat">— ingresá compra y venta</span></div>
 
-                <div class="glass-card">
-                    <h3 style="margin-bottom:14px;font-size:1rem;">¿Cuánto necesito ganar?</h3>
-                    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:14px;">Dado un ROI objetivo, calculá el precio de salida necesario</p>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">ROI objetivo (%)</label>
-                            <input class="form-input" type="number" id="roi-obj-pct" placeholder="30" oninput="calcPrecioSalida()">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Precio de salida</label>
-                            <div class="result-card" style="margin:0;padding:11px 14px;">
-                                <div class="result-main" id="roi-precio-salida" style="font-size:1.4rem;">—</div>
-                            </div>
-                        </div>
+                <div class="result-mini-grid" style="margin-top:16px;">
+                    <div class="mini-card">
+                        <div class="result-label">ROI total</div>
+                        <div class="val" id="roi-pct">—</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="result-label">Ganancia bruta</div>
+                        <div class="val" id="roi-bruta">—</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="result-label">TNA equivalente</div>
+                        <div class="val accent" id="roi-tna">—</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="result-label">TEM equivalente</div>
+                        <div class="val accent" id="roi-tem">—</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="result-label">Costo comisiones</div>
+                        <div class="val neg" id="roi-comisiones">—</div>
+                    </div>
+                    <div class="mini-card">
+                        <div class="result-label">Ganancia neta</div>
+                        <div class="val" id="roi-neta">—</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ===================== TAB 6: REGLA DEL 72 ===================== -->
-    <div id="panel-regla72" class="calc-panel fade-in">
-        <div class="calc-layout">
-            <!-- Inputs -->
-            <div class="glass-card">
-                <h3 style="margin-bottom:6px;font-size:1.1rem;">Regla del 72</h3>
-                <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:20px;">Estimación rápida del tiempo para duplicar o triplicar capital</p>
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: % RÁPIDO                                          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-pct" class="calc-panel">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>Porcentaje rápido</h2>
+                <p>Tres modos: ¿X es qué % de Y? / ¿Cuánto es X% de Y? / ¿Cuál fue la variación de A a B?</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('pct')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header">
+            <h2>🔢 % Rápido</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
 
-                <hr class="section-divider" style="margin-top:4px;">
-                <h4 style="margin-bottom:14px;font-size:0.9rem;color:var(--text-secondary);">MODO A — Tengo una tasa, ¿cuándo duplico?</h4>
+        <div class="panel-layout">
+            <div class="glass-card">
+                <div class="mode-tabs">
+                    <button class="mode-tab active" onclick="setPctMode('a',this)">X es % de Y</button>
+                    <button class="mode-tab" onclick="setPctMode('b',this)">% de un valor</button>
+                    <button class="mode-tab" onclick="setPctMode('c',this)">Variación A→B</button>
+                </div>
+
+                <!-- Modo A: X es qué % de Y -->
+                <div id="pct-modo-a">
+                    <div class="form-group">
+                        <label class="form-label">Valor parcial (X)</label>
+                        <input class="form-input" type="number" id="pct-a-x" placeholder="ej: 35" oninput="calcPct()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Valor total (Y)</label>
+                        <input class="form-input" type="number" id="pct-a-y" placeholder="ej: 200" oninput="calcPct()">
+                    </div>
+                    <p style="font-size:0.82rem;color:var(--text-muted);">Ejemplo: "mi ganancia fue $35k sobre $200k totales" → te dice qué porcentaje representa.</p>
+                </div>
+
+                <!-- Modo B: cuánto es X% de Y -->
+                <div id="pct-modo-b" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">Porcentaje (%)</label>
+                        <input class="form-input" type="number" id="pct-b-pct" placeholder="ej: 21" oninput="calcPct()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Del valor total</label>
+                        <input class="form-input" type="number" id="pct-b-total" placeholder="ej: 1500000" oninput="calcPct()">
+                    </div>
+                    <p style="font-size:0.82rem;color:var(--text-muted);">Ejemplo: "¿cuánto es el IVA (21%) sobre $1.500.000?"</p>
+                </div>
+
+                <!-- Modo C: variación A a B -->
+                <div id="pct-modo-c" style="display:none;">
+                    <div class="form-group">
+                        <label class="form-label">Valor inicial (A)</label>
+                        <input class="form-input" type="number" id="pct-c-a" placeholder="ej: 800" oninput="calcPct()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Valor final (B)</label>
+                        <input class="form-input" type="number" id="pct-c-b" placeholder="ej: 1150" oninput="calcPct()">
+                    </div>
+                    <p style="font-size:0.82rem;color:var(--text-muted);">Ejemplo: "el dólar pasó de $800 a $1150 — ¿cuánto %?"</p>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="result-label">Resultado</div>
+                <div class="result-hero" id="pct-result" style="font-size:3rem;">—</div>
+                <div class="result-sub" id="pct-desc">Seleccioná un modo e ingresá los valores</div>
+
+                <hr class="divider">
+                <div id="pct-extra" style="margin-top:4px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- TOOL: REGLA DEL 72                                      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="panel-regla72" class="calc-panel">
+        <div class="tool-topbar">
+            <div class="tool-info">
+                <h2>Regla del 72</h2>
+                <p>¿En cuánto tiempo duplicás tu capital? Dividís 72 por la tasa y obtenés el tiempo aproximado.</p>
+            </div>
+            <button class="popup-btn" onclick="openPopup('regla72')">↗ Mini ventana</button>
+        </div>
+        <div class="popup-header">
+            <h2>⏳ Regla del 72</h2>
+            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
+        </div>
+
+        <div class="panel-layout">
+            <div class="glass-card">
                 <div class="form-group">
                     <label class="form-label">Tasa anual (%)</label>
-                    <div class="range-wrap">
-                        <input class="form-range" type="range" id="r72-tasa-range" min="1" max="500" value="90" oninput="document.getElementById('r72-tasa').value=this.value; calcR72()">
-                        <span class="range-val" id="r72-tasa-display">90%</span>
-                    </div>
-                    <input class="form-input" type="number" id="r72-tasa" value="90" oninput="document.getElementById('r72-tasa-range').value=Math.min(this.value,500); document.getElementById('r72-tasa-display').textContent=this.value+'%'; calcR72()" style="margin-top:8px;">
+                    <input class="form-input" type="number" id="r72-tasa" value="90" oninput="calcR72()">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Capitalización</label>
                     <select class="form-select" id="r72-cap" onchange="calcR72()">
-                        <option value="anual">Anual</option>
-                        <option value="mensual" selected>Mensual</option>
-                        <option value="diaria">Diaria</option>
+                        <option value="mensual" selected>Mensual (TNA → TEA)</option>
+                        <option value="anual">Anual directa</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">Capital inicial (para ver proyección)</label>
+                    <input class="form-input" type="number" id="r72-capital" value="1000000" oninput="calcR72()">
+                </div>
 
-                <hr class="section-divider">
-                <h4 style="margin-bottom:14px;font-size:0.9rem;color:var(--text-secondary);">MODO B — Quiero duplicar en X tiempo, ¿qué tasa necesito?</h4>
+                <hr class="divider">
+                <div class="section-label">Modo inverso — ¿qué tasa necesito?</div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">Duplicar en</label>
-                        <input class="form-input" type="number" id="r72-tiempo" placeholder="2" oninput="calcTasaR72()">
+                        <label class="form-label">Quiero duplicar en</label>
+                        <input class="form-input" type="number" id="r72-tiempo" placeholder="ej: 2" oninput="calcTasaR72()">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Unidad</label>
-                        <select class="form-select" id="r72-tiempo-unidad" onchange="calcTasaR72()">
+                        <select class="form-select" id="r72-t-unidad" onchange="calcTasaR72()">
                             <option value="años">Años</option>
                             <option value="meses">Meses</option>
                         </select>
                     </div>
                 </div>
-                <div class="result-card" id="r72-tasa-nec-card" style="display:none;">
-                    <div class="result-label">Tasa anual necesaria</div>
-                    <div class="result-main" id="r72-tasa-necesaria">—</div>
+                <div id="r72-inv-res" style="display:none;">
+                    <div class="mini-card">
+                        <div class="result-label">Tasa anual necesaria</div>
+                        <div class="val accent" id="r72-tasa-nec">—</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Results -->
             <div>
                 <div class="glass-card" style="margin-bottom:16px;">
-                    <h3 style="margin-bottom:16px;font-size:1.1rem;">Tiempos de multiplicación</h3>
-                    <div class="result-grid">
-                        <div class="result-card">
-                            <div class="result-label">Para x2 (duplicar)</div>
-                            <div class="result-main var-positive" id="r72-x2">—</div>
+                    <div class="result-label">Para duplicar (x2)</div>
+                    <div class="result-hero positive" id="r72-x2">—</div>
+
+                    <div class="result-mini-grid" style="margin-top:16px;">
+                        <div class="mini-card">
+                            <div class="result-label">Para triplicar (x3)</div>
+                            <div class="val" id="r72-x3">—</div>
                         </div>
-                        <div class="result-card">
-                            <div class="result-label">Para x3 (triplicar)</div>
-                            <div class="result-main" id="r72-x3">—</div>
-                        </div>
-                    </div>
-                    <div class="result-grid">
-                        <div class="result-card">
+                        <div class="mini-card">
                             <div class="result-label">Para x5</div>
-                            <div class="result-main" id="r72-x5">—</div>
+                            <div class="val" id="r72-x5">—</div>
                         </div>
-                        <div class="result-card">
+                        <div class="mini-card">
                             <div class="result-label">Para x10</div>
-                            <div class="result-main" id="r72-x10">—</div>
+                            <div class="val" id="r72-x10">—</div>
+                        </div>
+                        <div class="mini-card">
+                            <div class="result-label">TEA efectiva</div>
+                            <div class="val accent" id="r72-tea">—</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="glass-card" style="margin-bottom:16px;">
-                    <h3 style="margin-bottom:12px;font-size:1rem;">Proyección del capital</h3>
-                    <div class="form-group">
-                        <label class="form-label">Capital inicial (ARS, opcional)</label>
-                        <input class="form-input" type="number" id="r72-capital" value="1000000" oninput="calcR72()">
-                    </div>
-                    <div class="chart-box">
-                        <canvas id="r72-chart"></canvas>
-                    </div>
+                    <div class="chart-wrap"><canvas id="r72-chart"></canvas></div>
                 </div>
 
                 <div class="glass-card">
-                    <h3 style="margin-bottom:12px;font-size:1rem;">Comparativa de tasas</h3>
-                    <div id="r72-comp-table"></div>
+                    <div class="section-label">Referencia rápida de tasas</div>
+                    <div id="r72-ref" style="margin-top:8px;"></div>
                 </div>
             </div>
         </div>
     </div>
 
-</div><!-- end page-wrapper -->
+</div><!-- /page-wrapper -->
 
 <script>
-// ============================================================
-// UTILS
-// ============================================================
-const fmt = (n, dec=0) => n == null || isNaN(n) ? '—' :
-    Math.abs(n) >= 1e9 ? (n/1e9).toFixed(1)+'B' :
-    Math.abs(n) >= 1e6 ? (n/1e6).toFixed(dec||1)+'M' :
-    n.toLocaleString('es-AR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+// ────────────────────────────────────────────────────────────
+// UTILIDADES
+// ────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const val = id => parseFloat($(id)?.value) || 0;
+const str = id => $(id)?.value || '';
 
-const fmtARS = (n, dec=0) => n == null || isNaN(n) ? '—' : '$' + fmt(n, dec);
-const fmtPct = (n, dec=1) => n == null || isNaN(n) ? '—' : (n >= 0 ? '+' : '') + n.toFixed(dec) + '%';
-const fmtYears = (yrs) => {
-    if (isNaN(yrs) || !isFinite(yrs)) return '—';
-    if (yrs < 1/12) return (yrs*365).toFixed(1) + ' días';
-    if (yrs < 1) return (yrs*12).toFixed(1) + ' meses';
+const fmt = (n, dec=0) => {
+    if (n == null || isNaN(n) || !isFinite(n)) return '—';
+    if (Math.abs(n) >= 1e9) return (n/1e9).toFixed(1) + 'B';
+    if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(dec || 2) + 'M';
+    return n.toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+};
+const fmtARS = (n, dec=0) => isNaN(n) || !isFinite(n) ? '—' : '$' + fmt(n, dec);
+const fmtPct = (n, dec=2) => isNaN(n) || !isFinite(n) ? '—' : (n >= 0 ? '+' : '') + n.toFixed(dec) + '%';
+const fmtTime = yrs => {
+    if (!isFinite(yrs) || isNaN(yrs)) return '—';
+    if (yrs < 1/12) return (yrs*365).toFixed(0) + ' días';
+    if (yrs < 1)    return (yrs*12).toFixed(1) + ' meses';
     return yrs.toFixed(2) + ' años';
 };
 
-let charts = {};
-function destroyChart(id) {
-    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
-}
+const charts = {};
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
 
-// ============================================================
-// TAB SWITCHING
-// ============================================================
-function switchTab(tab, btn) {
+const CHART_OPTS = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } } },
+    scales: {
+        x: { ticks: { color: '#64748b', maxTicksLimit: 10, font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#64748b', callback: v => '$' + fmt(v), font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } }
+    }
+};
+
+// ────────────────────────────────────────────────────────────
+// POPUP / TOOL SWITCHING
+// ────────────────────────────────────────────────────────────
+const TOOL_META = {
+    variacion: { title: '📈 Variación %' },
+    interes:   { title: '💹 Interés compuesto' },
+    cambio:    { title: '💱 Tipo de cambio' },
+    comparar:  { title: '⚖️ Comparar inversiones' },
+    cuotas:    { title: '📋 Cuotas / Financiación' },
+    roi:       { title: '📊 ROI / Retorno' },
+    pct:       { title: '🔢 % Rápido' },
+    regla72:   { title: '⏳ Regla del 72' },
+};
+
+function showTool(tool, btn) {
     document.querySelectorAll('.calc-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.calc-tab').forEach(b => b.classList.remove('active'));
-    document.getElementById('panel-' + tab).classList.add('active');
-    btn.classList.add('active');
-
-    // Trigger calculations on first open
-    if (tab === 'interes') calcInteres();
-    if (tab === 'comparar') calcComparar();
-    if (tab === 'roi') calcROI();
-    if (tab === 'regla72') calcR72();
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    $('panel-' + tool).classList.add('active');
+    btn?.classList.add('active');
+    // Trigger initial calc
+    const fns = { interes: calcInteres, comparar: calcComparar, regla72: calcR72, cuotas: calcCuotas };
+    if (fns[tool]) fns[tool]();
 }
 
-// ============================================================
-// TAB 1: VARIACIÓN %
-// ============================================================
+function openPopup(tool) {
+    const url = `calculadora.html?tool=${tool}&popup=1`;
+    window.open(url, `calc_${tool}`, 'width=480,height=620,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no');
+}
+
+// ────────────────────────────────────────────────────────────
+// INIT — detect popup mode and apply
+// ────────────────────────────────────────────────────────────
+(function init() {
+    const params = new URLSearchParams(window.location.search);
+    const tool = params.get('tool');
+    const isPopup = params.get('popup') === '1';
+
+    if (isPopup) {
+        document.body.classList.add('popup-mode');
+        document.title = TOOL_META[tool]?.title || 'Calculadora';
+    }
+
+    if (tool) {
+        document.querySelectorAll('.calc-panel').forEach(p => p.classList.remove('active'));
+        const panel = $('panel-' + tool);
+        if (panel) panel.classList.add('active');
+        // Mark button active
+        document.querySelectorAll('.tool-btn').forEach(b => {
+            if (b.getAttribute('onclick')?.includes(`'${tool}'`)) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+    }
+
+    // Initial calculations
+    calcInteres();
+    calcComparar();
+    calcR72();
+})();
+
+// ────────────────────────────────────────────────────────────
+// VARIACIÓN %
+// ────────────────────────────────────────────────────────────
 function calcVariacion() {
-    const prev = parseFloat(document.getElementById('var-prev').value);
-    const next = parseFloat(document.getElementById('var-new').value);
-    if (isNaN(prev) || isNaN(next) || prev === 0) {
-        document.getElementById('var-badge').innerHTML = '<span class="big-badge flat">— %</span>';
-        document.getElementById('var-diff').textContent = '—';
-        document.getElementById('var-mult').textContent = '—';
+    const prev = val('var-prev'), next = val('var-new');
+    if (!prev || !next) {
+        $('var-pill').innerHTML = '<span class="pill flat">— ingresá dos valores</span>';
+        $('var-diff').textContent = '—'; $('var-diff').className = 'val';
+        $('var-mult').textContent = '—';
+        $('var-scale').innerHTML = '';
         return;
     }
     const pct = ((next - prev) / Math.abs(prev)) * 100;
     const diff = next - prev;
-    const mult = next / prev;
-
-    const badgeClass = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
-    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
-    document.getElementById('var-badge').innerHTML =
-        `<span class="big-badge ${badgeClass}">${arrow} ${Math.abs(pct).toFixed(2)}%</span>`;
-
-    document.getElementById('var-diff').textContent = (diff >= 0 ? '+' : '') + fmtARS(diff, 2);
-    document.getElementById('var-diff').className = 'result-main ' + (diff >= 0 ? 'var-positive' : 'var-negative');
-    document.getElementById('var-mult').textContent = 'x' + mult.toFixed(3);
+    const cls = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '─';
+    $('var-pill').innerHTML = `<span class="pill ${cls}">${arrow} ${Math.abs(pct).toFixed(2)}%</span>`;
+    $('var-diff').textContent = (diff >= 0 ? '+' : '') + fmtARS(diff, 2);
+    $('var-diff').className = 'val ' + (diff >= 0 ? 'pos' : 'neg');
+    $('var-mult').textContent = 'x' + (next/prev).toFixed(3);
 
     // Scale table
-    const steps = [5,10,20,25,50,75,100,150,200,300,500];
-    let html = '';
-    for (const s of steps) {
-        const val = prev * (1 + s/100);
-        html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-            <span style="font-size:0.85rem;color:var(--text-secondary)">+${s}%</span>
-            <span style="font-weight:700;font-family:'Outfit',sans-serif">${fmtARS(val,2)}</span>
+    const steps = [5, 10, 20, 25, 30, 50, 75, 100, 150, 200, 300, 500];
+    $('var-scale').innerHTML = steps.map(s => {
+        const v = prev * (1 + s/100);
+        const c = s <= pct ? 'var(--success)' : 'var(--text-secondary)';
+        return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+            <span style="font-size:0.82rem;color:${c};font-weight:${s<=pct?'700':'400'}">+${s}%</span>
+            <span style="font-family:'Outfit',sans-serif;font-weight:600;color:${c}">${fmtARS(v,2)}</span>
         </div>`;
-    }
-    document.getElementById('var-scale').innerHTML = html;
+    }).join('');
 }
 
-function calcPrecioObjetivo() {
-    const base = parseFloat(document.getElementById('var-base2').value);
-    const pct = parseFloat(document.getElementById('var-pct').value);
-    const card = document.getElementById('precio-objetivo-res');
-    if (isNaN(base) || isNaN(pct)) { card.style.display = 'none'; return; }
+function calcPrecioObj() {
+    const base = val('var-base2'), pct = val('var-pct');
+    const card = $('var-obj-res');
+    if (!base) { card.style.display = 'none'; return; }
     card.style.display = 'block';
-    const target = base * (1 + pct / 100);
-    document.getElementById('precio-objetivo-val').textContent = fmtARS(target, 2);
-    document.getElementById('precio-objetivo-val').className = 'result-main ' + (pct >= 0 ? 'var-positive' : 'var-negative');
+    const target = base * (1 + pct/100);
+    const el = card.querySelector('#var-obj-val');
+    el.textContent = fmtARS(target, 2);
+    el.className = 'val ' + (pct >= 0 ? 'pos' : 'neg');
 }
 
-// ============================================================
-// TAB 2: INTERÉS COMPUESTO
-// ============================================================
-let ciChart = null;
-
-document.getElementById('ci-show-inf').addEventListener('change', function() {
-    document.getElementById('ci-inf-row').style.display = this.checked ? 'block' : 'none';
-    document.getElementById('ci-inf-results').style.display = this.checked ? 'grid' : 'none';
+// ────────────────────────────────────────────────────────────
+// INTERÉS COMPUESTO
+// ────────────────────────────────────────────────────────────
+function toggleInfRow() {
+    const chk = $('ci-show-inf').checked;
+    $('ci-inf-row').style.display = chk ? 'block' : 'none';
+    $('ci-inf-res').style.display = chk ? 'grid' : 'none';
     calcInteres();
-});
+}
 
 function calcInteres() {
-    const C0 = parseFloat(document.getElementById('ci-capital').value) || 0;
-    const tna = parseFloat(document.getElementById('ci-tna').value) || 0;
-    const periodo = parseInt(document.getElementById('ci-periodo').value) || 1;
-    const unidad = document.getElementById('ci-unidad').value;
-    const n = parseInt(document.getElementById('ci-cap').value) || 12; // capitalizations per year
-    const aporte = parseFloat(document.getElementById('ci-aporte').value) || 0;
-    const aporteFreq = document.getElementById('ci-aporte-freq').value;
-    const showInf = document.getElementById('ci-show-inf').checked;
-    const inf = parseFloat(document.getElementById('ci-inf').value) || 0;
+    const C0 = val('ci-capital') || 1000000;
+    const tna = val('ci-tna') || 90;
+    const periodo = val('ci-periodo') || 12;
+    const unidad = str('ci-unidad');
+    const n = parseInt(str('ci-cap')) || 12;
+    const aporte = val('ci-aporte') || 0;
+    const showInf = $('ci-show-inf')?.checked;
+    const inf = val('ci-inf') || 60;
 
     const totalMeses = unidad === 'años' ? periodo * 12 : periodo;
-    const r = tna / 100 / n; // rate per compounding period
+    const r = tna / 100 / n;
     const compPerMonth = n / 12;
+    const tem = (Math.pow(1 + r, n/12) - 1) * 100;
+    const tea = (Math.pow(1 + r, n) - 1) * 100;
 
-    // TEM & TEA
-    const tem = (Math.pow(1 + tna/100/n, n/12) - 1) * 100;
-    const tea = (Math.pow(1 + tna/100/n, n) - 1) * 100;
-    document.getElementById('ci-tem').textContent = tem.toFixed(3) + '%';
-    document.getElementById('ci-tea').textContent = tea.toFixed(2) + '%';
+    $('ci-tem').textContent = tem.toFixed(3) + '%';
+    $('ci-tea').textContent = tea.toFixed(2) + '%';
 
-    // Determine aporte monthly equivalent
-    const aporteMultiplierPerMonth = aporteFreq === 'mensual' ? 1 : aporteFreq === 'trimestral' ? 1/3 : 1/12;
-    const aportePerComp = aporte * aporteMultiplierPerMonth / compPerMonth;
-
-    // Build period-by-period table
     let capital = C0;
-    const rows = [];
-    const labels = [];
-    const dataCapital = [C0];
-    const dataIntereses = [0];
     let totalIntereses = 0;
     let totalAportes = 0;
-
     const compPeriods = Math.round(totalMeses * compPerMonth);
+    const rows = [];
 
     for (let i = 1; i <= compPeriods; i++) {
         const intereses = capital * r;
-        capital = capital + intereses + aportePerComp;
         totalIntereses += intereses;
-        totalAportes += aportePerComp;
-
+        totalAportes += aporte / compPerMonth;
+        capital = capital + intereses + aporte / compPerMonth;
         const mesActual = i / compPerMonth;
-        // Only push monthly data points for table
-        if (n <= 12 || i % Math.round(compPerMonth) === 0) {
-            const mes = Math.round(mesActual);
-            labels.push(unidad === 'años' && totalMeses > 24 ? `Año ${(mes/12).toFixed(1)}` : `Mes ${mes}`);
-            rows.push({ mes, capital, intereses: totalIntereses });
-            dataCapital.push(capital);
-            dataIntereses.push(totalIntereses);
+        if (i % Math.max(1, Math.round(compPerMonth)) === 0) {
+            rows.push({ mes: Math.round(mesActual), capital, totalIntereses });
         }
     }
 
-    document.getElementById('ci-final').textContent = fmtARS(capital);
-    document.getElementById('ci-intereses').textContent = fmtARS(totalIntereses);
+    $('ci-final').textContent = fmtARS(capital);
+    $('ci-intereses').textContent = '+' + fmtARS(totalIntereses);
     const rendTotal = ((capital - C0 - totalAportes) / C0) * 100;
-    document.getElementById('ci-rend-total').textContent = fmtPct(rendTotal);
-    document.getElementById('ci-rend-total').className = 'result-main ' + (rendTotal >= 0 ? 'var-positive' : 'var-negative');
+    $('ci-rend').textContent = fmtPct(rendTotal);
+    $('ci-rend').className = 'val ' + (rendTotal >= 0 ? 'pos' : 'neg');
+    $('ci-sub').textContent = `sobre ${fmtARS(C0)} iniciales${aporte ? ` + ${fmtARS(aporte)}/mes` : ''}`;
 
     if (showInf) {
         const infFactor = Math.pow(1 + inf/100, totalMeses/12);
         const capitalReal = capital / infFactor;
+        $('ci-real').textContent = fmtARS(capitalReal);
         const rendReal = ((capitalReal - C0) / C0) * 100;
-        document.getElementById('ci-real').textContent = fmtARS(capitalReal);
-        document.getElementById('ci-rend-real').textContent = fmtPct(rendReal);
-        document.getElementById('ci-rend-real').className = 'result-main ' + (rendReal >= 0 ? 'var-positive' : 'var-negative');
+        $('ci-rend-real').textContent = fmtPct(rendReal);
+        $('ci-rend-real').className = 'val ' + (rendReal >= 0 ? 'pos' : 'neg');
     }
 
-    // Table (limit rows for readability)
-    const maxRows = 60;
-    const step = Math.max(1, Math.floor(rows.length / maxRows));
-    let tbodyHTML = '';
-    let prevCap = C0;
-    const displayRows = rows.filter((_, i) => i % step === 0 || i === rows.length - 1);
-    displayRows.forEach((row, i) => {
-        const intPeriod = row.capital - prevCap - (i === 0 ? 0 : 0);
-        const isLast = i === displayRows.length - 1;
-        tbodyHTML += `<tr>
-            <td>${unidad === 'años' && totalMeses > 24 ? 'Año ' + (row.mes/12).toFixed(0) : 'Mes ' + row.mes}</td>
-            <td>${fmtARS(row.capital)}</td>
-            <td class="var-positive">+${fmtARS(row.intereses - (rows[rows.indexOf(row)-1]?.intereses||0))}</td>
-            <td class="${isLast ? 'var-positive' : ''}">${fmtARS(row.intereses)}</td>
-        </tr>`;
-        prevCap = row.capital;
-    });
-    document.getElementById('ci-tabla').innerHTML = tbodyHTML;
+    // Table
+    const step = Math.max(1, Math.floor(rows.length / 36));
+    const display = rows.filter((_, i) => i % step === 0 || i === rows.length - 1);
+    $('ci-tabla').innerHTML = display.map((r, i) => {
+        const isLast = i === display.length - 1;
+        const label = unidad === 'años' && totalMeses > 24 ? `Año ${(r.mes/12).toFixed(0)}` : `Mes ${r.mes}`;
+        return `<tr><td>${label}</td><td>${fmtARS(r.capital)}</td><td class="val pos" style="color:var(--success)">${fmtARS(r.totalIntereses)}</td></tr>`;
+    }).join('');
 
     // Chart
     destroyChart('ci');
-    const ctx = document.getElementById('ci-chart').getContext('2d');
-    const chartLabels = ['Inicio', ...labels];
-    charts['ci'] = new Chart(ctx, {
+    const labels = ['Hoy', ...display.map(r => totalMeses > 24 ? `A${(r.mes/12).toFixed(0)}` : `M${r.mes}`)];
+    const dataCap = [C0, ...display.map(r => r.capital)];
+    const dataInt = [0, ...display.map(r => r.totalIntereses)];
+    charts['ci'] = new Chart($('ci-chart').getContext('2d'), {
         type: 'line',
         data: {
-            labels: chartLabels,
+            labels,
             datasets: [
-                {
-                    label: 'Capital + Intereses',
-                    data: dataCapital,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59,130,246,0.08)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: dataCapital.length > 24 ? 0 : 3,
-                },
-                {
-                    label: 'Intereses acumulados',
-                    data: dataIntereses,
-                    borderColor: '#10b981',
-                    backgroundColor: 'rgba(16,185,129,0.06)',
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 0,
-                }
+                { label: 'Capital total', data: dataCap, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.07)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 },
+                { label: 'Intereses acum.', data: dataInt, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.05)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5 }
             ]
         },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
-            scales: {
-                x: { ticks: { color: '#64748b', maxTicksLimit: 8, font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                y: { ticks: { color: '#64748b', callback: v => '$' + fmt(v), font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } }
-            }
-        }
+        options: CHART_OPTS
     });
 }
 
-// ============================================================
-// TAB 3: TIPO DE CAMBIO
-// ============================================================
-let fxData = {};
-
+// ────────────────────────────────────────────────────────────
+// TIPO DE CAMBIO
+// ────────────────────────────────────────────────────────────
 async function fetchFxRates() {
-    const btn = document.getElementById('fx-fetch-btn');
-    btn.textContent = '⏳ Cargando...';
-    btn.disabled = true;
+    const btn = $('fx-btn');
+    btn.textContent = '⏳ Cargando...'; btn.disabled = true;
     try {
         const res = await fetch('https://dolarapi.com/v1/dolares');
         const data = await res.json();
-        fxData = {};
-        data.forEach(d => { fxData[d.casa] = d; });
-
+        const m = {};
+        data.forEach(d => m[d.casa] = d);
         const map = {
-            'fx-oficial': fxData.oficial?.venta,
-            'fx-blue': fxData.blue?.venta,
-            'fx-mep': fxData.bolsa?.venta,
-            'fx-ccl': fxData.contadoconliqui?.venta,
-            'fx-tarjeta': fxData.tarjeta?.venta,
-            'fx-mayorista': fxData.mayorista?.venta,
+            'fx-oficial': m.oficial?.venta,
+            'fx-blue':    m.blue?.venta,
+            'fx-mep':     m.bolsa?.venta,
+            'fx-ccl':     m.contadoconliqui?.venta,
+            'fx-tarjeta': m.tarjeta?.venta,
+            'fx-mayorista': m.mayorista?.venta,
         };
-        for (const [id, val] of Object.entries(map)) {
-            if (val) document.getElementById(id).value = val;
+        for (const [id, v] of Object.entries(map)) {
+            if (v && $(id)) $(id).value = v;
         }
-        document.getElementById('fx-last-update').textContent =
-            '✓ Cotizaciones actualizadas al ' + new Date().toLocaleTimeString('es-AR');
+        $('fx-ts').textContent = '✓ Actualizado ' + new Date().toLocaleTimeString('es-AR');
         calcFx();
         btn.textContent = '🔄 Actualizar cotizaciones';
-    } catch (e) {
+    } catch {
         btn.textContent = '⚠️ Error — reintentar';
-        document.getElementById('fx-last-update').textContent = 'No se pudo conectar a dolarapi.com';
+        $('fx-ts').textContent = 'No se pudo conectar. Ingresá los valores manualmente.';
     }
     btn.disabled = false;
 }
 
 function calcFx() {
-    const monto = parseFloat(document.getElementById('fx-monto').value);
-    const moneda = document.getElementById('fx-moneda').value;
-    if (isNaN(monto) || monto <= 0) return;
+    const monto = val('fx-monto');
+    const moneda = str('fx-moneda');
+    if (!monto) return;
 
     const tipos = [
         { id: 'fx-oficial',   nombre: 'Oficial' },
@@ -1289,340 +1377,370 @@ function calcFx() {
         { id: 'fx-tarjeta',   nombre: 'Tarjeta / Turista' },
         { id: 'fx-mayorista', nombre: 'Mayorista' },
     ];
+    const rates = tipos.map(t => ({ nombre: t.nombre, v: parseFloat($(t.id)?.value) || null })).filter(r => r.v);
+    if (!rates.length) return;
 
-    const rates = tipos.map(t => ({
-        nombre: t.nombre,
-        venta: parseFloat(document.getElementById(t.id).value) || null,
-    })).filter(r => r.venta);
+    $('fx-results').innerHTML = `<table class="fx-table">
+        <thead><tr><th>Tipo</th><th>Cotización</th><th>${moneda === 'ARS' ? 'En USD' : 'En ARS'}</th></tr></thead>
+        <tbody>${rates.map(r => {
+            const equiv = moneda === 'ARS' ? monto / r.v : monto * r.v;
+            const label = moneda === 'ARS' ? `USD ${equiv.toFixed(2)}` : fmtARS(equiv, 0);
+            return `<tr><td style="font-weight:700">${r.nombre}</td><td>$${r.v.toLocaleString('es-AR')}</td><td class="fx-highlight">${label}</td></tr>`;
+        }).join('')}</tbody>
+    </table>`;
 
-    if (rates.length === 0) {
-        document.getElementById('fx-results').innerHTML = '<div class="loading-text">Ingresá cotizaciones para ver resultados</div>';
-        return;
+    const oficial = rates.find(r => r.nombre === 'Oficial')?.v;
+    if (oficial) {
+        $('fx-brecha').innerHTML = rates
+            .filter(r => r.nombre !== 'Oficial')
+            .map(r => {
+                const brecha = ((r.v / oficial) - 1) * 100;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
+                    <span style="font-size:0.88rem">${r.nombre}</span>
+                    <span class="brecha-tag">+${brecha.toFixed(1)}%</span>
+                </div>`;
+            }).join('');
     }
-
-    // Results table
-    let html = `<table class="fx-table"><thead><tr><th>Tipo</th><th>Cotización</th><th>Equivalente</th></tr></thead><tbody>`;
-    for (const r of rates) {
-        const equiv = moneda === 'ARS' ? monto / r.venta : monto * r.venta;
-        const equivLabel = moneda === 'ARS' ? `USD ${equiv.toFixed(2)}` : fmtARS(equiv, 2);
-        html += `<tr>
-            <td class="fx-casa">${r.nombre}</td>
-            <td>$${r.venta.toLocaleString('es-AR')}</td>
-            <td class="fx-highlight">${equivLabel}</td>
-        </tr>`;
-    }
-    html += '</tbody></table>';
-    document.getElementById('fx-results').innerHTML = html;
-
-    // Brecha cambiaria
-    const oficial = rates.find(r => r.nombre === 'Oficial')?.venta;
-    if (!oficial) {
-        document.getElementById('fx-brecha').innerHTML = '<div class="loading-text">Necesitás el tipo oficial para calcular brecha</div>';
-        return;
-    }
-    let brechaHtml = '';
-    for (const r of rates) {
-        if (r.nombre === 'Oficial') continue;
-        const brecha = ((r.venta / oficial) - 1) * 100;
-        brechaHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-            <span style="font-size:0.88rem">${r.nombre}</span>
-            <span class="brecha-badge">+${brecha.toFixed(1)}%</span>
-        </div>`;
-    }
-    document.getElementById('fx-brecha').innerHTML = brechaHtml || '<div class="loading-text">—</div>';
 }
 
-// ============================================================
-// TAB 4: COMPARAR INVERSIONES
-// ============================================================
-let compChart = null;
-
+// ────────────────────────────────────────────────────────────
+// COMPARAR INVERSIONES
+// ────────────────────────────────────────────────────────────
 function calcComparar() {
-    const C0 = parseFloat(document.getElementById('comp-capital').value) || 1000000;
-    const meses = parseInt(document.getElementById('comp-meses').value) || 12;
-    document.getElementById('comp-meses-label').textContent = meses;
-    document.getElementById('comp-meses-display').textContent = meses;
+    const C0 = val('comp-capital') || 1000000;
+    const meses = val('comp-meses') || 12;
+    $('comp-plazo-lbl').textContent = meses;
 
-    const pfTNA = parseFloat(document.getElementById('comp-pf-tna').value) || 0;
-    const pfNombre = document.getElementById('comp-pf-nombre').value || 'Plazo Fijo';
+    const pfTNA = val('comp-pf-tna') || 0;
+    const pfNom = str('comp-pf-nom') || 'Plazo Fijo';
+    const dHoy = val('comp-d-hoy') || 1;
+    const dFut = val('comp-d-fut') || 1;
+    const dNom = str('comp-d-nom') || 'Dólar';
+    const aRend = val('comp-a-rend') || 0;
+    const aNom = str('comp-a-nom') || 'Acciones';
+    const infMen = val('comp-inf') || 0;
 
-    const dolHoy = parseFloat(document.getElementById('comp-dol-hoy').value) || 1;
-    const dolFut = parseFloat(document.getElementById('comp-dol-fut').value) || 1;
-    const dolNombre = document.getElementById('comp-dol-nombre').value || 'Dólar';
-
-    const accRend = parseFloat(document.getElementById('comp-acc-rend').value) || 0;
-    const accNombre = document.getElementById('comp-acc-nombre').value || 'Acciones';
-
-    const infMensual = parseFloat(document.getElementById('comp-inf-mensual').value) || 0;
-
-    // Calculate each instrument
-    const pfTEM = (Math.pow(1 + pfTNA/100/12, 1) - 1);
+    const pfTEM = Math.pow(1 + pfTNA/100/12, 1) - 1;
     const pfFinal = C0 * Math.pow(1 + pfTEM, meses);
-
-    const dolVariacion = (dolFut - dolHoy) / dolHoy;
-    const dolFinal = C0 * (1 + dolVariacion);
-
-    const accTEM = accRend / 100;
-    const accFinal = C0 * Math.pow(1 + accTEM, meses);
-
-    const infFactor = Math.pow(1 + infMensual/100, meses);
+    const dFinal = C0 * (1 + (dFut - dHoy) / dHoy);
+    const aFinal = C0 * Math.pow(1 + aRend/100, meses);
+    const infFinal = C0 * Math.pow(1 + infMen/100, meses);
 
     const instruments = [
-        { nombre: pfNombre, final: pfFinal, color: '#3b82f6' },
-        { nombre: dolNombre, final: dolFinal, color: '#f59e0b' },
-        { nombre: accNombre, final: accFinal, color: '#10b981' },
-        { nombre: 'Inflación (ref.)', final: C0 * infFactor, color: '#ef4444', isRef: true },
+        { nom: pfNom,          final: pfFinal,  color: '#3b82f6' },
+        { nom: dNom,           final: dFinal,   color: '#f59e0b' },
+        { nom: aNom,           final: aFinal,   color: '#10b981' },
+        { nom: 'Inflación',    final: infFinal, color: '#ef4444', ref: true },
     ];
+    const maxF = Math.max(...instruments.map(i => i.final));
 
-    const maxFinal = Math.max(...instruments.map(i => i.final));
-
-    // Bars
-    let barsHtml = '';
-    for (const inst of instruments) {
-        const ganancia = inst.final - C0;
-        const rendTotal = (ganancia / C0) * 100;
-        const barW = (inst.final / maxFinal) * 100;
-        const color = inst.color;
-        barsHtml += `<div class="comp-bar-wrap">
-            <div class="comp-bar-label">
-                <span class="comp-bar-name" style="color:${color}">${inst.nombre}</span>
-                <span class="comp-bar-val" style="color:${color}">${fmtARS(inst.final)} <small style="font-size:0.75rem;font-weight:500;opacity:0.7">(${fmtPct(rendTotal)})</small></span>
+    $('comp-bars').innerHTML = instruments.map(inst => {
+        const pct = ((inst.final - C0) / C0) * 100;
+        const w = (inst.final / maxF) * 100;
+        return `<div class="comp-bar">
+            <div class="comp-bar-head">
+                <span class="comp-bar-name" style="color:${inst.color}">${inst.nom}</span>
+                <span class="comp-bar-val" style="color:${inst.color}">${fmtARS(inst.final)} <small style="font-weight:500;opacity:0.7;font-size:0.78rem">${fmtPct(pct,1)}</small></span>
             </div>
-            <div class="comp-bar-track"><div class="comp-bar-fill" style="width:${barW}%;background:${color};opacity:0.85"></div></div>
+            <div class="comp-bar-track"><div class="comp-bar-fill" style="width:${w}%;background:${inst.color}99"></div></div>
         </div>`;
-    }
-    document.getElementById('comp-bars').innerHTML = barsHtml;
+    }).join('');
 
-    // Table
-    let tbodyHtml = '';
-    for (const inst of instruments) {
+    $('comp-tabla').innerHTML = instruments.map(inst => {
         const ganancia = inst.final - C0;
-        const rendTotal = (ganancia / C0) * 100;
-        const tnaEq = (Math.pow(inst.final / C0, 12 / meses) - 1) * 100;
-        const rendReal = ((inst.final / infFactor) / C0 - 1) * 100;
-        const ganClass = ganancia >= 0 ? 'var-positive' : 'var-negative';
-        tbodyHtml += `<tr>
-            <td style="font-weight:700;color:${inst.color}">${inst.nombre}</td>
+        const rend = (ganancia / C0) * 100;
+        const tnaEq = (Math.pow(inst.final / C0, 12/meses) - 1) * 100;
+        const cls = ganancia >= 0 ? 'style="color:var(--success)"' : 'style="color:var(--danger)"';
+        return `<tr>
+            <td style="font-weight:700;color:${inst.color}">${inst.nom}</td>
             <td>${fmtARS(inst.final)}</td>
-            <td class="${ganClass}">${ganancia >= 0 ? '+' : ''}${fmtARS(ganancia)}</td>
-            <td class="${ganClass}">${fmtPct(rendTotal)}</td>
+            <td ${cls}>${(ganancia >= 0 ? '+' : '') + fmtARS(ganancia)}</td>
+            <td ${cls}>${fmtPct(rend,1)}</td>
             <td>${tnaEq.toFixed(1)}%</td>
-            <td class="${rendReal >= 0 ? 'var-positive' : 'var-negative'}">${fmtPct(rendReal)}</td>
         </tr>`;
-    }
-    document.getElementById('comp-tabla-body').innerHTML = tbodyHtml;
+    }).join('');
 
     // Chart
     destroyChart('comp');
-    const ctx = document.getElementById('comp-chart').getContext('2d');
-
-    const monthLabels = Array.from({length: meses+1}, (_, i) => i === 0 ? 'Hoy' : `M${i}`);
-    const buildSeries = (finalVal) => {
-        const arr = [C0];
-        for (let m = 1; m <= meses; m++) {
-            arr.push(C0 + (finalVal - C0) * (m / meses));
-        }
-        return arr;
+    const labels = Array.from({length: meses+1}, (_, i) => i === 0 ? 'Hoy' : `M${i}`);
+    const buildLine = (finalV, compound=false, monthRate=null) => {
+        return Array.from({length: meses+1}, (_, m) => {
+            if (m === 0) return C0;
+            return compound && monthRate != null ? C0 * Math.pow(1 + monthRate, m) : C0 + (finalV - C0) * (m / meses);
+        });
     };
-    // For PF: compound growth
-    const pfSeries = [C0];
-    for (let m = 1; m <= meses; m++) pfSeries.push(C0 * Math.pow(1 + pfTEM, m));
-    // For Acc: compound growth
-    const accSeries = [C0];
-    for (let m = 1; m <= meses; m++) accSeries.push(C0 * Math.pow(1 + accTEM, m));
-    // For Dol & Inf: linear interpolation (approximation)
-    const dolSeries = buildSeries(dolFinal);
-    const infSeries = [C0];
-    for (let m = 1; m <= meses; m++) infSeries.push(C0 * Math.pow(1 + infMensual/100, m));
-
-    charts['comp'] = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: monthLabels,
-            datasets: [
-                { label: pfNombre, data: pfSeries, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 2 },
-                { label: dolNombre, data: dolSeries, borderColor: '#f59e0b', backgroundColor: 'transparent', tension: 0.1, pointRadius: 0, borderWidth: 2 },
-                { label: accNombre, data: accSeries, borderColor: '#10b981', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 2 },
-                { label: 'Inflación', data: infSeries, borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.3, pointRadius: 0, borderWidth: 1.5, borderDash: [5,3] },
-            ]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
-            scales: {
-                x: { ticks: { color: '#64748b', maxTicksLimit: 12, font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                y: { ticks: { color: '#64748b', callback: v => '$' + fmt(v), font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } }
-            }
-        }
-    });
-}
-
-// ============================================================
-// TAB 5: ROI / RETORNO
-// ============================================================
-function calcROI() {
-    const entrada = parseFloat(document.getElementById('roi-entrada').value);
-    const salida = parseFloat(document.getElementById('roi-salida').value);
-    const extra = parseFloat(document.getElementById('roi-extra').value) || 0;
-    const duracion = parseFloat(document.getElementById('roi-duracion').value);
-    const unidad = document.getElementById('roi-unidad').value;
-    const comEntrada = parseFloat(document.getElementById('roi-com-entrada').value) || 0;
-    const comSalida = parseFloat(document.getElementById('roi-com-salida').value) || 0;
-
-    if (isNaN(entrada) || isNaN(salida) || isNaN(duracion) || entrada === 0) {
-        document.getElementById('roi-badge').innerHTML = '<span class="big-badge flat">—</span>';
-        return;
-    }
-
-    let durMeses = duracion;
-    if (unidad === 'días') durMeses = duracion / 30.44;
-    if (unidad === 'años') durMeses = duracion * 12;
-
-    const costoEntrada = entrada * comEntrada / 100;
-    const costoSalida = salida * comSalida / 100;
-    const totalCostos = costoEntrada + costoSalida;
-
-    const gananciaBruta = salida - entrada + extra;
-    const gananciaNeta = gananciaBruta - totalCostos;
-    const roi = (gananciaBruta / entrada) * 100;
-    const roiNeto = (gananciaNeta / entrada) * 100;
-
-    // Annualize
-    const tna = (Math.pow(1 + roi/100, 12/durMeses) - 1) * 100;
-    const tem = (Math.pow(1 + roi/100, 1/durMeses) - 1) * 100;
-
-    const isPositive = gananciaNeta >= 0;
-    document.getElementById('roi-badge').innerHTML =
-        `<span class="big-badge ${isPositive ? 'up' : 'down'}">${isPositive ? '▲' : '▼'} ${fmtARS(Math.abs(gananciaNeta))}</span>`;
-
-    document.getElementById('roi-pct').textContent = fmtPct(roi);
-    document.getElementById('roi-pct').className = 'result-main ' + (roi >= 0 ? 'var-positive' : 'var-negative');
-
-    document.getElementById('roi-ganancia-bruta').textContent = (gananciaBruta >= 0 ? '+' : '') + fmtARS(gananciaBruta, 2);
-    document.getElementById('roi-ganancia-bruta').className = 'result-main ' + (gananciaBruta >= 0 ? 'var-positive' : 'var-negative');
-
-    document.getElementById('roi-tna').textContent = tna.toFixed(2) + '%';
-    document.getElementById('roi-tem').textContent = tem.toFixed(4) + '%';
-    document.getElementById('roi-comisiones').textContent = '-' + fmtARS(totalCostos, 2);
-
-    document.getElementById('roi-ganancia-neta').textContent = (gananciaNeta >= 0 ? '+' : '') + fmtARS(gananciaNeta, 2);
-    document.getElementById('roi-ganancia-neta').className = 'result-main ' + (gananciaNeta >= 0 ? 'var-positive' : 'var-negative');
-}
-
-function calcPrecioSalida() {
-    const entrada = parseFloat(document.getElementById('roi-entrada').value);
-    const roiObj = parseFloat(document.getElementById('roi-obj-pct').value);
-    if (isNaN(entrada) || isNaN(roiObj)) return;
-    const precioSalida = entrada * (1 + roiObj / 100);
-    document.getElementById('roi-precio-salida').textContent = fmtARS(precioSalida, 2);
-}
-
-// ============================================================
-// TAB 6: REGLA DEL 72
-// ============================================================
-let r72Chart = null;
-
-function calcR72() {
-    const tasa = parseFloat(document.getElementById('r72-tasa').value) || 0;
-    const cap = document.getElementById('r72-cap').value;
-    const capital = parseFloat(document.getElementById('r72-capital').value) || 1000000;
-
-    document.getElementById('r72-tasa-display').textContent = tasa + '%';
-
-    let tnaEfectiva = tasa;
-    if (cap === 'mensual') tnaEfectiva = (Math.pow(1 + tasa/100/12, 12) - 1) * 100;
-    if (cap === 'diaria')  tnaEfectiva = (Math.pow(1 + tasa/100/365, 365) - 1) * 100;
-
-    const timeToMultiple = (multiple) => {
-        if (tnaEfectiva <= 0) return Infinity;
-        return Math.log(multiple) / Math.log(1 + tnaEfectiva/100);
-    };
-
-    const t2 = timeToMultiple(2);
-    const t3 = timeToMultiple(3);
-    const t5 = timeToMultiple(5);
-    const t10 = timeToMultiple(10);
-
-    document.getElementById('r72-x2').textContent = fmtYears(t2);
-    document.getElementById('r72-x3').textContent = fmtYears(t3);
-    document.getElementById('r72-x5').textContent = fmtYears(t5);
-    document.getElementById('r72-x10').textContent = fmtYears(t10);
-
-    // Chart — project capital over 3x doubling periods or 10 years, whichever is less
-    const proyYears = Math.min(Math.max(t2 * 3, 5), 10);
-    const proyMeses = Math.ceil(proyYears * 12);
-    const temMensual = tnaEfectiva / 100 / 12;
-
-    const labels = ['Hoy'];
-    const data = [capital];
-    const miletonios = [capital * 2, capital * 3, capital * 5, capital * 10];
-    for (let m = 1; m <= proyMeses; m++) {
-        const val = capital * Math.pow(1 + temMensual, m);
-        data.push(val);
-        labels.push(m % 12 === 0 ? `Año ${m/12}` : '');
-    }
-
-    destroyChart('r72');
-    const ctx = document.getElementById('r72-chart').getContext('2d');
-    charts['r72'] = new Chart(ctx, {
+    charts['comp'] = new Chart($('comp-chart').getContext('2d'), {
         type: 'line',
         data: {
             labels,
-            datasets: [{
-                label: 'Capital proyectado',
-                data,
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59,130,246,0.08)',
-                fill: true,
-                tension: 0.3,
-                pointRadius: 0,
-            }]
+            datasets: [
+                { label: pfNom,   data: buildLine(pfFinal, true, pfTEM), borderColor: '#3b82f6', tension: 0.3, pointRadius: 0, borderWidth: 2, backgroundColor:'transparent' },
+                { label: dNom,    data: buildLine(dFinal),               borderColor: '#f59e0b', tension: 0.1, pointRadius: 0, borderWidth: 2, backgroundColor:'transparent' },
+                { label: aNom,    data: buildLine(aFinal, true, aRend/100), borderColor: '#10b981', tension: 0.3, pointRadius: 0, borderWidth: 2, backgroundColor:'transparent' },
+                { label: 'Inflación', data: buildLine(infFinal, true, infMen/100), borderColor: '#ef4444', tension: 0.3, pointRadius: 0, borderWidth: 1.5, borderDash:[5,3], backgroundColor:'transparent' },
+            ]
         },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { ticks: { color: '#64748b', maxTicksLimit: 10, font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } },
-                y: { ticks: { color: '#64748b', callback: v => '$' + fmt(v), font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } }
-            }
+        options: CHART_OPTS
+    });
+}
+
+// ────────────────────────────────────────────────────────────
+// CUOTAS / FINANCIACIÓN
+// ────────────────────────────────────────────────────────────
+let cuotasSistema = 'french';
+
+function setCuotasSistema(s) {
+    cuotasSistema = s;
+    $('cuo-french-btn').classList.toggle('active', s === 'french');
+    $('cuo-aleman-btn').classList.toggle('active', s === 'aleman');
+    $('cuo-sistema-desc').textContent = s === 'french'
+        ? 'Cuota fija todos los meses. Es el sistema más común en préstamos personales, tarjetas y créditos.'
+        : 'Capital fijo por cuota, intereses decrecientes. Cuotas más altas al inicio pero paga menos intereses totales.';
+    calcCuotas();
+}
+
+function syncCuotasTNAFromMen() {
+    const men = val('cuo-tasa-men');
+    if (!men) return;
+    const tna = men * 12;
+    $('cuo-tna').value = tna.toFixed(2);
+}
+
+function syncCuotasMenFromTNA() {
+    const tna = val('cuo-tna');
+    if (!tna) return;
+    $('cuo-tasa-men').value = (tna/12).toFixed(4);
+}
+
+function calcCuotas() {
+    const montoTotal = val('cuo-monto');
+    const enganche = val('cuo-enganche') || 0;
+    const n = val('cuo-n');
+    const tasaMen = val('cuo-tasa-men') / 100;
+
+    if (!montoTotal || !n || !tasaMen) {
+        $('cuo-cuota').textContent = '—';
+        $('cuo-total').textContent = '—';
+        $('cuo-costo').textContent = '—';
+        $('cuo-cft').textContent = '—';
+        $('cuo-intereses').textContent = '—';
+        $('cuo-tabla').innerHTML = '';
+        return;
+    }
+
+    const monto = montoTotal - enganche;
+    let cuotaMensual, rows = [], totalPagado = 0, totalIntereses = 0;
+
+    if (cuotasSistema === 'french') {
+        // Sistema francés: cuota fija
+        cuotaMensual = monto * (tasaMen * Math.pow(1 + tasaMen, n)) / (Math.pow(1 + tasaMen, n) - 1);
+        let saldo = monto;
+        for (let i = 1; i <= n; i++) {
+            const interes = saldo * tasaMen;
+            const capital = cuotaMensual - interes;
+            saldo -= capital;
+            totalPagado += cuotaMensual;
+            totalIntereses += interes;
+            rows.push({ i, cuota: cuotaMensual, capital, interes, saldo: Math.max(0, saldo) });
         }
+    } else {
+        // Sistema alemán: capital fijo
+        const capitalPorCuota = monto / n;
+        let saldo = monto;
+        for (let i = 1; i <= n; i++) {
+            const interes = saldo * tasaMen;
+            const cuota = capitalPorCuota + interes;
+            saldo -= capitalPorCuota;
+            totalPagado += cuota;
+            totalIntereses += interes;
+            rows.push({ i, cuota, capital: capitalPorCuota, interes, saldo: Math.max(0, saldo) });
+        }
+        cuotaMensual = rows[0].cuota; // primera cuota (la más alta)
+    }
+
+    const costoFinanciero = totalPagado - monto;
+    const cftTNA = ((Math.pow(totalPagado / monto, 12/n) - 1)) * 100;
+
+    $('cuo-cuota').textContent = cuotasSistema === 'aleman' ? fmtARS(rows[rows.length-1].cuota) + ' – ' + fmtARS(rows[0].cuota) : fmtARS(cuotaMensual);
+    $('cuo-total').textContent = fmtARS(totalPagado + enganche);
+    $('cuo-costo').textContent = '-' + fmtARS(costoFinanciero);
+    $('cuo-cft').textContent = cftTNA.toFixed(2) + '%';
+    $('cuo-intereses').textContent = '-' + fmtARS(totalIntereses);
+
+    // Table (limit to 60 rows)
+    const step = Math.max(1, Math.floor(rows.length / 60));
+    const display = rows.filter((_, i) => i % step === 0 || i === rows.length-1);
+    $('cuo-tabla').innerHTML = display.map(r => `<tr>
+        <td>${r.i}</td>
+        <td>${fmtARS(r.cuota)}</td>
+        <td>${fmtARS(r.capital)}</td>
+        <td style="color:var(--danger)">${fmtARS(r.interes)}</td>
+        <td>${fmtARS(r.saldo)}</td>
+    </tr>`).join('');
+}
+
+// ────────────────────────────────────────────────────────────
+// ROI / RETORNO
+// ────────────────────────────────────────────────────────────
+function calcROI() {
+    const entrada = val('roi-entrada');
+    const salida  = val('roi-salida');
+    const extra   = val('roi-extra') || 0;
+    const dur     = val('roi-dur');
+    const unidad  = str('roi-unidad');
+    const comE    = val('roi-com-e') || 0;
+    const comS    = val('roi-com-s') || 0;
+
+    if (!entrada || !salida || !dur) {
+        $('roi-pill').innerHTML = '<span class="pill flat">— ingresá compra, venta y duración</span>';
+        return;
+    }
+
+    let durMeses = dur;
+    if (unidad === 'dias') durMeses = dur / 30.44;
+    if (unidad === 'años') durMeses = dur * 12;
+
+    const costoE = entrada * comE / 100;
+    const costoS = salida * comS / 100;
+    const costos = costoE + costoS;
+    const bruta = salida - entrada + extra;
+    const neta  = bruta - costos;
+    const roi   = (bruta / entrada) * 100;
+    const tna   = (Math.pow(1 + roi/100, 12/durMeses) - 1) * 100;
+    const tem   = (Math.pow(1 + roi/100, 1/durMeses) - 1) * 100;
+    const pos   = neta >= 0;
+
+    $('roi-pill').innerHTML = `<span class="pill ${pos ? 'up' : 'down'}">${pos ? '▲' : '▼'} ${fmtARS(Math.abs(neta))}</span>`;
+    $('roi-pct').textContent = fmtPct(roi);
+    $('roi-pct').className = 'val ' + (roi >= 0 ? 'pos' : 'neg');
+    $('roi-bruta').textContent = (bruta >= 0 ? '+' : '') + fmtARS(bruta);
+    $('roi-bruta').className = 'val ' + (bruta >= 0 ? 'pos' : 'neg');
+    $('roi-tna').textContent = tna.toFixed(2) + '%';
+    $('roi-tem').textContent = tem.toFixed(4) + '%';
+    $('roi-comisiones').textContent = costos > 0 ? '-' + fmtARS(costos, 2) : '$0';
+    $('roi-neta').textContent = (neta >= 0 ? '+' : '') + fmtARS(neta);
+    $('roi-neta').className = 'val ' + (neta >= 0 ? 'pos' : 'neg');
+}
+
+function calcPrecioSalida() {
+    const entrada = val('roi-entrada');
+    const obj = val('roi-obj');
+    if (!entrada || !obj) return;
+    $('roi-precio-salida').textContent = fmtARS(entrada * (1 + obj/100), 2);
+}
+
+// ────────────────────────────────────────────────────────────
+// % RÁPIDO
+// ────────────────────────────────────────────────────────────
+let pctMode = 'a';
+
+function setPctMode(mode, btn) {
+    pctMode = mode;
+    ['a','b','c'].forEach(m => {
+        $('pct-modo-' + m).style.display = m === mode ? 'block' : 'none';
+    });
+    document.querySelectorAll('#panel-pct .mode-tab').forEach((b, i) => {
+        b.classList.toggle('active', ['a','b','c'][i] === mode);
+    });
+    $('pct-result').textContent = '—';
+    $('pct-desc').textContent = 'Ingresá los valores';
+    $('pct-extra').innerHTML = '';
+}
+
+function calcPct() {
+    if (pctMode === 'a') {
+        const x = val('pct-a-x'), y = val('pct-a-y');
+        if (!y) return;
+        const pct = (x / y) * 100;
+        $('pct-result').textContent = pct.toFixed(2) + '%';
+        $('pct-result').className = 'result-hero';
+        $('pct-desc').textContent = `${fmtARS(x,2)} es el ${pct.toFixed(2)}% de ${fmtARS(y,2)}`;
+        $('pct-extra').innerHTML = `
+            <div class="mini-card"><div class="result-label">Diferencia (Y − X)</div><div class="val">${fmtARS(y-x,2)}</div></div>
+            <div class="mini-card" style="margin-top:10px"><div class="result-label">Inverso (Y es X% de…)</div><div class="val">${fmtARS(y/x*y,2)}</div></div>`;
+    } else if (pctMode === 'b') {
+        const pct = val('pct-b-pct'), total = val('pct-b-total');
+        if (!total) return;
+        const res = total * pct / 100;
+        $('pct-result').textContent = fmtARS(res, 2);
+        $('pct-result').className = 'result-hero positive';
+        $('pct-desc').textContent = `El ${pct}% de ${fmtARS(total,2)} son ${fmtARS(res,2)}`;
+        $('pct-extra').innerHTML = `
+            <div class="mini-card"><div class="result-label">Total con ese % sumado</div><div class="val pos">${fmtARS(total + res, 2)}</div></div>
+            <div class="mini-card" style="margin-top:10px"><div class="result-label">Total con ese % restado</div><div class="val neg">${fmtARS(total - res, 2)}</div></div>`;
+    } else {
+        const a = val('pct-c-a'), b = val('pct-c-b');
+        if (!a) return;
+        const pct = ((b - a) / Math.abs(a)) * 100;
+        const pos = pct >= 0;
+        $('pct-result').textContent = fmtPct(pct, 2);
+        $('pct-result').className = 'result-hero ' + (pos ? 'positive' : 'negative');
+        $('pct-desc').textContent = `De ${fmtARS(a,2)} a ${fmtARS(b,2)}: ${fmtPct(pct,2)} de variación`;
+        $('pct-extra').innerHTML = `
+            <div class="mini-card"><div class="result-label">Diferencia absoluta</div><div class="val ${pos?'pos':'neg'}">${pos?'+':''}${fmtARS(b-a,2)}</div></div>
+            <div class="mini-card" style="margin-top:10px"><div class="result-label">Multiplicador</div><div class="val">x${(b/a).toFixed(3)}</div></div>`;
+    }
+}
+
+// ────────────────────────────────────────────────────────────
+// REGLA DEL 72
+// ────────────────────────────────────────────────────────────
+function calcR72() {
+    const tna = val('r72-tasa') || 90;
+    const cap = str('r72-cap');
+    const C0  = val('r72-capital') || 1000000;
+
+    let tea = tna;
+    if (cap === 'mensual') tea = (Math.pow(1 + tna/100/12, 12) - 1) * 100;
+
+    $('r72-tea').textContent = tea.toFixed(2) + '%';
+
+    const timeToX = x => Math.log(x) / Math.log(1 + tea/100);
+    $('r72-x2').textContent  = fmtTime(timeToX(2));
+    $('r72-x3').textContent  = fmtTime(timeToX(3));
+    $('r72-x5').textContent  = fmtTime(timeToX(5));
+    $('r72-x10').textContent = fmtTime(timeToX(10));
+
+    // Chart
+    const proyYears = Math.min(Math.max(timeToX(2) * 2.5, 3), 10);
+    const proyMeses = Math.ceil(proyYears * 12);
+    const temM = tea/100/12;
+    const labels = Array.from({length: proyMeses+1}, (_, i) => i % 12 === 0 ? `Año ${i/12}` : '');
+    const data   = Array.from({length: proyMeses+1}, (_, i) => C0 * Math.pow(1 + temM, i));
+
+    destroyChart('r72');
+    charts['r72'] = new Chart($('r72-chart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{ label: 'Capital', data, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.07)', fill:true, tension:0.3, pointRadius:0, borderWidth:2 }]
+        },
+        options: { ...CHART_OPTS, plugins: { legend: { display: false } } }
     });
 
-    // Comparativa de tasas
-    const tasas = [20, 40, 60, 80, 100, 120, 150, 200, 300];
-    let compHtml = '';
-    for (const t of tasas) {
-        const teaComp = (Math.pow(1 + t/100/12, 12) - 1) * 100;
-        const t2c = Math.log(2) / Math.log(1 + teaComp/100);
-        const isSelected = Math.abs(t - tasa) < 15;
-        compHtml += `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);${isSelected?'background:rgba(59,130,246,0.06);border-radius:6px;padding:7px 8px;':''}">
-            <span style="font-size:0.85rem;${isSelected?'color:var(--accent);font-weight:700':'color:var(--text-secondary)'}">TNA ${t}%</span>
-            <span style="font-weight:600;font-family:'Outfit',sans-serif;font-size:0.88rem">${fmtYears(t2c)} para x2</span>
+    // Tabla de referencia
+    const refs = [30, 60, 90, 120, 150, 200, 300, 500];
+    $('r72-ref').innerHTML = refs.map(t => {
+        const teaRef = (Math.pow(1 + t/100/12, 12) - 1) * 100;
+        const t2 = Math.log(2) / Math.log(1 + teaRef/100);
+        const highlight = Math.abs(t - tna) < 20;
+        return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);${highlight?'background:rgba(59,130,246,0.06);border-radius:6px;padding:6px 8px;':''}">
+            <span style="font-size:0.82rem;${highlight?'color:var(--accent);font-weight:700':'color:var(--text-secondary)'}">TNA ${t}%</span>
+            <span style="font-family:'Outfit',sans-serif;font-size:0.85rem;font-weight:600">${fmtTime(t2)} para x2</span>
         </div>`;
-    }
-    document.getElementById('r72-comp-table').innerHTML = compHtml;
+    }).join('');
 }
 
 function calcTasaR72() {
-    const tiempo = parseFloat(document.getElementById('r72-tiempo').value);
-    const unidad = document.getElementById('r72-tiempo-unidad').value;
-    const card = document.getElementById('r72-tasa-nec-card');
-    if (isNaN(tiempo) || tiempo <= 0) { card.style.display = 'none'; return; }
+    const tiempo = val('r72-tiempo');
+    const unidad = str('r72-t-unidad');
+    const card = $('r72-inv-res');
+    if (!tiempo || tiempo <= 0) { card.style.display = 'none'; return; }
     card.style.display = 'block';
-    const anos = unidad === 'meses' ? tiempo / 12 : tiempo;
+    const anos = unidad === 'meses' ? tiempo/12 : tiempo;
     const tasaNec = (Math.pow(2, 1/anos) - 1) * 100;
-    document.getElementById('r72-tasa-necesaria').textContent = tasaNec.toFixed(2) + '% anual';
+    $('r72-tasa-nec').textContent = tasaNec.toFixed(2) + '% anual';
 }
-
-// ============================================================
-// INIT
-// ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-    calcVariacion();
-    calcInteres();
-    calcComparar();
-    calcR72();
-});
 </script>
 </body>
 </html>
