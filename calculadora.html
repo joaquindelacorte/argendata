@@ -1,1745 +1,1109 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora Financiera</title>
-    <link href="estilos_compartidos.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <style>
-        /* ─── Base ─────────────────────────────────── */
-        body { background: var(--bg-main); }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadoras Financieras</title>
+<link href="estilos_compartidos.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── Base ───────────────────────────────────────────── */
+body { background: var(--bg-main); }
+.pw { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+body.popup-mode .pw { padding: 12px 14px; }
+body.popup-mode .page-header { display: none; }
 
-        .page-wrapper {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 28px 24px;
-        }
+/* ── Top bar ─────────────────────────────────────────── */
+.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.topbar-left h2 { font-size: 1.3rem; margin-bottom: 2px; }
+.topbar-left p  { font-size: 0.78rem; color: var(--text-muted); }
+.topbar-right { display: flex; gap: 8px; }
+.btn-icon { display: flex; align-items: center; gap: 5px; padding: 8px 13px; border-radius: 9px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn-icon:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+.btn-icon.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
 
-        /* Popup mode: sin header, layout compacto */
-        body.popup-mode .page-header { display: none; }
-        body.popup-mode .page-wrapper { padding: 16px; max-width: 100%; }
-        body.popup-mode .tool-selector { display: none; }
-        body.popup-mode .tool-topbar { display: none; }
-        body.popup-mode .popup-btn { display: none; }
-        body.popup-mode .popup-header { display: flex; }
-        body.popup-mode .panel-layout { grid-template-columns: 1fr; }
-        body.popup-mode .glass-card { padding: 16px; }
+/* ── Tool pills ──────────────────────────────────────── */
+.tool-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.tp { padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.tp:hover  { background: var(--bg-hover); color: var(--text-primary); }
+.tp.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 3px 10px rgba(59,130,246,0.3); }
 
-        /* ─── Tool selector ─────────────────────────── */
-        .tool-selector {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 20px;
-        }
+/* ── Panel layout ────────────────────────────────────── */
+.panel { display: none; }
+.panel.active { display: block; animation: fi 0.2s ease; }
+@keyframes fi { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+.pl { display: grid; grid-template-columns: 340px 1fr; gap: 16px; align-items: start; }
+.pl.wide { grid-template-columns: 380px 1fr; }
+@media (max-width: 820px) { .pl, .pl.wide { grid-template-columns: 1fr; } }
+body.popup-mode .pl, body.popup-mode .pl.wide { grid-template-columns: 1fr; }
 
-        .tool-btn {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            padding: 9px 16px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-            background: var(--bg-card);
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.18s ease;
-            white-space: nowrap;
-        }
-        .tool-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .tool-btn.active {
-            background: var(--accent);
-            color: #fff;
-            border-color: var(--accent);
-            box-shadow: 0 4px 14px rgba(59,130,246,0.35);
-        }
-        .tool-btn .icon { font-size: 1.1rem; line-height: 1; }
+/* ── Glass card override ─────────────────────────────── */
+.glass-card { padding: 18px; margin-bottom: 0; }
 
-        /* ─── Panel header ──────────────────────────── */
-        .tool-topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .tool-info h2 { font-size: 1.25rem; margin-bottom: 2px; }
-        .tool-info p  { font-size: 0.82rem; color: var(--text-muted); }
+/* ── Form ────────────────────────────────────────────── */
+.fg { margin-bottom: 12px; }
+.fl { display: block; font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.fi { width: 100%; padding: 10px 12px; background: rgba(15,23,42,0.8); border: 1px solid var(--border-color); border-radius: 9px; color: var(--text-primary); font-size: 0.95rem; font-family: 'Inter',sans-serif; font-weight: 500; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+.fi:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.fi::placeholder { color: var(--text-muted); font-weight: 400; font-size: 0.88rem; }
+.fi:focus { background: rgba(15,23,42,0.95); }
+select.fi { cursor: pointer; }
+.fr { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fr3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+@media (max-width: 500px) { .fr, .fr3 { grid-template-columns: 1fr; } }
 
-        .popup-btn {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            border-radius: 9px;
-            border: 1px solid var(--border-color);
-            background: transparent;
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.18s;
-            white-space: nowrap;
-        }
-        .popup-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+/* ── Results ─────────────────────────────────────────── */
+.rh { font-family: 'Outfit',sans-serif; font-size: 2.4rem; font-weight: 800; line-height: 1; color: #fff; margin: 4px 0 2px; }
+.rh.pos { color: var(--success); }
+.rh.neg { color: var(--danger); }
+.rl { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.rs { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; }
+.mg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.mg3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 12px; }
+@media (max-width: 500px) { .mg, .mg3 { grid-template-columns: 1fr; } }
+.mc { background: rgba(15,23,42,0.5); border: 1px solid var(--border-color); border-radius: 9px; padding: 10px 12px; }
+.mc .v { font-family:'Outfit',sans-serif; font-size:1.25rem; font-weight:700; color:#fff; margin-top:3px; }
+.mc .v.pos { color: var(--success); }
+.mc .v.neg { color: var(--danger); }
+.mc .v.acc { color: var(--accent); }
 
-        /* Popup mode header */
-        .popup-header {
-            display: none;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 0 16px;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 16px;
-        }
-        .popup-header h2 { font-size: 1rem; }
-        .popup-close-btn {
-            background: transparent;
-            border: 1px solid var(--border-color);
-            border-radius: 7px;
-            color: var(--text-secondary);
-            padding: 4px 10px;
-            font-size: 0.8rem;
-            cursor: pointer;
-        }
-        .popup-close-btn:hover { background: var(--danger-bg); color: var(--danger); }
+/* Pill badge */
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 7px; font-size: 0.95rem; font-weight: 700; font-family: 'Outfit',sans-serif; margin: 8px 0; }
+.pill.up   { background: var(--success-bg); color: var(--success); }
+.pill.dn   { background: var(--danger-bg);  color: var(--danger);  }
+.pill.fl   { background: rgba(148,163,184,0.08); color: var(--text-secondary); }
+.pill.bl   { background: var(--accent-light); color: var(--accent); }
 
-        /* ─── Panels ────────────────────────────────── */
-        .calc-panel { display: none; animation: fadeIn 0.25s ease; }
-        .calc-panel.active { display: block; }
+/* ── Divider / section ───────────────────────────────── */
+.dv { border: none; border-top: 1px solid var(--border-color); margin: 14px 0; }
+.sl { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
+/* ── Tables ──────────────────────────────────────────── */
+.fxt { width: 100%; border-collapse: separate; border-spacing: 0; }
+.fxt th { text-align: left; padding: 7px 11px; font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border-color); }
+.fxt td { padding: 10px 11px; font-size: 0.88rem; font-weight: 500; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.fxt tr:last-child td { border-bottom: none; }
+.fxt tr:hover td { background: rgba(255,255,255,0.02); }
+.fx-hi { font-family:'Outfit',sans-serif; font-weight:700; color:var(--accent); font-size:.95rem; }
+.brecha-t { font-size:.68rem; font-weight:700; padding:2px 5px; border-radius:4px; background:rgba(245,158,11,.12); color:#f59e0b; }
 
-        /* ─── Layout ────────────────────────────────── */
-        .panel-layout {
-            display: grid;
-            grid-template-columns: 360px 1fr;
-            gap: 20px;
-            align-items: start;
-        }
-        @media (max-width: 860px) {
-            .panel-layout { grid-template-columns: 1fr; }
-        }
+/* Proj table */
+.pj-wrap { max-height: 220px; overflow-y: auto; border-radius: 9px; border: 1px solid var(--border-color); margin-top: 12px; }
+.pjt { width: 100%; border-collapse: separate; border-spacing: 0; }
+.pjt th { position: sticky; top: 0; background: #1a2540; padding: 7px 11px; font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-color); }
+.pjt td { padding: 8px 11px; font-size: 0.82rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.pjt tr:last-child td { border-bottom: none; font-weight: 700; color: var(--accent); }
 
-        /* ─── Inputs ────────────────────────────────── */
-        .form-group { margin-bottom: 14px; }
+/* ── Chart ───────────────────────────────────────────── */
+.cw { position: relative; height: 200px; margin-top: 14px; }
 
-        .form-label {
-            display: block;
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 5px;
-        }
+/* ── Comp bars ───────────────────────────────────────── */
+.cb { margin-bottom: 10px; }
+.cb-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.cb-n { font-size: 0.85rem; font-weight: 600; }
+.cb-v { font-size: 0.88rem; font-weight: 700; font-family:'Outfit',sans-serif; }
+.cb-tr { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.cb-fi { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
 
-        .form-input, .form-select {
-            width: 100%;
-            padding: 11px 14px;
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            color: var(--text-primary);
-            font-size: 1rem;
-            font-family: 'Inter', sans-serif;
-            font-weight: 500;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .form-input:focus, .form-select:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
-        }
-        .form-input::placeholder { color: var(--text-muted); font-weight: 400; }
-        .form-select { cursor: pointer; }
+/* ── Mode tabs ───────────────────────────────────────── */
+.mt { display: flex; gap: 5px; margin-bottom: 14px; }
+.mt-b { flex: 1; padding: 7px 6px; border-radius: 7px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-size: 0.78rem; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s; }
+.mt-b.active { background: var(--bg-card); color: var(--text-primary); border-color: var(--accent); }
 
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
+/* ── Fetch btn ───────────────────────────────────────── */
+.btn-fetch { width:100%; padding:10px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); border-radius:9px; color:var(--accent); font-size:.88rem; font-weight:700; cursor:pointer; transition:all .15s; margin-bottom:12px; }
+.btn-fetch:hover { background: rgba(59,130,246,0.18); }
+.btn-fetch:disabled { opacity:.5; cursor:default; }
 
-        /* ─── Results ───────────────────────────────── */
-        .result-hero {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2.6rem;
-            font-weight: 800;
-            line-height: 1;
-            color: #fff;
-        }
-        .result-hero.positive { color: var(--success); }
-        .result-hero.negative { color: var(--danger); }
+/* ── Save btn ────────────────────────────────────────── */
+.btn-save { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; margin-top: 12px; padding: 9px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 8px; color: var(--success); font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+.btn-save:hover { background: rgba(16,185,129,0.14); }
 
-        .result-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 6px;
-        }
+/* ── History drawer ──────────────────────────────────── */
+.hist-drawer { position: fixed; bottom: 0; right: 0; width: 360px; max-height: 70vh; background: #0f172a; border: 1px solid var(--border-color); border-bottom: none; border-radius: 16px 0 0 0; box-shadow: -4px -4px 30px rgba(0,0,0,0.5); transform: translateX(110%); transition: transform 0.3s ease; z-index: 1000; display: flex; flex-direction: column; }
+.hist-drawer.open { transform: translateX(0); }
+body.popup-mode .hist-drawer { width: 100%; border-radius: 16px 16px 0 0; right: 0; }
+.hist-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border-color); }
+.hist-top h3 { font-size: 0.95rem; }
+.hist-actions { display: flex; gap: 6px; }
+.hist-x { background: transparent; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 0 4px; }
+.hist-x:hover { color: var(--danger); }
+.hist-clear { font-size: 0.72rem; color: var(--text-muted); background: transparent; border: 1px solid var(--border-color); border-radius: 5px; padding: 3px 8px; cursor: pointer; }
+.hist-clear:hover { color: var(--danger); border-color: var(--danger); }
+.hist-list { overflow-y: auto; flex: 1; padding: 10px; }
+.hist-empty { text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.82rem; }
+.hist-entry { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; position: relative; }
+.hist-entry:hover { border-color: var(--accent); }
+.hist-entry-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.hist-tag { font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: var(--accent-light); color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+.hist-ts { font-size: 0.68rem; color: var(--text-muted); margin-left: auto; }
+.hist-summary { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
+.hist-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.hist-del { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--text-muted); font-size: 0.9rem; cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.hist-entry:hover .hist-del { opacity: 1; }
+.hist-del:hover { color: var(--danger); }
 
-        .result-sub {
-            font-size: 0.88rem;
-            color: var(--text-secondary);
-            margin-top: 6px;
-        }
+/* ── Toggle ─────────────────────────────────────────── */
+.tog-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.tog-lbl { font-size: 0.82rem; color: var(--text-secondary); }
+.tog { position: relative; width: 38px; height: 20px; }
+.tog input { opacity: 0; width: 0; height: 0; }
+.tog-tr { position: absolute; inset: 0; background: var(--border-color); border-radius: 20px; cursor: pointer; transition: background 0.15s; }
+.tog-tr:before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform 0.15s; }
+.tog input:checked + .tog-tr { background: var(--accent); }
+.tog input:checked + .tog-tr:before { transform: translateX(18px); }
 
-        .result-mini-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 14px;
-        }
-        .result-mini-grid.three { grid-template-columns: 1fr 1fr 1fr; }
-        @media (max-width: 500px) {
-            .result-mini-grid, .result-mini-grid.three { grid-template-columns: 1fr; }
-            .form-row { grid-template-columns: 1fr; }
-        }
+/* ── Oportunidad ─────────────────────────────────────── */
+.opp-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 9px; margin-bottom: 6px; border: 1px solid var(--border-color); }
+.opp-label { font-size: 0.85rem; font-weight: 600; }
+.opp-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 1px; }
+.opp-val { font-family: 'Outfit',sans-serif; font-size: 1.0rem; font-weight: 700; text-align: right; }
+.opp-pct { font-size: 0.72rem; font-weight: 600; margin-top: 1px; text-align: right; }
+.opp-row.winner { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.05); }
+.opp-row.loser  { border-color: rgba(239,68,68,0.2);   background: rgba(239,68,68,0.04); }
 
-        .mini-card {
-            background: rgba(15,23,42,0.5);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 12px 14px;
-        }
-        .mini-card .val {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #fff;
-            margin-top: 3px;
-        }
-        .mini-card .val.pos { color: var(--success); }
-        .mini-card .val.neg { color: var(--danger); }
-        .mini-card .val.accent { color: var(--accent); }
+/* ── Meta slider ─────────────────────────────────────── */
+.slider-wrap { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+input[type=range] { flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px; background: var(--border-color); outline: none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 2px 6px rgba(59,130,246,0.4); }
+.sv { font-weight: 700; font-family: 'Outfit',sans-serif; min-width: 60px; text-align: right; font-size: 0.9rem; color: var(--accent); }
 
-        /* Pill badge */
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 6px 14px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 700;
-            font-family: 'Outfit', sans-serif;
-            margin: 10px 0;
-        }
-        .pill.up   { background: var(--success-bg); color: var(--success); }
-        .pill.down { background: var(--danger-bg);  color: var(--danger); }
-        .pill.flat { background: rgba(148,163,184,0.08); color: var(--text-secondary); }
-        .pill.blue { background: var(--accent-light); color: var(--accent); }
-
-        /* ─── Divider ───────────────────────────────── */
-        .divider {
-            border: none;
-            border-top: 1px solid var(--border-color);
-            margin: 16px 0;
-        }
-
-        /* ─── Section label ─────────────────────────── */
-        .section-label {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 12px;
-        }
-
-        /* ─── Fetch button ──────────────────────────── */
-        .btn-fetch {
-            width: 100%;
-            padding: 11px;
-            background: rgba(59,130,246,0.1);
-            border: 1px solid rgba(59,130,246,0.3);
-            border-radius: 10px;
-            color: var(--accent);
-            font-size: 0.9rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-bottom: 14px;
-        }
-        .btn-fetch:hover { background: rgba(59,130,246,0.18); }
-        .btn-fetch:disabled { opacity: 0.5; cursor: default; }
-
-        /* ─── FX table ──────────────────────────────── */
-        .fx-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .fx-table th {
-            text-align: left;
-            padding: 8px 12px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .fx-table td {
-            padding: 11px 12px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-        }
-        .fx-table tr:last-child td { border-bottom: none; }
-        .fx-table tr:hover td { background: rgba(255,255,255,0.02); }
-        .fx-highlight { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--accent); font-size: 1rem; }
-        .brecha-tag { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 5px; background: rgba(245,158,11,0.12); color: #f59e0b; }
-
-        /* ─── Chart ─────────────────────────────────── */
-        .chart-wrap { position: relative; height: 220px; margin-top: 16px; }
-
-        /* ─── Proj table ─────────────────────────────── */
-        .proj-wrap { max-height: 240px; overflow-y: auto; border-radius: 10px; border: 1px solid var(--border-color); margin-top: 14px; }
-        .proj-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .proj-table th { position: sticky; top: 0; background: #1a2540; padding: 8px 12px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-color); }
-        .proj-table td { padding: 9px 12px; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
-        .proj-table tr:last-child td { border-bottom: none; font-weight: 700; color: var(--accent); }
-
-        /* ─── Comp bars ──────────────────────────────── */
-        .comp-bar { margin-bottom: 12px; }
-        .comp-bar-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
-        .comp-bar-name { font-size: 0.88rem; font-weight: 600; }
-        .comp-bar-val  { font-size: 0.9rem; font-weight: 700; font-family: 'Outfit', sans-serif; }
-        .comp-bar-track { height: 9px; border-radius: 5px; background: rgba(255,255,255,0.06); overflow: hidden; }
-        .comp-bar-fill  { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
-
-        /* ─── Toggle ─────────────────────────────────── */
-        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-        .toggle-lbl { font-size: 0.85rem; color: var(--text-secondary); }
-        .toggle { position: relative; width: 40px; height: 21px; }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .toggle-track { position: absolute; inset: 0; background: var(--border-color); border-radius: 21px; cursor: pointer; transition: background 0.2s; }
-        .toggle-track:before { content: ''; position: absolute; width: 15px; height: 15px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
-        .toggle input:checked + .toggle-track { background: var(--accent); }
-        .toggle input:checked + .toggle-track:before { transform: translateX(19px); }
-
-        /* ─── Mode tabs (for % rápido) ───────────────── */
-        .mode-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
-        .mode-tab { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-size: 0.82rem; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.18s; }
-        .mode-tab.active { background: var(--bg-card); color: var(--text-primary); border-color: var(--accent); }
-
-        /* ─── Cuotas table ──────────────────────────── */
-        .cuotas-tag {
-            display: inline-block;
-            background: rgba(16,185,129,0.1);
-            color: var(--success);
-            border-radius: 6px;
-            padding: 2px 8px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            margin-left: 6px;
-        }
-    </style>
+/* ── Rate compare table (meta) ───────────────────────── */
+.rate-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.rate-row:last-child { border-bottom: none; }
+.rate-name { font-size: 0.82rem; color: var(--text-secondary); }
+.rate-val  { font-family: 'Outfit',sans-serif; font-size: 0.88rem; font-weight: 700; }
+.rate-row.highlight { padding: 7px 8px; border-radius: 7px; background: rgba(59,130,246,0.07); }
+.rate-row.highlight .rate-name { color: var(--accent); font-weight: 700; }
+</style>
 </head>
 <body>
-<div class="page-wrapper">
+<div class="pw">
 
-    <!-- Header (oculto en popup mode) -->
-    <div class="page-header fade-in">
-        <div class="page-title">🧮 Calculadoras</div>
-        <div class="page-subtitle">Herramientas para el día a día — invertir, comparar y decidir</div>
+<!-- ── TOP BAR ───────────────────────────────────────── -->
+<div class="topbar fade-in" id="topbar">
+  <div class="topbar-left">
+    <h2>🧮 Calculadoras</h2>
+    <p>Resultados en tiempo real · Guardá y comparé cálculos</p>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-icon" id="hist-toggle-btn" onclick="toggleHist()">📋 Historial <span id="hist-count" style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:0.7rem;margin-left:2px;display:none">0</span></button>
+    <button class="btn-icon" onclick="openPopup()" style="display:none" id="popup-btn-global">↗ Mini ventana</button>
+  </div>
+</div>
+
+<!-- ── TOOL PILLS ─────────────────────────────────────── -->
+<div class="tool-pills fade-in" id="tool-pills">
+  <button class="tp active" onclick="show('variacion',this)">📈 Variación %</button>
+  <button class="tp" onclick="show('interes',this)">💹 Interés compuesto</button>
+  <button class="tp" onclick="show('cambio',this)">💱 Tipo de cambio</button>
+  <button class="tp" onclick="show('comparar',this)">⚖️ Comparar inversiones</button>
+  <button class="tp" onclick="show('cuotas',this)">📋 Cuotas</button>
+  <button class="tp" onclick="show('roi',this)">📊 ROI</button>
+  <button class="tp" onclick="show('pct',this)">🔢 % Rápido</button>
+  <button class="tp" onclick="show('regla72',this)">⏳ Regla del 72</button>
+  <button class="tp" onclick="show('oportunidad',this)">💡 Costo de oportunidad</button>
+  <button class="tp" onclick="show('meta',this)">🎯 Meta de ahorro</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- VARIACIÓN %                                          -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-variacion" class="panel active">
+<div class="pl">
+  <div class="glass-card">
+    <div class="fg"><label class="fl">Valor anterior</label><input class="fi" type="number" id="va-p" placeholder="ej: 1000" onfocus="this.select()" oninput="cv()"></div>
+    <div class="fg"><label class="fl">Valor nuevo</label><input class="fi" type="number" id="va-n" placeholder="ej: 1350" onfocus="this.select()" oninput="cv()"></div>
+    <hr class="dv">
+    <div class="sl">Calcular precio objetivo</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Precio base</label><input class="fi" type="number" id="va-b" placeholder="ej: 1000" onfocus="this.select()" oninput="cvo()"></div>
+      <div class="fg"><label class="fl">Variación %</label><input class="fi" type="number" id="va-pct" placeholder="ej: 25" onfocus="this.select()" oninput="cvo()"></div>
     </div>
-
-    <!-- Selector de herramienta -->
-    <div class="tool-selector fade-in" id="tool-selector">
-        <button class="tool-btn active" onclick="showTool('variacion',this)"><span class="icon">📈</span> Variación %</button>
-        <button class="tool-btn" onclick="showTool('interes',this)"><span class="icon">💹</span> Interés compuesto</button>
-        <button class="tool-btn" onclick="showTool('cambio',this)"><span class="icon">💱</span> Tipo de cambio</button>
-        <button class="tool-btn" onclick="showTool('comparar',this)"><span class="icon">⚖️</span> Comparar inversiones</button>
-        <button class="tool-btn" onclick="showTool('cuotas',this)"><span class="icon">📋</span> Cuotas / Financiación</button>
-        <button class="tool-btn" onclick="showTool('roi',this)"><span class="icon">📊</span> ROI / Retorno</button>
-        <button class="tool-btn" onclick="showTool('pct',this)"><span class="icon">🔢</span> % Rápido</button>
-        <button class="tool-btn" onclick="showTool('regla72',this)"><span class="icon">⏳</span> Regla del 72</button>
+    <div id="va-obj-card" style="display:none"><div class="mc"><div class="rl">Precio objetivo</div><div class="v acc" id="va-obj">—</div></div></div>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div class="rl">Variación</div>
+      <div id="va-pill"><span class="pill fl">— ingresá dos valores</span></div>
+      <div class="mg">
+        <div class="mc"><div class="rl">Diferencia</div><div class="v" id="va-diff">—</div></div>
+        <div class="mc"><div class="rl">Multiplicador</div><div class="v" id="va-mult">—</div></div>
+      </div>
+      <button class="btn-save" onclick="saveCalc('variacion')">💾 Guardar cálculo</button>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: VARIACIÓN %                                       -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-variacion" class="calc-panel active">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>Variación de precio</h2>
-                <p>¿Cuánto subió o bajó? Comparás dos valores y ves el % de cambio al instante.</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('variacion')">↗ Mini ventana</button>
-        </div>
-        <div class="popup-header" id="popup-header-variacion">
-            <h2>📈 Variación %</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <!-- Inputs -->
-            <div class="glass-card">
-                <div class="form-group">
-                    <label class="form-label">Valor anterior</label>
-                    <input class="form-input" type="number" id="var-prev" placeholder="ej: 1000" oninput="calcVariacion()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Valor nuevo</label>
-                    <input class="form-input" type="number" id="var-new" placeholder="ej: 1350" oninput="calcVariacion()">
-                </div>
-
-                <hr class="divider">
-                <div class="section-label">¿A qué precio llegar?</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Precio base</label>
-                        <input class="form-input" type="number" id="var-base2" placeholder="ej: 1000" oninput="calcPrecioObj()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Variación deseada %</label>
-                        <input class="form-input" type="number" id="var-pct" placeholder="ej: 25" oninput="calcPrecioObj()">
-                    </div>
-                </div>
-                <div id="var-obj-res" style="display:none;">
-                    <div class="mini-card">
-                        <div class="result-label">Precio objetivo</div>
-                        <div class="val" id="var-obj-val" style="font-family:'Outfit',sans-serif;font-size:1.6rem;font-weight:700;margin-top:3px;">—</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Resultados -->
-            <div class="glass-card">
-                <div class="result-label">Variación</div>
-                <div id="var-pill"><span class="pill flat">— ingresá dos valores</span></div>
-
-                <div class="result-mini-grid" style="margin-top:16px;">
-                    <div class="mini-card">
-                        <div class="result-label">Diferencia</div>
-                        <div class="val" id="var-diff">—</div>
-                    </div>
-                    <div class="mini-card">
-                        <div class="result-label">Multiplicador</div>
-                        <div class="val" id="var-mult">—</div>
-                    </div>
-                </div>
-
-                <hr class="divider">
-                <div class="section-label">Si el precio anterior fuera ese, ¿cuánto sería con estas variaciones?</div>
-                <div id="var-scale" style="margin-top:4px;"></div>
-            </div>
-        </div>
+    <div class="glass-card">
+      <div class="sl">Proyección de aumentos sobre el valor anterior</div>
+      <div id="va-scale" style="margin-top:6px"></div>
     </div>
+  </div>
+</div>
+</div>
 
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: INTERÉS COMPUESTO                                 -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-interes" class="calc-panel">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>Interés compuesto</h2>
-                <p>Calculás cuánto crece tu capital con una tasa y capitalización dada. Incluye TEM y TEA.</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('interes')">↗ Mini ventana</button>
-        </div>
-        <div class="popup-header">
-            <h2>💹 Interés compuesto</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <div class="glass-card">
-                <div class="form-group">
-                    <label class="form-label">Capital inicial (ARS)</label>
-                    <input class="form-input" type="number" id="ci-capital" value="1000000" oninput="calcInteres()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Tasa Nominal Anual — TNA (%)</label>
-                    <input class="form-input" type="number" id="ci-tna" value="90" placeholder="ej: 90" oninput="calcInteres()">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Período</label>
-                        <input class="form-input" type="number" id="ci-periodo" value="12" min="1" oninput="calcInteres()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Unidad</label>
-                        <select class="form-select" id="ci-unidad" onchange="calcInteres()">
-                            <option value="meses">Meses</option>
-                            <option value="años">Años</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Capitalización</label>
-                    <select class="form-select" id="ci-cap" onchange="calcInteres()">
-                        <option value="12">Mensual (la más común)</option>
-                        <option value="4">Trimestral</option>
-                        <option value="2">Semestral</option>
-                        <option value="1">Anual</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Aporte mensual extra (opcional)</label>
-                    <input class="form-input" type="number" id="ci-aporte" value="0" placeholder="0" oninput="calcInteres()">
-                </div>
-
-                <hr class="divider">
-                <div class="toggle-row">
-                    <span class="toggle-lbl">Mostrar rendimiento real vs inflación</span>
-                    <label class="toggle">
-                        <input type="checkbox" id="ci-show-inf" onchange="toggleInfRow()">
-                        <span class="toggle-track"></span>
-                    </label>
-                </div>
-                <div id="ci-inf-row" style="display:none;">
-                    <div class="form-group">
-                        <label class="form-label">Inflación anual estimada (%)</label>
-                        <input class="form-input" type="number" id="ci-inf" value="60" oninput="calcInteres()">
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="result-label">Capital final</div>
-                    <div class="result-hero" id="ci-final">—</div>
-                    <div class="result-sub" id="ci-sub">Ingresá capital y tasa</div>
-
-                    <div class="result-mini-grid" style="margin-top:16px;">
-                        <div class="mini-card">
-                            <div class="result-label">Intereses ganados</div>
-                            <div class="val pos" id="ci-intereses">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">Rendimiento total</div>
-                            <div class="val pos" id="ci-rend">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">TEM</div>
-                            <div class="val accent" id="ci-tem">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">TEA efectiva</div>
-                            <div class="val accent" id="ci-tea">—</div>
-                        </div>
-                    </div>
-
-                    <div id="ci-inf-res" style="display:none;margin-top:10px;">
-                        <div class="result-mini-grid">
-                            <div class="mini-card">
-                                <div class="result-label">Capital real (ajustado inflación)</div>
-                                <div class="val" id="ci-real">—</div>
-                            </div>
-                            <div class="mini-card">
-                                <div class="result-label">Rendimiento real</div>
-                                <div class="val" id="ci-rend-real">—</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="chart-wrap"><canvas id="ci-chart"></canvas></div>
-                </div>
-
-                <div class="glass-card">
-                    <div class="section-label">Evolución mes a mes</div>
-                    <div class="proj-wrap">
-                        <table class="proj-table">
-                            <thead><tr><th>Período</th><th>Capital</th><th>Intereses acum.</th></tr></thead>
-                            <tbody id="ci-tabla"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- ════════════════════════════════════════════════════ -->
+<!-- INTERÉS COMPUESTO                                    -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-interes" class="panel">
+<div class="pl wide">
+  <div class="glass-card">
+    <div class="fg"><label class="fl">Capital inicial (ARS)</label><input class="fi" type="number" id="ci-k" value="1000000" onfocus="this.select()" oninput="calcCI()"></div>
+    <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="ci-tna" value="90" onfocus="this.select()" oninput="calcCI()"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Período</label><input class="fi" type="number" id="ci-per" value="12" onfocus="this.select()" oninput="calcCI()"></div>
+      <div class="fg"><label class="fl">Unidad</label><select class="fi" id="ci-uni" onchange="calcCI()"><option value="meses">Meses</option><option value="años">Años</option></select></div>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: TIPO DE CAMBIO                                    -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-cambio" class="calc-panel">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>Tipo de cambio</h2>
-                <p>Convertís pesos a dólares (o viceversa) en los distintos mercados: oficial, blue, MEP, CCL, tarjeta.</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('cambio')">↗ Mini ventana</button>
-        </div>
-        <div class="popup-header">
-            <h2>💱 Tipo de cambio</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <div class="glass-card">
-                <div class="form-row" style="margin-bottom:14px;">
-                    <div class="form-group">
-                        <label class="form-label">Monto a convertir</label>
-                        <input class="form-input" type="number" id="fx-monto" value="100000" oninput="calcFx()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Moneda</label>
-                        <select class="form-select" id="fx-moneda" onchange="calcFx()">
-                            <option value="ARS">Pesos → USD</option>
-                            <option value="USD">Dólares → ARS</option>
-                        </select>
-                    </div>
-                </div>
-
-                <button class="btn-fetch" onclick="fetchFxRates()" id="fx-btn">🔄 Cargar cotizaciones actuales</button>
-                <p id="fx-ts" style="font-size:0.72rem;color:var(--text-muted);margin-bottom:10px;"></p>
-
-                <hr class="divider" style="margin-top:4px;">
-                <div class="section-label">O ingresá manualmente</div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Oficial</label>
-                        <input class="form-input" type="number" id="fx-oficial" placeholder="—" oninput="calcFx()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Blue</label>
-                        <input class="form-input" type="number" id="fx-blue" placeholder="—" oninput="calcFx()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">MEP / Bolsa</label>
-                        <input class="form-input" type="number" id="fx-mep" placeholder="—" oninput="calcFx()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">CCL / Cable</label>
-                        <input class="form-input" type="number" id="fx-ccl" placeholder="—" oninput="calcFx()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Tarjeta / Turista</label>
-                        <input class="form-input" type="number" id="fx-tarjeta" placeholder="—" oninput="calcFx()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Mayorista</label>
-                        <input class="form-input" type="number" id="fx-mayorista" placeholder="—" oninput="calcFx()">
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-card">
-                <div class="section-label">Equivalencias</div>
-                <div id="fx-results" style="margin-bottom:16px;">
-                    <p style="color:var(--text-muted);font-size:0.85rem;">Cargá cotizaciones para ver resultados</p>
-                </div>
-                <hr class="divider">
-                <div class="section-label">Brecha vs tipo oficial</div>
-                <div id="fx-brecha">
-                    <p style="color:var(--text-muted);font-size:0.85rem;">—</p>
-                </div>
-            </div>
-        </div>
+    <div class="fg"><label class="fl">Capitalización</label>
+      <select class="fi" id="ci-cap" onchange="calcCI()">
+        <option value="12">Mensual</option><option value="4">Trimestral</option><option value="2">Semestral</option><option value="1">Anual</option>
+      </select>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: COMPARAR INVERSIONES                              -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-comparar" class="calc-panel">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>Comparar inversiones</h2>
-                <p>Ponés el mismo capital en distintos instrumentos y ves cuánto ganás en cada uno al mismo plazo.</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('comparar')">↗ Mini ventana</button>
-        </div>
-        <div class="popup-header">
-            <h2>⚖️ Comparar inversiones</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <div class="glass-card">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Capital (ARS)</label>
-                        <input class="form-input" type="number" id="comp-capital" value="1000000" oninput="calcComparar()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Plazo (meses)</label>
-                        <input class="form-input" type="number" id="comp-meses" value="12" oninput="calcComparar()">
-                    </div>
-                </div>
-
-                <hr class="divider">
-                <div class="section-label" style="color:var(--accent);">Instrumento 1 — Renta fija / Plazo fijo</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">TNA (%)</label>
-                        <input class="form-input" type="number" id="comp-pf-tna" value="37" oninput="calcComparar()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Nombre</label>
-                        <input class="form-input" type="text" id="comp-pf-nom" value="Plazo Fijo" oninput="calcComparar()">
-                    </div>
-                </div>
-
-                <hr class="divider">
-                <div class="section-label" style="color:#f59e0b;">Instrumento 2 — Dólar / Crypto / Commodity</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Precio hoy (ARS)</label>
-                        <input class="form-input" type="number" id="comp-d-hoy" value="1200" oninput="calcComparar()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Precio futuro (ARS)</label>
-                        <input class="form-input" type="number" id="comp-d-fut" value="1700" oninput="calcComparar()">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Nombre</label>
-                    <input class="form-input" type="text" id="comp-d-nom" value="Dólar Blue" oninput="calcComparar()">
-                </div>
-
-                <hr class="divider">
-                <div class="section-label" style="color:var(--success);">Instrumento 3 — Acciones / FCI / Crypto</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Rendimiento mensual (%)</label>
-                        <input class="form-input" type="number" id="comp-a-rend" value="8" oninput="calcComparar()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Nombre</label>
-                        <input class="form-input" type="text" id="comp-a-nom" value="Merval / Acciones" oninput="calcComparar()">
-                    </div>
-                </div>
-
-                <hr class="divider">
-                <div class="form-group">
-                    <label class="form-label">Inflación mensual estimada (referencia)</label>
-                    <input class="form-input" type="number" id="comp-inf" value="3" oninput="calcComparar()">
-                </div>
-            </div>
-
-            <div>
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="section-label">Capital final en <span id="comp-plazo-lbl">12</span> meses</div>
-                    <div id="comp-bars" style="margin-top:12px;"></div>
-                </div>
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="chart-wrap"><canvas id="comp-chart"></canvas></div>
-                </div>
-                <div class="glass-card">
-                    <div class="section-label">Resumen comparativo</div>
-                    <div style="overflow-x:auto;">
-                        <table class="fx-table">
-                            <thead><tr><th>Instrumento</th><th>Capital final</th><th>Ganancia</th><th>Rend. total</th><th>TNA equiv.</th></tr></thead>
-                            <tbody id="comp-tabla"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="fg"><label class="fl">Aporte mensual extra (opcional)</label><input class="fi" type="number" id="ci-ap" value="0" onfocus="this.select()" oninput="calcCI()"></div>
+    <hr class="dv">
+    <div class="tog-row">
+      <span class="tog-lbl">Mostrar rendimiento real vs inflación</span>
+      <label class="tog"><input type="checkbox" id="ci-inf-chk" onchange="calcCI()"><span class="tog-tr"></span></label>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: CUOTAS / FINANCIACIÓN                             -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-cuotas" class="calc-panel">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>Cuotas / Financiación</h2>
-                <p>Calculás la cuota mensual, el total que terminás pagando y el costo financiero real de un crédito o compra en cuotas.</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('cuotas')">↗ Mini ventana</button>
-        </div>
-        <div class="popup-header">
-            <h2>📋 Cuotas / Financiación</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <div class="glass-card">
-                <div class="form-group">
-                    <label class="form-label">Monto total a financiar (ARS)</label>
-                    <input class="form-input" type="number" id="cuo-monto" placeholder="ej: 500000" oninput="calcCuotas()">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Cantidad de cuotas</label>
-                        <input class="form-input" type="number" id="cuo-n" placeholder="ej: 24" oninput="calcCuotas()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Tasa mensual (%)</label>
-                        <input class="form-input" type="number" id="cuo-tasa-men" placeholder="ej: 8" step="0.1" oninput="syncCuotasTNAFromMen(); calcCuotas()">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">O ingresá la TNA (%) — se convierte sola</label>
-                    <input class="form-input" type="number" id="cuo-tna" placeholder="ej: 96" oninput="syncCuotasMenFromTNA(); calcCuotas()">
-                </div>
-
-                <hr class="divider">
-                <div class="form-group">
-                    <label class="form-label">Enganche / pago inicial (opcional)</label>
-                    <input class="form-input" type="number" id="cuo-enganche" placeholder="0" value="0" oninput="calcCuotas()">
-                </div>
-
-                <div class="section-label" style="margin-top:4px;">Sistema de amortización</div>
-                <div class="mode-tabs" style="margin-top:8px;">
-                    <button class="mode-tab active" id="cuo-french-btn" onclick="setCuotasSistema('french')">Francés (cuota fija)</button>
-                    <button class="mode-tab" id="cuo-aleman-btn" onclick="setCuotasSistema('aleman')">Alemán (capital fijo)</button>
-                </div>
-                <p style="font-size:0.78rem;color:var(--text-muted);" id="cuo-sistema-desc">Cuota fija todos los meses. Es el sistema más común en préstamos personales, tarjetas y créditos.</p>
-            </div>
-
-            <div>
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="result-label">Cuota mensual</div>
-                    <div class="result-hero" id="cuo-cuota">—</div>
-
-                    <div class="result-mini-grid" style="margin-top:16px;">
-                        <div class="mini-card">
-                            <div class="result-label">Total a pagar</div>
-                            <div class="val" id="cuo-total">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">Costo financiero</div>
-                            <div class="val neg" id="cuo-costo">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">CFT estimado (TNA)</div>
-                            <div class="val accent" id="cuo-cft">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">Intereses pagados</div>
-                            <div class="val neg" id="cuo-intereses">—</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="glass-card">
-                    <div class="section-label">Plan de pagos</div>
-                    <div class="proj-wrap">
-                        <table class="proj-table">
-                            <thead><tr><th>Cuota</th><th>Pago</th><th>Capital</th><th>Interés</th><th>Saldo</th></tr></thead>
-                            <tbody id="cuo-tabla"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div id="ci-inf-row" style="display:none">
+      <div class="fg"><label class="fl">Inflación anual estimada (%)</label><input class="fi" type="number" id="ci-inf" value="60" onfocus="this.select()" oninput="calcCI()"></div>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: ROI / RETORNO                                     -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-roi" class="calc-panel">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>ROI / Retorno de inversión</h2>
-                <p>¿Cuánto ganaste (o perdiste) en una operación? Obtenés el ROI%, la TNA equivalente y la ganancia neta descontando comisiones.</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('roi')">↗ Mini ventana</button>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div class="rl">Capital final</div>
+      <div class="rh" id="ci-final">—</div>
+      <div class="rs" id="ci-sub">Ingresá capital y tasa</div>
+      <div class="mg3">
+        <div class="mc"><div class="rl">Intereses</div><div class="v pos" id="ci-int">—</div></div>
+        <div class="mc"><div class="rl">Rendimiento</div><div class="v pos" id="ci-rend">—</div></div>
+        <div class="mc"><div class="rl">TEM</div><div class="v acc" id="ci-tem">—</div></div>
+      </div>
+      <div class="mc" style="margin-top:10px"><div class="rl">TEA efectiva</div><div class="v acc" id="ci-tea">—</div></div>
+      <div id="ci-inf-res" style="display:none;margin-top:10px">
+        <div class="mg">
+          <div class="mc"><div class="rl">Capital real (ajustado)</div><div class="v" id="ci-real">—</div></div>
+          <div class="mc"><div class="rl">Rendimiento real</div><div class="v" id="ci-rreal">—</div></div>
         </div>
-        <div class="popup-header">
-            <h2>📊 ROI / Retorno</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <div class="glass-card">
-                <div class="form-group">
-                    <label class="form-label">Precio de compra / Inversión inicial</label>
-                    <input class="form-input" type="number" id="roi-entrada" placeholder="ej: 1000000" oninput="calcROI()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Precio de venta / Valor final</label>
-                    <input class="form-input" type="number" id="roi-salida" placeholder="ej: 1350000" oninput="calcROI()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Dividendos / Rentas cobradas (opcional)</label>
-                    <input class="form-input" type="number" id="roi-extra" placeholder="0" oninput="calcROI()">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Duración</label>
-                        <input class="form-input" type="number" id="roi-dur" placeholder="ej: 12" oninput="calcROI()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Unidad</label>
-                        <select class="form-select" id="roi-unidad" onchange="calcROI()">
-                            <option value="meses">Meses</option>
-                            <option value="dias">Días</option>
-                            <option value="años">Años</option>
-                        </select>
-                    </div>
-                </div>
-
-                <hr class="divider">
-                <div class="section-label">Comisiones y costos (opcional)</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Comisión entrada (%)</label>
-                        <input class="form-input" type="number" id="roi-com-e" placeholder="0.5" step="0.1" oninput="calcROI()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Comisión salida (%)</label>
-                        <input class="form-input" type="number" id="roi-com-s" placeholder="0.5" step="0.1" oninput="calcROI()">
-                    </div>
-                </div>
-
-                <hr class="divider">
-                <div class="section-label">¿Cuánto necesito vender para ganar X%?</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">ROI objetivo (%)</label>
-                        <input class="form-input" type="number" id="roi-obj" placeholder="ej: 30" oninput="calcPrecioSalida()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Precio de salida necesario</label>
-                        <div class="mini-card" style="padding:10px 14px;margin-top:0;">
-                            <div class="val" id="roi-precio-salida" style="font-size:1.1rem;">—</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-card">
-                <div class="result-label">Ganancia / Pérdida neta</div>
-                <div id="roi-pill"><span class="pill flat">— ingresá compra y venta</span></div>
-
-                <div class="result-mini-grid" style="margin-top:16px;">
-                    <div class="mini-card">
-                        <div class="result-label">ROI total</div>
-                        <div class="val" id="roi-pct">—</div>
-                    </div>
-                    <div class="mini-card">
-                        <div class="result-label">Ganancia bruta</div>
-                        <div class="val" id="roi-bruta">—</div>
-                    </div>
-                    <div class="mini-card">
-                        <div class="result-label">TNA equivalente</div>
-                        <div class="val accent" id="roi-tna">—</div>
-                    </div>
-                    <div class="mini-card">
-                        <div class="result-label">TEM equivalente</div>
-                        <div class="val accent" id="roi-tem">—</div>
-                    </div>
-                    <div class="mini-card">
-                        <div class="result-label">Costo comisiones</div>
-                        <div class="val neg" id="roi-comisiones">—</div>
-                    </div>
-                    <div class="mini-card">
-                        <div class="result-label">Ganancia neta</div>
-                        <div class="val" id="roi-neta">—</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
+      <button class="btn-save" onclick="saveCalc('interes')">💾 Guardar cálculo</button>
     </div>
-
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: % RÁPIDO                                          -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-pct" class="calc-panel">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>Porcentaje rápido</h2>
-                <p>Tres modos: ¿X es qué % de Y? / ¿Cuánto es X% de Y? / ¿Cuál fue la variación de A a B?</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('pct')">↗ Mini ventana</button>
-        </div>
-        <div class="popup-header">
-            <h2>🔢 % Rápido</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <div class="glass-card">
-                <div class="mode-tabs">
-                    <button class="mode-tab active" onclick="setPctMode('a',this)">X es % de Y</button>
-                    <button class="mode-tab" onclick="setPctMode('b',this)">% de un valor</button>
-                    <button class="mode-tab" onclick="setPctMode('c',this)">Variación A→B</button>
-                </div>
-
-                <!-- Modo A: X es qué % de Y -->
-                <div id="pct-modo-a">
-                    <div class="form-group">
-                        <label class="form-label">Valor parcial (X)</label>
-                        <input class="form-input" type="number" id="pct-a-x" placeholder="ej: 35" oninput="calcPct()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Valor total (Y)</label>
-                        <input class="form-input" type="number" id="pct-a-y" placeholder="ej: 200" oninput="calcPct()">
-                    </div>
-                    <p style="font-size:0.82rem;color:var(--text-muted);">Ejemplo: "mi ganancia fue $35k sobre $200k totales" → te dice qué porcentaje representa.</p>
-                </div>
-
-                <!-- Modo B: cuánto es X% de Y -->
-                <div id="pct-modo-b" style="display:none;">
-                    <div class="form-group">
-                        <label class="form-label">Porcentaje (%)</label>
-                        <input class="form-input" type="number" id="pct-b-pct" placeholder="ej: 21" oninput="calcPct()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Del valor total</label>
-                        <input class="form-input" type="number" id="pct-b-total" placeholder="ej: 1500000" oninput="calcPct()">
-                    </div>
-                    <p style="font-size:0.82rem;color:var(--text-muted);">Ejemplo: "¿cuánto es el IVA (21%) sobre $1.500.000?"</p>
-                </div>
-
-                <!-- Modo C: variación A a B -->
-                <div id="pct-modo-c" style="display:none;">
-                    <div class="form-group">
-                        <label class="form-label">Valor inicial (A)</label>
-                        <input class="form-input" type="number" id="pct-c-a" placeholder="ej: 800" oninput="calcPct()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Valor final (B)</label>
-                        <input class="form-input" type="number" id="pct-c-b" placeholder="ej: 1150" oninput="calcPct()">
-                    </div>
-                    <p style="font-size:0.82rem;color:var(--text-muted);">Ejemplo: "el dólar pasó de $800 a $1150 — ¿cuánto %?"</p>
-                </div>
-            </div>
-
-            <div class="glass-card">
-                <div class="result-label">Resultado</div>
-                <div class="result-hero" id="pct-result" style="font-size:3rem;">—</div>
-                <div class="result-sub" id="pct-desc">Seleccioná un modo e ingresá los valores</div>
-
-                <hr class="divider">
-                <div id="pct-extra" style="margin-top:4px;"></div>
-            </div>
-        </div>
+    <div class="glass-card" style="margin-bottom:12px"><div class="cw"><canvas id="ci-chart"></canvas></div></div>
+    <div class="glass-card">
+      <div class="sl">Evolución período a período</div>
+      <div class="pj-wrap"><table class="pjt"><thead><tr><th>Período</th><th>Capital</th><th>Intereses acum.</th></tr></thead><tbody id="ci-tbody"></tbody></table></div>
     </div>
+  </div>
+</div>
+</div>
 
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <!-- TOOL: REGLA DEL 72                                      -->
-    <!-- ═══════════════════════════════════════════════════════ -->
-    <div id="panel-regla72" class="calc-panel">
-        <div class="tool-topbar">
-            <div class="tool-info">
-                <h2>Regla del 72</h2>
-                <p>¿En cuánto tiempo duplicás tu capital? Dividís 72 por la tasa y obtenés el tiempo aproximado.</p>
-            </div>
-            <button class="popup-btn" onclick="openPopup('regla72')">↗ Mini ventana</button>
-        </div>
-        <div class="popup-header">
-            <h2>⏳ Regla del 72</h2>
-            <button class="popup-close-btn" onclick="window.close()">✕ Cerrar</button>
-        </div>
-
-        <div class="panel-layout">
-            <div class="glass-card">
-                <div class="form-group">
-                    <label class="form-label">Tasa anual (%)</label>
-                    <input class="form-input" type="number" id="r72-tasa" value="90" oninput="calcR72()">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Capitalización</label>
-                    <select class="form-select" id="r72-cap" onchange="calcR72()">
-                        <option value="mensual" selected>Mensual (TNA → TEA)</option>
-                        <option value="anual">Anual directa</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Capital inicial (para ver proyección)</label>
-                    <input class="form-input" type="number" id="r72-capital" value="1000000" oninput="calcR72()">
-                </div>
-
-                <hr class="divider">
-                <div class="section-label">Modo inverso — ¿qué tasa necesito?</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Quiero duplicar en</label>
-                        <input class="form-input" type="number" id="r72-tiempo" placeholder="ej: 2" oninput="calcTasaR72()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Unidad</label>
-                        <select class="form-select" id="r72-t-unidad" onchange="calcTasaR72()">
-                            <option value="años">Años</option>
-                            <option value="meses">Meses</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="r72-inv-res" style="display:none;">
-                    <div class="mini-card">
-                        <div class="result-label">Tasa anual necesaria</div>
-                        <div class="val accent" id="r72-tasa-nec">—</div>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="result-label">Para duplicar (x2)</div>
-                    <div class="result-hero positive" id="r72-x2">—</div>
-
-                    <div class="result-mini-grid" style="margin-top:16px;">
-                        <div class="mini-card">
-                            <div class="result-label">Para triplicar (x3)</div>
-                            <div class="val" id="r72-x3">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">Para x5</div>
-                            <div class="val" id="r72-x5">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">Para x10</div>
-                            <div class="val" id="r72-x10">—</div>
-                        </div>
-                        <div class="mini-card">
-                            <div class="result-label">TEA efectiva</div>
-                            <div class="val accent" id="r72-tea">—</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="glass-card" style="margin-bottom:16px;">
-                    <div class="chart-wrap"><canvas id="r72-chart"></canvas></div>
-                </div>
-
-                <div class="glass-card">
-                    <div class="section-label">Referencia rápida de tasas</div>
-                    <div id="r72-ref" style="margin-top:8px;"></div>
-                </div>
-            </div>
-        </div>
+<!-- ════════════════════════════════════════════════════ -->
+<!-- TIPO DE CAMBIO                                       -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-cambio" class="panel">
+<div class="pl">
+  <div class="glass-card">
+    <div class="fr">
+      <div class="fg"><label class="fl">Monto</label><input class="fi" type="number" id="fx-m" value="100000" onfocus="this.select()" oninput="calcFX()"></div>
+      <div class="fg"><label class="fl">Moneda</label><select class="fi" id="fx-mon" onchange="calcFX()"><option value="ARS">Pesos → USD</option><option value="USD">USD → Pesos</option></select></div>
     </div>
+    <button class="btn-fetch" id="fx-btn" onclick="fetchFX()">🔄 Cargar cotizaciones actuales</button>
+    <p id="fx-ts" style="font-size:0.7rem;color:var(--text-muted);margin-bottom:10px"></p>
+    <hr class="dv" style="margin-top:4px">
+    <div class="sl">O ingresá manualmente</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Oficial</label><input class="fi" type="number" id="fx-of" placeholder="—" onfocus="this.select()" oninput="calcFX()"></div>
+      <div class="fg"><label class="fl">Blue</label><input class="fi" type="number" id="fx-bl" placeholder="—" onfocus="this.select()" oninput="calcFX()"></div>
+      <div class="fg"><label class="fl">MEP / Bolsa</label><input class="fi" type="number" id="fx-me" placeholder="—" onfocus="this.select()" oninput="calcFX()"></div>
+      <div class="fg"><label class="fl">CCL / Cable</label><input class="fi" type="number" id="fx-cc" placeholder="—" onfocus="this.select()" oninput="calcFX()"></div>
+      <div class="fg"><label class="fl">Tarjeta</label><input class="fi" type="number" id="fx-ta" placeholder="—" onfocus="this.select()" oninput="calcFX()"></div>
+      <div class="fg"><label class="fl">Mayorista</label><input class="fi" type="number" id="fx-ma" placeholder="—" onfocus="this.select()" oninput="calcFX()"></div>
+    </div>
+    <button class="btn-save" onclick="saveCalc('cambio')">💾 Guardar cálculo</button>
+  </div>
+  <div class="glass-card">
+    <div class="sl">Equivalencias</div>
+    <div id="fx-res"><p style="color:var(--text-muted);font-size:.82rem">Cargá cotizaciones</p></div>
+    <hr class="dv">
+    <div class="sl">Brecha vs oficial</div>
+    <div id="fx-brecha"><p style="color:var(--text-muted);font-size:.82rem">—</p></div>
+  </div>
+</div>
+</div>
 
-</div><!-- /page-wrapper -->
+<!-- ════════════════════════════════════════════════════ -->
+<!-- COMPARAR INVERSIONES                                 -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-comparar" class="panel">
+<div class="pl wide">
+  <div class="glass-card">
+    <div class="fr">
+      <div class="fg"><label class="fl">Capital (ARS)</label><input class="fi" type="number" id="co-k" value="1000000" onfocus="this.select()" oninput="calcComp()"></div>
+      <div class="fg"><label class="fl">Plazo (meses)</label><input class="fi" type="number" id="co-m" value="12" onfocus="this.select()" oninput="calcComp()"></div>
+    </div>
+    <hr class="dv">
+    <div class="sl" style="color:var(--accent)">Instrumento 1 — Renta fija / Plazo fijo</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="co-1t" value="37" onfocus="this.select()" oninput="calcComp()"></div>
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="co-1n" value="Plazo Fijo" oninput="calcComp()"></div>
+    </div>
+    <hr class="dv">
+    <div class="sl" style="color:#f59e0b">Instrumento 2 — Dólar / Commodity</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Precio hoy</label><input class="fi" type="number" id="co-2h" value="1200" onfocus="this.select()" oninput="calcComp()"></div>
+      <div class="fg"><label class="fl">Precio futuro</label><input class="fi" type="number" id="co-2f" value="1700" onfocus="this.select()" oninput="calcComp()"></div>
+    </div>
+    <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="co-2n" value="Dólar Blue" oninput="calcComp()"></div>
+    <hr class="dv">
+    <div class="sl" style="color:var(--success)">Instrumento 3 — Acciones / FCI</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Rendimiento mensual (%)</label><input class="fi" type="number" id="co-3r" value="8" onfocus="this.select()" oninput="calcComp()"></div>
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="co-3n" value="Acciones" oninput="calcComp()"></div>
+    </div>
+    <hr class="dv">
+    <div class="fg"><label class="fl">Inflación mensual estimada (referencia %)</label><input class="fi" type="number" id="co-inf" value="3" onfocus="this.select()" oninput="calcComp()"></div>
+    <button class="btn-save" onclick="saveCalc('comparar')">💾 Guardar cálculo</button>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div class="sl">Capital final en <span id="co-lbl">12</span> meses</div>
+      <div id="co-bars" style="margin-top:10px"></div>
+    </div>
+    <div class="glass-card" style="margin-bottom:12px"><div class="cw"><canvas id="co-chart"></canvas></div></div>
+    <div class="glass-card">
+      <div style="overflow-x:auto">
+        <table class="fxt"><thead><tr><th>Instrumento</th><th>Capital final</th><th>Ganancia</th><th>Rend.</th><th>TNA equiv.</th></tr></thead><tbody id="co-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- CUOTAS                                               -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-cuotas" class="panel">
+<div class="pl">
+  <div class="glass-card">
+    <div class="fg"><label class="fl">Monto a financiar (ARS)</label><input class="fi" type="number" id="cu-m" placeholder="ej: 500000" onfocus="this.select()" oninput="calcCu()"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Cantidad de cuotas</label><input class="fi" type="number" id="cu-n" placeholder="ej: 24" onfocus="this.select()" oninput="calcCu()"></div>
+      <div class="fg"><label class="fl">Tasa mensual (%)</label><input class="fi" type="number" id="cu-tm" placeholder="ej: 8" step="0.1" onfocus="this.select()" oninput="syncCuMenToTNA();calcCu()"></div>
+    </div>
+    <div class="fg"><label class="fl">O la TNA (%) — se convierte sola</label><input class="fi" type="number" id="cu-tna" placeholder="ej: 96" onfocus="this.select()" oninput="syncCuTNAToMen();calcCu()"></div>
+    <div class="fg"><label class="fl">Enganche / pago inicial</label><input class="fi" type="number" id="cu-eng" placeholder="0" value="0" onfocus="this.select()" oninput="calcCu()"></div>
+    <div class="sl" style="margin-top:4px">Sistema</div>
+    <div class="mt">
+      <button class="mt-b active" id="cu-fr-btn" onclick="setCuSistema('french')">Francés (cuota fija)</button>
+      <button class="mt-b" id="cu-al-btn" onclick="setCuSistema('aleman')">Alemán (capital fijo)</button>
+    </div>
+    <p id="cu-desc" style="font-size:0.75rem;color:var(--text-muted)">Cuota fija todos los meses. Sistema más común en préstamos y tarjetas.</p>
+    <button class="btn-save" onclick="saveCalc('cuotas')" style="margin-top:12px">💾 Guardar cálculo</button>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div class="rl">Cuota mensual</div>
+      <div class="rh" id="cu-cuota">—</div>
+      <div class="mg">
+        <div class="mc"><div class="rl">Total a pagar</div><div class="v" id="cu-total">—</div></div>
+        <div class="mc"><div class="rl">Costo financiero</div><div class="v neg" id="cu-costo">—</div></div>
+        <div class="mc"><div class="rl">CFT anual aprox.</div><div class="v acc" id="cu-cft">—</div></div>
+        <div class="mc"><div class="rl">Total intereses</div><div class="v neg" id="cu-int">—</div></div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div class="sl">Plan de pagos</div>
+      <div class="pj-wrap"><table class="pjt"><thead><tr><th>#</th><th>Cuota</th><th>Capital</th><th>Interés</th><th>Saldo</th></tr></thead><tbody id="cu-tbody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- ROI                                                  -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-roi" class="panel">
+<div class="pl">
+  <div class="glass-card">
+    <div class="fg"><label class="fl">Precio de compra / Inversión</label><input class="fi" type="number" id="ro-e" placeholder="ej: 1000000" onfocus="this.select()" oninput="calcROI()"></div>
+    <div class="fg"><label class="fl">Precio de venta / Valor final</label><input class="fi" type="number" id="ro-s" placeholder="ej: 1350000" onfocus="this.select()" oninput="calcROI()"></div>
+    <div class="fg"><label class="fl">Dividendos / Rentas cobradas</label><input class="fi" type="number" id="ro-ex" placeholder="0" onfocus="this.select()" oninput="calcROI()"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Duración</label><input class="fi" type="number" id="ro-d" placeholder="ej: 12" onfocus="this.select()" oninput="calcROI()"></div>
+      <div class="fg"><label class="fl">Unidad</label><select class="fi" id="ro-u" onchange="calcROI()"><option value="meses">Meses</option><option value="dias">Días</option><option value="años">Años</option></select></div>
+    </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Comisión entrada (%)</label><input class="fi" type="number" id="ro-ce" placeholder="0.5" step="0.1" onfocus="this.select()" oninput="calcROI()"></div>
+      <div class="fg"><label class="fl">Comisión salida (%)</label><input class="fi" type="number" id="ro-cs" placeholder="0.5" step="0.1" onfocus="this.select()" oninput="calcROI()"></div>
+    </div>
+    <hr class="dv">
+    <div class="sl">¿A qué precio necesito vender para ganar X%?</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">ROI objetivo (%)</label><input class="fi" type="number" id="ro-obj" placeholder="ej: 30" onfocus="this.select()" oninput="calcROIPrecio()"></div>
+      <div class="mc" style="align-self:end"><div class="rl">Precio necesario</div><div class="v acc" id="ro-ps">—</div></div>
+    </div>
+    <button class="btn-save" onclick="saveCalc('roi')" style="margin-top:12px">💾 Guardar cálculo</button>
+  </div>
+  <div class="glass-card">
+    <div class="rl">Ganancia / Pérdida neta</div>
+    <div id="ro-pill"><span class="pill fl">— ingresá compra y venta</span></div>
+    <div class="mg">
+      <div class="mc"><div class="rl">ROI total</div><div class="v" id="ro-pct">—</div></div>
+      <div class="mc"><div class="rl">Ganancia bruta</div><div class="v" id="ro-bruta">—</div></div>
+      <div class="mc"><div class="rl">TNA equivalente</div><div class="v acc" id="ro-tna">—</div></div>
+      <div class="mc"><div class="rl">TEM equivalente</div><div class="v acc" id="ro-tem">—</div></div>
+      <div class="mc"><div class="rl">Costo comisiones</div><div class="v neg" id="ro-com">—</div></div>
+      <div class="mc"><div class="rl">Ganancia neta</div><div class="v" id="ro-neta">—</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- % RÁPIDO                                             -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-pct" class="panel">
+<div class="pl">
+  <div class="glass-card">
+    <div class="mt">
+      <button class="mt-b active" onclick="setPctMode('a',this)">X es % de Y</button>
+      <button class="mt-b" onclick="setPctMode('b',this)">% de un valor</button>
+      <button class="mt-b" onclick="setPctMode('c',this)">Variación A→B</button>
+    </div>
+    <div id="pct-a">
+      <div class="fg"><label class="fl">Valor parcial (X)</label><input class="fi" type="number" id="pa-x" placeholder="ej: 35000" onfocus="this.select()" oninput="calcPct()"></div>
+      <div class="fg"><label class="fl">Valor total (Y)</label><input class="fi" type="number" id="pa-y" placeholder="ej: 200000" onfocus="this.select()" oninput="calcPct()"></div>
+      <p style="font-size:0.75rem;color:var(--text-muted)">Ej: mi ganancia fue $35k sobre $200k — ¿qué % es?</p>
+    </div>
+    <div id="pct-b" style="display:none">
+      <div class="fg"><label class="fl">Porcentaje (%)</label><input class="fi" type="number" id="pb-p" placeholder="ej: 21" onfocus="this.select()" oninput="calcPct()"></div>
+      <div class="fg"><label class="fl">Del total</label><input class="fi" type="number" id="pb-t" placeholder="ej: 1500000" onfocus="this.select()" oninput="calcPct()"></div>
+      <p style="font-size:0.75rem;color:var(--text-muted)">Ej: ¿cuánto es el IVA (21%) sobre $1.500.000?</p>
+    </div>
+    <div id="pct-c" style="display:none">
+      <div class="fg"><label class="fl">Valor inicial (A)</label><input class="fi" type="number" id="pc-a" placeholder="ej: 800" onfocus="this.select()" oninput="calcPct()"></div>
+      <div class="fg"><label class="fl">Valor final (B)</label><input class="fi" type="number" id="pc-b" placeholder="ej: 1150" onfocus="this.select()" oninput="calcPct()"></div>
+      <p style="font-size:0.75rem;color:var(--text-muted)">Ej: el dólar pasó de $800 a $1150 — ¿cuánto %?</p>
+    </div>
+    <button class="btn-save" onclick="saveCalc('pct')" style="margin-top:12px">💾 Guardar cálculo</button>
+  </div>
+  <div class="glass-card">
+    <div class="rl">Resultado</div>
+    <div class="rh" id="pct-res" style="font-size:3rem">—</div>
+    <div class="rs" id="pct-desc">Seleccioná un modo e ingresá los valores</div>
+    <hr class="dv">
+    <div id="pct-extra"></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- REGLA DEL 72                                         -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-regla72" class="panel">
+<div class="pl">
+  <div class="glass-card">
+    <div class="fg"><label class="fl">Tasa anual (%)</label><input class="fi" type="number" id="r72-t" value="90" onfocus="this.select()" oninput="calcR72()"></div>
+    <div class="fg"><label class="fl">Capitalización</label>
+      <select class="fi" id="r72-cap" onchange="calcR72()"><option value="mensual" selected>Mensual (TNA → TEA automático)</option><option value="anual">Anual directa</option></select>
+    </div>
+    <div class="fg"><label class="fl">Capital inicial (para proyección)</label><input class="fi" type="number" id="r72-k" value="1000000" onfocus="this.select()" oninput="calcR72()"></div>
+    <hr class="dv">
+    <div class="sl">Modo inverso — ¿qué tasa necesito?</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Duplicar en</label><input class="fi" type="number" id="r72-ti" placeholder="ej: 2" onfocus="this.select()" oninput="calcR72inv()"></div>
+      <div class="fg"><label class="fl">Unidad</label><select class="fi" id="r72-tu" onchange="calcR72inv()"><option value="años">Años</option><option value="meses">Meses</option></select></div>
+    </div>
+    <div id="r72-inv" style="display:none"><div class="mc"><div class="rl">Tasa anual necesaria</div><div class="v acc" id="r72-tn">—</div></div></div>
+    <button class="btn-save" onclick="saveCalc('regla72')" style="margin-top:12px">💾 Guardar cálculo</button>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div class="rl">Para duplicar (x2)</div>
+      <div class="rh pos" id="r72-x2">—</div>
+      <div class="mg">
+        <div class="mc"><div class="rl">Para triplicar (x3)</div><div class="v" id="r72-x3">—</div></div>
+        <div class="mc"><div class="rl">Para x5</div><div class="v" id="r72-x5">—</div></div>
+        <div class="mc"><div class="rl">Para x10</div><div class="v" id="r72-x10">—</div></div>
+        <div class="mc"><div class="rl">TEA efectiva</div><div class="v acc" id="r72-tea">—</div></div>
+      </div>
+    </div>
+    <div class="glass-card" style="margin-bottom:12px"><div class="cw"><canvas id="r72-chart"></canvas></div></div>
+    <div class="glass-card"><div class="sl">Referencia de tasas</div><div id="r72-ref" style="margin-top:8px"></div></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- COSTO DE OPORTUNIDAD                                 -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-oportunidad" class="panel">
+<div class="pl">
+  <div class="glass-card">
+    <div class="fg"><label class="fl">Capital invertido (ARS)</label><input class="fi" type="number" id="op-k" value="1000000" onfocus="this.select()" oninput="calcOp()"></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Rendimiento obtenido (%)</label><input class="fi" type="number" id="op-rend" value="35" onfocus="this.select()" oninput="calcOp()"></div>
+      <div class="fg"><label class="fl">Período (meses)</label><input class="fi" type="number" id="op-per" value="6" onfocus="this.select()" oninput="calcOp()"></div>
+    </div>
+    <hr class="dv">
+    <div class="sl">Benchmarks de comparación</div>
+    <div class="fg"><label class="fl">Inflación Argentina (% en el período)</label><input class="fi" type="number" id="op-inf-ar" value="45" onfocus="this.select()" oninput="calcOp()"></div>
+    <div class="fg"><label class="fl">Inflación USD / internacional (% anual)</label><input class="fi" type="number" id="op-inf-usd" value="3" onfocus="this.select()" oninput="calcOp()"></div>
+    <div class="fg"><label class="fl">S&P 500 / retorno de referencia (% anual)</label><input class="fi" type="number" id="op-sp" value="10" onfocus="this.select()" oninput="calcOp()"></div>
+    <div class="fg"><label class="fl">Benchmark propio (% en el período)</label><input class="fi" type="number" id="op-custom" placeholder="ej: plazo fijo TNA/2" onfocus="this.select()" oninput="calcOp()"></div>
+    <div class="fg"><label class="fl">Nombre del benchmark propio</label><input class="fi" type="text" id="op-custom-nom" value="Plazo Fijo" oninput="calcOp()"></div>
+    <button class="btn-save" onclick="saveCalc('oportunidad')" style="margin-top:4px">💾 Guardar cálculo</button>
+  </div>
+  <div class="glass-card">
+    <div class="rl">Tu inversión</div>
+    <div class="rh" id="op-final">—</div>
+    <div class="rs" id="op-sub">—</div>
+    <hr class="dv">
+    <div class="sl">¿Ganaste o perdiste vs cada referencia?</div>
+    <div id="op-rows" style="margin-top:8px"></div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- META DE AHORRO                                       -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-meta" class="panel">
+<div class="pl wide">
+  <div class="glass-card">
+    <div class="mt" id="meta-mode-tabs">
+      <button class="mt-b active" onclick="setMetaMode('a',this)">¿Cuánto ahorrar?</button>
+      <button class="mt-b" onclick="setMetaMode('b',this)">¿Cuándo llego?</button>
+      <button class="mt-b" onclick="setMetaMode('c',this)">Comparar tasas</button>
+    </div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Meta a alcanzar (ARS)</label><input class="fi" type="number" id="mt-meta" value="10000000" onfocus="this.select()" oninput="calcMeta()"></div>
+      <div class="fg"><label class="fl">Capital actual (ARS)</label><input class="fi" type="number" id="mt-k" value="2000000" onfocus="this.select()" oninput="calcMeta()"></div>
+    </div>
+    <div class="fg"><label class="fl">Tasa anual de crecimiento — TNA (%)</label><input class="fi" type="number" id="mt-tna" value="90" onfocus="this.select()" oninput="calcMeta()"></div>
+
+    <div id="meta-a-inputs">
+      <div class="fg">
+        <label class="fl">Plazo deseado (meses)</label>
+        <div class="slider-wrap">
+          <input type="range" id="mt-plazo-r" min="1" max="120" value="24" oninput="$('mt-plazo').value=this.value;calcMeta()">
+          <span class="sv" id="mt-plazo-sv">24m</span>
+        </div>
+        <input class="fi" type="number" id="mt-plazo" value="24" onfocus="this.select()" oninput="$('mt-plazo-r').value=Math.min(this.value,120);$('mt-plazo-sv').textContent=this.value+'m';calcMeta()" style="margin-top:6px">
+      </div>
+    </div>
+    <div id="meta-b-inputs" style="display:none">
+      <div class="fg">
+        <label class="fl">Ahorro mensual (ARS)</label>
+        <div class="slider-wrap">
+          <input type="range" id="mt-ap-r" min="0" max="2000000" step="10000" value="100000" oninput="$('mt-ap').value=this.value;calcMeta()">
+          <span class="sv" id="mt-ap-sv">100k</span>
+        </div>
+        <input class="fi" type="number" id="mt-ap" value="100000" onfocus="this.select()" oninput="$('mt-ap-r').value=this.value;$('mt-ap-sv').textContent=fmtShort(+this.value);calcMeta()" style="margin-top:6px">
+      </div>
+    </div>
+    <div id="meta-c-inputs" style="display:none">
+      <div class="fg"><label class="fl">Plazo (meses)</label><input class="fi" type="number" id="mt-c-plazo" value="24" onfocus="this.select()" oninput="calcMeta()"></div>
+    </div>
+    <button class="btn-save" onclick="saveCalc('meta')" style="margin-top:12px">💾 Guardar cálculo</button>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px" id="meta-result-card">
+      <div class="rl" id="mt-res-label">Ahorro mensual necesario</div>
+      <div class="rh" id="mt-res-main">—</div>
+      <div class="rs" id="mt-res-sub">—</div>
+      <div class="mg" id="mt-res-mini" style="margin-top:14px">
+        <div class="mc"><div class="rl">Ahorro diario equiv.</div><div class="v acc" id="mt-diario">—</div></div>
+        <div class="mc"><div class="rl">Total que aportás</div><div class="v" id="mt-total-ap">—</div></div>
+        <div class="mc"><div class="rl">Intereses que gana</div><div class="v pos" id="mt-int-gan">—</div></div>
+        <div class="mc"><div class="rl">Brecha aún a cubrir</div><div class="v" id="mt-brecha">—</div></div>
+      </div>
+    </div>
+    <div class="glass-card" style="margin-bottom:12px"><div class="cw"><canvas id="mt-chart"></canvas></div></div>
+    <div class="glass-card" id="meta-comp-card">
+      <div class="sl" id="mt-comp-title">Comparativa de tasas</div>
+      <div id="mt-comp"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- HISTORY DRAWER                                       -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="hist-drawer" id="hist-drawer">
+  <div class="hist-top">
+    <h3>📋 Historial de cálculos</h3>
+    <div class="hist-actions">
+      <button class="hist-clear" onclick="clearHist()">Borrar todo</button>
+      <button class="hist-x" onclick="toggleHist()">✕</button>
+    </div>
+  </div>
+  <div class="hist-list" id="hist-list">
+    <div class="hist-empty">Guardá cálculos con el botón 💾 para verlos aquí</div>
+  </div>
+</div>
+
+</div><!-- /pw -->
 
 <script>
-// ────────────────────────────────────────────────────────────
-// UTILIDADES
-// ────────────────────────────────────────────────────────────
+// ── Utils ────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
-const val = id => parseFloat($(id)?.value) || 0;
-const str = id => $(id)?.value || '';
-
-const fmt = (n, dec=0) => {
-    if (n == null || isNaN(n) || !isFinite(n)) return '—';
-    if (Math.abs(n) >= 1e9) return (n/1e9).toFixed(1) + 'B';
-    if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(dec || 2) + 'M';
-    return n.toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const v = id => parseFloat($(id)?.value) || 0;
+const s = id => $(id)?.value || '';
+const fmt = (n, d=0) => {
+  if (n==null||isNaN(n)||!isFinite(n)) return '—';
+  if (Math.abs(n)>=1e9) return (n/1e9).toFixed(1)+'B';
+  if (Math.abs(n)>=1e6) return (n/1e6).toFixed(d||2)+'M';
+  return n.toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
 };
-const fmtARS = (n, dec=0) => isNaN(n) || !isFinite(n) ? '—' : '$' + fmt(n, dec);
-const fmtPct = (n, dec=2) => isNaN(n) || !isFinite(n) ? '—' : (n >= 0 ? '+' : '') + n.toFixed(dec) + '%';
-const fmtTime = yrs => {
-    if (!isFinite(yrs) || isNaN(yrs)) return '—';
-    if (yrs < 1/12) return (yrs*365).toFixed(0) + ' días';
-    if (yrs < 1)    return (yrs*12).toFixed(1) + ' meses';
-    return yrs.toFixed(2) + ' años';
+const fmtARS  = (n,d=0) => isNaN(n)||!isFinite(n)?'—':'$'+fmt(n,d);
+const fmtPct  = (n,d=2) => isNaN(n)||!isFinite(n)?'—':(n>=0?'+':'')+n.toFixed(d)+'%';
+const fmtTime = y => {
+  if (!isFinite(y)||isNaN(y)) return '—';
+  if (y<1/12) return (y*365).toFixed(0)+' días';
+  if (y<1) return (y*12).toFixed(1)+' meses';
+  return y.toFixed(2)+' años';
 };
-
+const fmtShort = n => n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(0)+'k':n.toFixed(0);
 const charts = {};
-function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
-
-const CHART_OPTS = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12 } } },
-    scales: {
-        x: { ticks: { color: '#64748b', maxTicksLimit: 10, font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } },
-        y: { ticks: { color: '#64748b', callback: v => '$' + fmt(v), font:{size:10} }, grid: { color: 'rgba(255,255,255,0.04)' } }
-    }
+const dc = id => { if(charts[id]){charts[id].destroy();delete charts[id];} };
+const CO = { responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{labels:{color:'#94a3b8',font:{size:11},boxWidth:12}}},
+  scales:{
+    x:{ticks:{color:'#64748b',maxTicksLimit:10,font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+    y:{ticks:{color:'#64748b',callback:n=>'$'+fmt(n),font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}
+  }
 };
 
-// ────────────────────────────────────────────────────────────
-// POPUP / TOOL SWITCHING
-// ────────────────────────────────────────────────────────────
-const TOOL_META = {
-    variacion: { title: '📈 Variación %' },
-    interes:   { title: '💹 Interés compuesto' },
-    cambio:    { title: '💱 Tipo de cambio' },
-    comparar:  { title: '⚖️ Comparar inversiones' },
-    cuotas:    { title: '📋 Cuotas / Financiación' },
-    roi:       { title: '📊 ROI / Retorno' },
-    pct:       { title: '🔢 % Rápido' },
-    regla72:   { title: '⏳ Regla del 72' },
-};
-
-function showTool(tool, btn) {
-    document.querySelectorAll('.calc-panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-    $('panel-' + tool).classList.add('active');
-    btn?.classList.add('active');
-    // Trigger initial calc
-    const fns = { interes: calcInteres, comparar: calcComparar, regla72: calcR72, cuotas: calcCuotas };
-    if (fns[tool]) fns[tool]();
+// ── Tool switching ────────────────────────────────────────────
+function show(tool, btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tp').forEach(b=>b.classList.remove('active'));
+  $('panel-'+tool).classList.add('active');
+  btn?.classList.add('active');
+  const lazy={interes:calcCI,comparar:calcComp,regla72:calcR72,cuotas:calcCu,oportunidad:calcOp,meta:calcMeta};
+  if(lazy[tool]) lazy[tool]();
 }
 
-function openPopup(tool) {
-    const url = `calculadora.html?tool=${tool}&popup=1`;
-    window.open(url, `calc_${tool}`, 'width=480,height=620,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no');
+// ── Popup ─────────────────────────────────────────────────────
+function openPopup() {
+  const active = document.querySelector('.tp.active');
+  const tool = active?.getAttribute('onclick')?.match(/'(\w+)'/)?.[1] || 'variacion';
+  window.open(`calculadora.html?start=${tool}&popup=1`,'calc_popup','width=520,height=700,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no');
 }
 
-// ────────────────────────────────────────────────────────────
-// INIT — detect popup mode and apply
-// ────────────────────────────────────────────────────────────
-(function init() {
-    const params = new URLSearchParams(window.location.search);
-    const tool = params.get('tool');
-    const isPopup = params.get('popup') === '1';
+// ── Init ──────────────────────────────────────────────────────
+(function init(){
+  const p = new URLSearchParams(location.search);
+  const isPopup = p.get('popup')==='1';
+  const startTool = p.get('start');
 
-    if (isPopup) {
-        document.body.classList.add('popup-mode');
-        document.title = TOOL_META[tool]?.title || 'Calculadora';
+  if(isPopup){
+    document.body.classList.add('popup-mode');
+    if(startTool) {
+      const btn = [...document.querySelectorAll('.tp')].find(b=>b.getAttribute('onclick')?.includes(`'${startTool}'`));
+      show(startTool, btn);
     }
+    // Show close button instead of popup btn
+    $('popup-btn-global').style.display='none';
+    // Add close button to topbar
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn-icon';
+    closeBtn.style.borderColor='var(--danger)';
+    closeBtn.style.color='var(--danger)';
+    closeBtn.innerHTML = '✕ Cerrar';
+    closeBtn.onclick = ()=>window.close();
+    $('topbar').querySelector('.topbar-right').prepend(closeBtn);
+  } else {
+    $('popup-btn-global').style.display='flex';
+  }
 
-    if (tool) {
-        document.querySelectorAll('.calc-panel').forEach(p => p.classList.remove('active'));
-        const panel = $('panel-' + tool);
-        if (panel) panel.classList.add('active');
-        // Mark button active
-        document.querySelectorAll('.tool-btn').forEach(b => {
-            if (b.getAttribute('onclick')?.includes(`'${tool}'`)) b.classList.add('active');
-            else b.classList.remove('active');
-        });
-    }
-
-    // Initial calculations
-    calcInteres();
-    calcComparar();
-    calcR72();
+  // Initial calcs
+  calcCI(); calcComp(); calcR72(); calcCu(); calcOp(); calcMeta();
+  renderHist();
 })();
 
-// ────────────────────────────────────────────────────────────
-// VARIACIÓN %
-// ────────────────────────────────────────────────────────────
-function calcVariacion() {
-    const prev = val('var-prev'), next = val('var-new');
-    if (!prev || !next) {
-        $('var-pill').innerHTML = '<span class="pill flat">— ingresá dos valores</span>';
-        $('var-diff').textContent = '—'; $('var-diff').className = 'val';
-        $('var-mult').textContent = '—';
-        $('var-scale').innerHTML = '';
-        return;
-    }
-    const pct = ((next - prev) / Math.abs(prev)) * 100;
-    const diff = next - prev;
-    const cls = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
-    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '─';
-    $('var-pill').innerHTML = `<span class="pill ${cls}">${arrow} ${Math.abs(pct).toFixed(2)}%</span>`;
-    $('var-diff').textContent = (diff >= 0 ? '+' : '') + fmtARS(diff, 2);
-    $('var-diff').className = 'val ' + (diff >= 0 ? 'pos' : 'neg');
-    $('var-mult').textContent = 'x' + (next/prev).toFixed(3);
+// ── History ───────────────────────────────────────────────────
+const HIST_KEY = 'calc_hist_v2';
+function getHist(){ try{return JSON.parse(localStorage.getItem(HIST_KEY)||'[]');}catch{return[];} }
+function setHist(h){ localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-60))); }
 
-    // Scale table
-    const steps = [5, 10, 20, 25, 30, 50, 75, 100, 150, 200, 300, 500];
-    $('var-scale').innerHTML = steps.map(s => {
-        const v = prev * (1 + s/100);
-        const c = s <= pct ? 'var(--success)' : 'var(--text-secondary)';
-        return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-            <span style="font-size:0.82rem;color:${c};font-weight:${s<=pct?'700':'400'}">+${s}%</span>
-            <span style="font-family:'Outfit',sans-serif;font-weight:600;color:${c}">${fmtARS(v,2)}</span>
-        </div>`;
-    }).join('');
+const TOOL_NAMES = {
+  variacion:'📈 Variación %', interes:'💹 Interés compuesto', cambio:'💱 Tipo de cambio',
+  comparar:'⚖️ Comparar', cuotas:'📋 Cuotas', roi:'📊 ROI',
+  pct:'🔢 % Rápido', regla72:'⏳ Regla 72', oportunidad:'💡 Costo oport.', meta:'🎯 Meta ahorro'
+};
+
+function getEntryData(tool){
+  const d = { tool, toolName: TOOL_NAMES[tool]||tool, ts: Date.now() };
+  if(tool==='variacion'){ const prev=v('va-p'),next=v('va-n'); const pct=((next-prev)/Math.abs(prev))*100; d.summary=fmtPct(pct); d.detail=`${fmtARS(prev)} → ${fmtARS(next)}`; d.result={prev,next,pct}; }
+  else if(tool==='interes'){ d.summary=$('ci-final').textContent; d.detail=`${fmtARS(v('ci-k'))} · TNA ${v('ci-tna')}% · ${v('ci-per')} ${s('ci-uni')}`; d.result={k:v('ci-k'),tna:v('ci-tna'),per:v('ci-per')}; }
+  else if(tool==='cambio'){ d.summary=`${fmtARS(v('fx-m'))} → USD ${(v('fx-m')/v('fx-bl')).toFixed(2)} blue`; d.detail=`Blue $${v('fx-bl')} | MEP $${v('fx-me')}`; }
+  else if(tool==='comparar'){ d.summary=`${fmtARS(v('co-k'))} en ${v('co-m')}m`; d.detail=`PF ${v('co-1t')}% TNA | Dol ${fmtPct((v('co-2f')-v('co-2h'))/v('co-2h')*100,1)} | Acc ${v('co-3r')}%/m`; }
+  else if(tool==='cuotas'){ d.summary='Cuota '+$('cu-cuota').textContent; d.detail=`${fmtARS(v('cu-m'))} en ${v('cu-n')} cuotas al ${v('cu-tm')}%/m`; }
+  else if(tool==='roi'){ d.summary=$('ro-pct').textContent||'—'; d.detail=`${fmtARS(v('ro-e'))} → ${fmtARS(v('ro-s'))} en ${v('ro-d')} ${s('ro-u')}`; }
+  else if(tool==='pct'){ d.summary=$('pct-res').textContent; d.detail=$('pct-desc').textContent; }
+  else if(tool==='regla72'){ d.summary='x2 en '+$('r72-x2').textContent; d.detail=`TNA ${v('r72-t')}%`; }
+  else if(tool==='oportunidad'){ d.summary='Rendimiento '+fmtPct(v('op-rend'),1); d.detail=`${fmtARS(v('op-k'))} en ${v('op-per')}m`; }
+  else if(tool==='meta'){ d.summary=$('mt-res-main').textContent; d.detail=`Meta ${fmtARS(v('mt-meta'))} | Capital ${fmtARS(v('mt-k'))}`; }
+  return d;
 }
 
-function calcPrecioObj() {
-    const base = val('var-base2'), pct = val('var-pct');
-    const card = $('var-obj-res');
-    if (!base) { card.style.display = 'none'; return; }
-    card.style.display = 'block';
-    const target = base * (1 + pct/100);
-    const el = card.querySelector('#var-obj-val');
-    el.textContent = fmtARS(target, 2);
-    el.className = 'val ' + (pct >= 0 ? 'pos' : 'neg');
+function saveCalc(tool){
+  const entry = getEntryData(tool);
+  if(!entry.summary||entry.summary==='—') return;
+  const hist = getHist();
+  hist.push({...entry, id: Date.now()+'_'+Math.random().toString(36).slice(2)});
+  setHist(hist);
+  renderHist();
+  if(!$('hist-drawer').classList.contains('open')) toggleHist();
+  $('hist-toggle-btn').classList.add('active');
+  setTimeout(()=>$('hist-toggle-btn').classList.remove('active'),800);
 }
 
-// ────────────────────────────────────────────────────────────
-// INTERÉS COMPUESTO
-// ────────────────────────────────────────────────────────────
-function toggleInfRow() {
-    const chk = $('ci-show-inf').checked;
-    $('ci-inf-row').style.display = chk ? 'block' : 'none';
-    $('ci-inf-res').style.display = chk ? 'grid' : 'none';
-    calcInteres();
+function renderHist(){
+  const hist = getHist().reverse();
+  const countEl = $('hist-count');
+  if(hist.length){ countEl.style.display='inline'; countEl.textContent=hist.length; }
+  else { countEl.style.display='none'; }
+  if(!hist.length){ $('hist-list').innerHTML='<div class="hist-empty">Guardá cálculos con el botón 💾 para verlos aquí</div>'; return; }
+  $('hist-list').innerHTML = hist.map(e=>`
+    <div class="hist-entry" onclick="restoreCalc('${e.id}')">
+      <button class="hist-del" onclick="event.stopPropagation();delHist('${e.id}')">✕</button>
+      <div class="hist-entry-head">
+        <span class="hist-tag">${e.toolName||e.tool}</span>
+        <span class="hist-ts">${new Date(e.ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} ${new Date(e.ts).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</span>
+      </div>
+      <div class="hist-summary">${e.summary||'—'}</div>
+      <div class="hist-detail">${e.detail||''}</div>
+    </div>`).join('');
 }
 
-function calcInteres() {
-    const C0 = val('ci-capital') || 1000000;
-    const tna = val('ci-tna') || 90;
-    const periodo = val('ci-periodo') || 12;
-    const unidad = str('ci-unidad');
-    const n = parseInt(str('ci-cap')) || 12;
-    const aporte = val('ci-aporte') || 0;
-    const showInf = $('ci-show-inf')?.checked;
-    const inf = val('ci-inf') || 60;
+function delHist(id){
+  setHist(getHist().filter(e=>e.id!==id));
+  renderHist();
+}
 
-    const totalMeses = unidad === 'años' ? periodo * 12 : periodo;
-    const r = tna / 100 / n;
-    const compPerMonth = n / 12;
-    const tem = (Math.pow(1 + r, n/12) - 1) * 100;
-    const tea = (Math.pow(1 + r, n) - 1) * 100;
+function clearHist(){
+  if(confirm('¿Borrar todo el historial?')){ localStorage.removeItem(HIST_KEY); renderHist(); }
+}
 
-    $('ci-tem').textContent = tem.toFixed(3) + '%';
-    $('ci-tea').textContent = tea.toFixed(2) + '%';
+function toggleHist(){
+  $('hist-drawer').classList.toggle('open');
+}
 
-    let capital = C0;
-    let totalIntereses = 0;
-    let totalAportes = 0;
-    const compPeriods = Math.round(totalMeses * compPerMonth);
-    const rows = [];
+function restoreCalc(id){
+  const e = getHist().find(x=>x.id===id);
+  if(!e||!e.result) return;
+  const btn = [...document.querySelectorAll('.tp')].find(b=>b.getAttribute('onclick')?.includes(`'${e.tool}'`));
+  show(e.tool, btn);
+  if(e.tool==='interes'&&e.result){ $('ci-k').value=e.result.k;$('ci-tna').value=e.result.tna;$('ci-per').value=e.result.per;calcCI(); }
+  if(e.tool==='variacion'&&e.result){ $('va-p').value=e.result.prev;$('va-n').value=e.result.next;cv(); }
+}
 
-    for (let i = 1; i <= compPeriods; i++) {
-        const intereses = capital * r;
-        totalIntereses += intereses;
-        totalAportes += aporte / compPerMonth;
-        capital = capital + intereses + aporte / compPerMonth;
-        const mesActual = i / compPerMonth;
-        if (i % Math.max(1, Math.round(compPerMonth)) === 0) {
-            rows.push({ mes: Math.round(mesActual), capital, totalIntereses });
-        }
-    }
+// ── VARIACIÓN % ───────────────────────────────────────────────
+function cv(){
+  const prev=v('va-p'), next=v('va-n');
+  if(!prev||!next){$('va-pill').innerHTML='<span class="pill fl">— ingresá dos valores</span>';$('va-diff').textContent='—';$('va-diff').className='v';$('va-mult').textContent='—';$('va-scale').innerHTML='';return;}
+  const pct=((next-prev)/Math.abs(prev))*100, diff=next-prev;
+  const cls=pct>0?'up':pct<0?'dn':'fl', arrow=pct>0?'▲':pct<0?'▼':'─';
+  $('va-pill').innerHTML=`<span class="pill ${cls}">${arrow} ${Math.abs(pct).toFixed(2)}%</span>`;
+  $('va-diff').textContent=(diff>=0?'+':'')+fmtARS(diff,2);$('va-diff').className='v '+(diff>=0?'pos':'neg');
+  $('va-mult').textContent='x'+(next/prev).toFixed(3);
+  const steps=[5,10,20,25,30,50,75,100,150,200,300,500];
+  $('va-scale').innerHTML=steps.map(s=>{const val=prev*(1+s/100);const c=s<=pct?'var(--success)':'var(--text-secondary)';return`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:.8rem;color:${c};font-weight:${s<=pct?'700':'400'}">+${s}%</span><span style="font-family:'Outfit',sans-serif;font-weight:600;color:${c}">${fmtARS(val,2)}</span></div>`;}).join('');
+}
+function cvo(){
+  const base=v('va-b'),pct=parseFloat($('va-pct')?.value);
+  const card=$('va-obj-card');
+  if(!base||isNaN(pct)){card.style.display='none';return;}
+  card.style.display='block';
+  const t=base*(1+pct/100);
+  $('va-obj').textContent=fmtARS(t,2);$('va-obj').className='v '+(pct>=0?'acc':'neg');
+}
 
-    $('ci-final').textContent = fmtARS(capital);
-    $('ci-intereses').textContent = '+' + fmtARS(totalIntereses);
-    const rendTotal = ((capital - C0 - totalAportes) / C0) * 100;
-    $('ci-rend').textContent = fmtPct(rendTotal);
-    $('ci-rend').className = 'val ' + (rendTotal >= 0 ? 'pos' : 'neg');
-    $('ci-sub').textContent = `sobre ${fmtARS(C0)} iniciales${aporte ? ` + ${fmtARS(aporte)}/mes` : ''}`;
+// ── INTERÉS COMPUESTO ─────────────────────────────────────────
+document.getElementById('ci-inf-chk').addEventListener('change',function(){
+  $('ci-inf-row').style.display=this.checked?'block':'none';
+  $('ci-inf-res').style.display=this.checked?'grid':'none';
+  calcCI();
+});
+function calcCI(){
+  const C0=v('ci-k')||1000000, tna=v('ci-tna')||90, per=v('ci-per')||12;
+  const uni=s('ci-uni'), n=parseInt(s('ci-cap'))||12, ap=v('ci-ap')||0;
+  const showInf=$('ci-inf-chk').checked, inf=v('ci-inf')||60;
+  const totalM=uni==='años'?per*12:per, r=tna/100/n, cpM=n/12;
+  const tem=(Math.pow(1+r,n/12)-1)*100, tea=(Math.pow(1+r,n)-1)*100;
+  $('ci-tem').textContent=tem.toFixed(3)+'%'; $('ci-tea').textContent=tea.toFixed(2)+'%';
+  let cap=C0, totInt=0, totAp=0; const rows=[], compP=Math.round(totalM*cpM);
+  for(let i=1;i<=compP;i++){
+    const int=cap*r; totInt+=int; totAp+=ap/cpM; cap=cap+int+ap/cpM;
+    if(i%Math.max(1,Math.round(cpM))===0) rows.push({m:Math.round(i/cpM),cap,totInt});
+  }
+  $('ci-final').textContent=fmtARS(cap); $('ci-int').textContent='+'+fmtARS(totInt);
+  const rend=((cap-C0-totAp)/C0)*100;
+  $('ci-rend').textContent=fmtPct(rend); $('ci-rend').className='v '+(rend>=0?'pos':'neg');
+  $('ci-sub').textContent=`sobre ${fmtARS(C0)} iniciales${ap?` + ${fmtARS(ap)}/mes`:''}`;
+  if(showInf){ const iF=Math.pow(1+inf/100,totalM/12),cR=cap/iF,rR=((cR-C0)/C0)*100; $('ci-real').textContent=fmtARS(cR);$('ci-rreal').textContent=fmtPct(rR);$('ci-rreal').className='v '+(rR>=0?'pos':'neg'); }
+  const step=Math.max(1,Math.floor(rows.length/30));
+  const disp=rows.filter((_,i)=>i%step===0||i===rows.length-1);
+  $('ci-tbody').innerHTML=disp.map(r=>`<tr><td>${uni==='años'&&totalM>24?'Año '+(r.m/12).toFixed(0):'Mes '+r.m}</td><td>${fmtARS(r.cap)}</td><td style="color:var(--success)">${fmtARS(r.totInt)}</td></tr>`).join('');
+  dc('ci'); const labels=['Hoy',...disp.map(r=>totalM>24?`A${(r.m/12).toFixed(0)}`:`M${r.m}`)];
+  charts['ci']=new Chart($('ci-chart').getContext('2d'),{type:'line',data:{labels,datasets:[
+    {label:'Capital',data:[C0,...disp.map(r=>r.cap)],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
+    {label:'Intereses',data:[0,...disp.map(r=>r.totInt)],borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.05)',fill:true,tension:0.3,pointRadius:0,borderWidth:1.5}
+  ]},options:CO});
+}
 
-    if (showInf) {
-        const infFactor = Math.pow(1 + inf/100, totalMeses/12);
-        const capitalReal = capital / infFactor;
-        $('ci-real').textContent = fmtARS(capitalReal);
-        const rendReal = ((capitalReal - C0) / C0) * 100;
-        $('ci-rend-real').textContent = fmtPct(rendReal);
-        $('ci-rend-real').className = 'val ' + (rendReal >= 0 ? 'pos' : 'neg');
-    }
+// ── TIPO DE CAMBIO ────────────────────────────────────────────
+async function fetchFX(){
+  const btn=$('fx-btn'); btn.textContent='⏳ Cargando...'; btn.disabled=true;
+  try{
+    const res=await fetch('https://dolarapi.com/v1/dolares'); const data=await res.json();
+    const m={}; data.forEach(d=>m[d.casa]=d);
+    const map={'fx-of':m.oficial?.venta,'fx-bl':m.blue?.venta,'fx-me':m.bolsa?.venta,'fx-cc':m.contadoconliqui?.venta,'fx-ta':m.tarjeta?.venta,'fx-ma':m.mayorista?.venta};
+    for(const[id,val] of Object.entries(map)) if(val&&$(id)) $(id).value=val;
+    $('fx-ts').textContent='✓ Actualizado '+new Date().toLocaleTimeString('es-AR');
+    calcFX(); btn.textContent='🔄 Actualizar cotizaciones';
+  }catch{ btn.textContent='⚠️ Error — reintentar'; $('fx-ts').textContent='No se pudo conectar. Ingresá los valores manualmente.'; }
+  btn.disabled=false;
+}
+function calcFX(){
+  const monto=v('fx-m'), moneda=s('fx-mon');
+  if(!monto) return;
+  const tipos=[{id:'fx-of',n:'Oficial'},{id:'fx-bl',n:'Blue'},{id:'fx-me',n:'MEP / Bolsa'},{id:'fx-cc',n:'CCL / Cable'},{id:'fx-ta',n:'Tarjeta'},{id:'fx-ma',n:'Mayorista'}];
+  const rates=tipos.map(t=>({n:t.n,venta:parseFloat($(t.id)?.value)||null})).filter(r=>r.venta);
+  if(!rates.length) return;
+  $('fx-res').innerHTML=`<table class="fxt"><thead><tr><th>Tipo</th><th>Cotización</th><th>${moneda==='ARS'?'En USD':'En ARS'}</th></tr></thead><tbody>${rates.map(r=>{const eq=moneda==='ARS'?monto/r.venta:monto*r.venta;const lbl=moneda==='ARS'?`USD ${eq.toFixed(2)}`:fmtARS(eq,0);return`<tr><td style="font-weight:700">${r.n}</td><td>$${r.venta.toLocaleString('es-AR')}</td><td class="fx-hi">${lbl}</td></tr>`;}).join('')}</tbody></table>`;
+  const of=rates.find(r=>r.n==='Oficial')?.venta;
+  $('fx-brecha').innerHTML=of?rates.filter(r=>r.n!=='Oficial').map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04)"><span style="font-size:.85rem">${r.n}</span><span class="brecha-t">+${((r.venta/of-1)*100).toFixed(1)}%</span></div>`).join(''):'<p style="color:var(--text-muted);font-size:.82rem">Necesitás el tipo oficial</p>';
+}
 
-    // Table
-    const step = Math.max(1, Math.floor(rows.length / 36));
-    const display = rows.filter((_, i) => i % step === 0 || i === rows.length - 1);
-    $('ci-tabla').innerHTML = display.map((r, i) => {
-        const isLast = i === display.length - 1;
-        const label = unidad === 'años' && totalMeses > 24 ? `Año ${(r.mes/12).toFixed(0)}` : `Mes ${r.mes}`;
-        return `<tr><td>${label}</td><td>${fmtARS(r.capital)}</td><td class="val pos" style="color:var(--success)">${fmtARS(r.totalIntereses)}</td></tr>`;
-    }).join('');
+// ── COMPARAR INVERSIONES ──────────────────────────────────────
+function calcComp(){
+  const C0=v('co-k')||1000000, m=v('co-m')||12; $('co-lbl').textContent=m;
+  const pf1TEM=Math.pow(1+v('co-1t')/100/12,1)-1, pf1F=C0*Math.pow(1+pf1TEM,m);
+  const d2F=C0*(1+(v('co-2f')-v('co-2h'))/Math.max(v('co-2h'),1));
+  const a3TEM=v('co-3r')/100, a3F=C0*Math.pow(1+a3TEM,m);
+  const infF=C0*Math.pow(1+v('co-inf')/100,m);
+  const insts=[
+    {n:s('co-1n')||'Plazo Fijo',f:pf1F,c:'#3b82f6',tem:pf1TEM},
+    {n:s('co-2n')||'Dólar',f:d2F,c:'#f59e0b',tem:null},
+    {n:s('co-3n')||'Acciones',f:a3F,c:'#10b981',tem:a3TEM},
+    {n:'Inflación',f:infF,c:'#ef4444',tem:v('co-inf')/100,ref:true},
+  ];
+  const maxF=Math.max(...insts.map(i=>i.f));
+  $('co-bars').innerHTML=insts.map(i=>{const p=((i.f-C0)/C0)*100,w=(i.f/maxF)*100;return`<div class="cb"><div class="cb-h"><span class="cb-n" style="color:${i.c}">${i.n}</span><span class="cb-v" style="color:${i.c}">${fmtARS(i.f)} <small style="font-size:.72rem;opacity:.7">${fmtPct(p,1)}</small></span></div><div class="cb-tr"><div class="cb-fi" style="width:${w}%;background:${i.c}99"></div></div></div>`;}).join('');
+  $('co-tbody').innerHTML=insts.map(i=>{const g=i.f-C0,p=((g)/C0)*100,tna=(Math.pow(i.f/C0,12/m)-1)*100;return`<tr><td style="font-weight:700;color:${i.c}">${i.n}</td><td>${fmtARS(i.f)}</td><td style="color:${g>=0?'var(--success)':'var(--danger)'}">${(g>=0?'+':'')+fmtARS(g)}</td><td style="color:${p>=0?'var(--success)':'var(--danger)'}">${fmtPct(p,1)}</td><td>${tna.toFixed(1)}%</td></tr>`;}).join('');
+  dc('co'); const labels=Array.from({length:m+1},(_,i)=>i===0?'Hoy':`M${i}`);
+  const bl=(fV,tem,lin)=>Array.from({length:m+1},(_,i)=>i===0?C0:tem!=null?C0*Math.pow(1+tem,i):C0+(fV-C0)*(i/m));
+  charts['co']=new Chart($('co-chart').getContext('2d'),{type:'line',data:{labels,datasets:[
+    {label:s('co-1n')||'PF',data:bl(pf1F,pf1TEM),borderColor:'#3b82f6',tension:0.3,pointRadius:0,borderWidth:2,backgroundColor:'transparent'},
+    {label:s('co-2n')||'Dólar',data:bl(d2F,null),borderColor:'#f59e0b',tension:0.1,pointRadius:0,borderWidth:2,backgroundColor:'transparent'},
+    {label:s('co-3n')||'Acc',data:bl(a3F,a3TEM),borderColor:'#10b981',tension:0.3,pointRadius:0,borderWidth:2,backgroundColor:'transparent'},
+    {label:'Inflación',data:bl(infF,v('co-inf')/100),borderColor:'#ef4444',tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[5,3],backgroundColor:'transparent'},
+  ]},options:CO});
+}
 
+// ── CUOTAS ───────────────────────────────────────────────────
+let cuSist='french';
+function setCuSistema(s_){cuSist=s_;$('cu-fr-btn').classList.toggle('active',s_==='french');$('cu-al-btn').classList.toggle('active',s_==='aleman');$('cu-desc').textContent=s_==='french'?'Cuota fija todos los meses. Sistema más común en préstamos y tarjetas.':'Capital fijo por cuota, intereses decrecientes. Pagás más al inicio pero menos intereses totales.';calcCu();}
+function syncCuMenToTNA(){const m=v('cu-tm');if(!m)return;$('cu-tna').value=(m*12).toFixed(2);}
+function syncCuTNAToMen(){const t=v('cu-tna');if(!t)return;$('cu-tm').value=(t/12).toFixed(4);}
+function calcCu(){
+  const monto=v('cu-m'),eng=v('cu-eng')||0,n=v('cu-n'),tm=v('cu-tm')/100;
+  if(!monto||!n||!tm){$('cu-cuota').textContent='—';return;}
+  const M=monto-eng;let rows=[],totP=0,totI=0,cuota;
+  if(cuSist==='french'){
+    cuota=M*(tm*Math.pow(1+tm,n))/(Math.pow(1+tm,n)-1);let saldo=M;
+    for(let i=1;i<=n;i++){const int=saldo*tm,cap=cuota-int;saldo-=cap;totP+=cuota;totI+=int;rows.push({i,cuota,cap,int,saldo:Math.max(0,saldo)});}
+  }else{
+    const capC=M/n;let saldo=M;
+    for(let i=1;i<=n;i++){const int=saldo*tm,cu=capC+int;saldo-=capC;totP+=cu;totI+=int;rows.push({i,cuota:cu,cap:capC,int,saldo:Math.max(0,saldo)});}
+    cuota=rows[0].cuota;
+  }
+  const costo=totP-M,cft=(Math.pow(totP/M,12/n)-1)*100;
+  $('cu-cuota').textContent=cuSist==='aleman'?fmtARS(rows[rows.length-1].cuota)+' – '+fmtARS(rows[0].cuota):fmtARS(cuota);
+  $('cu-total').textContent=fmtARS(totP+eng);$('cu-costo').textContent='-'+fmtARS(costo);$('cu-cft').textContent=cft.toFixed(2)+'%';$('cu-int').textContent='-'+fmtARS(totI);
+  const step=Math.max(1,Math.floor(rows.length/50));
+  $('cu-tbody').innerHTML=rows.filter((_,i)=>i%step===0||i===rows.length-1).map(r=>`<tr><td>${r.i}</td><td>${fmtARS(r.cuota)}</td><td>${fmtARS(r.cap)}</td><td style="color:var(--danger)">${fmtARS(r.int)}</td><td>${fmtARS(r.saldo)}</td></tr>`).join('');
+}
+
+// ── ROI ──────────────────────────────────────────────────────
+function calcROI(){
+  const e=v('ro-e'),sal=v('ro-s'),ex=v('ro-ex')||0,dur=v('ro-d'),uni=s('ro-u'),ce=v('ro-ce')||0,cs=v('ro-cs')||0;
+  if(!e||!sal||!dur){$('ro-pill').innerHTML='<span class="pill fl">— ingresá compra, venta y duración</span>';return;}
+  let dM=dur;if(uni==='dias')dM=dur/30.44;if(uni==='años')dM=dur*12;
+  const cE=e*ce/100,cS=sal*cs/100,costos=cE+cS,bruta=sal-e+ex,neta=bruta-costos;
+  const roi=(bruta/e)*100,tna=(Math.pow(1+roi/100,12/dM)-1)*100,tem=(Math.pow(1+roi/100,1/dM)-1)*100;
+  $('ro-pill').innerHTML=`<span class="pill ${neta>=0?'up':'dn'}">${neta>=0?'▲':'▼'} ${fmtARS(Math.abs(neta))}</span>`;
+  $('ro-pct').textContent=fmtPct(roi);$('ro-pct').className='v '+(roi>=0?'pos':'neg');
+  $('ro-bruta').textContent=(bruta>=0?'+':'')+fmtARS(bruta);$('ro-bruta').className='v '+(bruta>=0?'pos':'neg');
+  $('ro-tna').textContent=tna.toFixed(2)+'%';$('ro-tem').textContent=tem.toFixed(4)+'%';
+  $('ro-com').textContent=costos>0?'-'+fmtARS(costos,2):'$0';
+  $('ro-neta').textContent=(neta>=0?'+':'')+fmtARS(neta);$('ro-neta').className='v '+(neta>=0?'pos':'neg');
+}
+function calcROIPrecio(){const e=v('ro-e'),obj=parseFloat($('ro-obj').value);if(!e||isNaN(obj))return;$('ro-ps').textContent=fmtARS(e*(1+obj/100),2);}
+
+// ── % RÁPIDO ─────────────────────────────────────────────────
+let pctMode='a';
+function setPctMode(m,btn){
+  pctMode=m;['a','b','c'].forEach(x=>$('pct-'+x).style.display=x===m?'block':'none');
+  document.querySelectorAll('#panel-pct .mt-b').forEach((b,i)=>b.classList.toggle('active',['a','b','c'][i]===m));
+  $('pct-res').textContent='—';$('pct-desc').textContent='Ingresá los valores';$('pct-extra').innerHTML='';
+}
+function calcPct(){
+  if(pctMode==='a'){
+    const x=v('pa-x'),y=v('pa-y');if(!y)return;const pct=(x/y)*100;
+    $('pct-res').textContent=pct.toFixed(2)+'%';$('pct-res').className='rh';$('pct-desc').textContent=`${fmtARS(x,2)} es el ${pct.toFixed(2)}% de ${fmtARS(y,2)}`;
+    $('pct-extra').innerHTML=`<div class="mc"><div class="rl">Diferencia (Y−X)</div><div class="v">${fmtARS(y-x,2)}</div></div>`;
+  }else if(pctMode==='b'){
+    const pct=v('pb-p'),tot=v('pb-t');if(!tot)return;const res=tot*pct/100;
+    $('pct-res').textContent=fmtARS(res,2);$('pct-res').className='rh pos';$('pct-desc').textContent=`El ${pct}% de ${fmtARS(tot,2)} son ${fmtARS(res,2)}`;
+    $('pct-extra').innerHTML=`<div class="mg"><div class="mc"><div class="rl">Total sumando ese %</div><div class="v pos">${fmtARS(tot+res,2)}</div></div><div class="mc"><div class="rl">Total restando ese %</div><div class="v neg">${fmtARS(tot-res,2)}</div></div></div>`;
+  }else{
+    const a=v('pc-a'),b=v('pc-b');if(!a)return;const pct=((b-a)/Math.abs(a))*100,pos=pct>=0;
+    $('pct-res').textContent=fmtPct(pct,2);$('pct-res').className='rh '+(pos?'pos':'neg');$('pct-desc').textContent=`De ${fmtARS(a,2)} a ${fmtARS(b,2)}: ${fmtPct(pct,2)} de variación`;
+    $('pct-extra').innerHTML=`<div class="mg"><div class="mc"><div class="rl">Diferencia</div><div class="v ${pos?'pos':'neg'}">${pos?'+':''}${fmtARS(b-a,2)}</div></div><div class="mc"><div class="rl">Multiplicador</div><div class="v">x${(b/a).toFixed(3)}</div></div></div>`;
+  }
+}
+
+// ── REGLA DEL 72 ─────────────────────────────────────────────
+function calcR72(){
+  const tna=v('r72-t')||90,cap=s('r72-cap'),C0=v('r72-k')||1000000;
+  let tea=tna;if(cap==='mensual')tea=(Math.pow(1+tna/100/12,12)-1)*100;
+  $('r72-tea').textContent=tea.toFixed(2)+'%';
+  const tX=x=>Math.log(x)/Math.log(1+tea/100);
+  $('r72-x2').textContent=fmtTime(tX(2));$('r72-x3').textContent=fmtTime(tX(3));$('r72-x5').textContent=fmtTime(tX(5));$('r72-x10').textContent=fmtTime(tX(10));
+  const proyY=Math.min(Math.max(tX(2)*2.5,3),10),proyM=Math.ceil(proyY*12),temM=tea/100/12;
+  const labels=Array.from({length:proyM+1},(_,i)=>i%12===0?`Año ${i/12}`:'');
+  const data=Array.from({length:proyM+1},(_,i)=>C0*Math.pow(1+temM,i));
+  dc('r72');charts['r72']=new Chart($('r72-chart').getContext('2d'),{type:'line',data:{labels,datasets:[{label:'Capital',data,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}]},options:{...CO,plugins:{legend:{display:false}}}});
+  const refs=[30,60,90,120,150,200,300,500];
+  $('r72-ref').innerHTML=refs.map(t=>{const tea2=(Math.pow(1+t/100/12,12)-1)*100;const t2=Math.log(2)/Math.log(1+tea2/100);const hl=Math.abs(t-tna)<25;return`<div class="rate-row ${hl?'highlight':''}"><span class="rate-name">TNA ${t}%</span><span class="rate-val">${fmtTime(t2)} para x2</span></div>`;}).join('');
+}
+function calcR72inv(){
+  const tiempo=v('r72-ti'),uni=s('r72-tu'),card=$('r72-inv');
+  if(!tiempo||tiempo<=0){card.style.display='none';return;}
+  card.style.display='block';const anos=uni==='meses'?tiempo/12:tiempo;
+  $('r72-tn').textContent=((Math.pow(2,1/anos)-1)*100).toFixed(2)+'% anual';
+}
+
+// ── COSTO DE OPORTUNIDAD ──────────────────────────────────────
+function calcOp(){
+  const C0=v('op-k')||1000000, rend=v('op-rend'), per=v('op-per')||6;
+  const infAR=v('op-inf-ar'), infUSD=v('op-inf-usd'), sp=v('op-sp'), custom=parseFloat($('op-custom')?.value), customNom=s('op-custom-nom')||'Benchmark';
+  const finalOp=C0*(1+rend/100);
+  $('op-final').textContent=fmtARS(finalOp);
+  $('op-sub').textContent=`Rendimiento de ${fmtPct(rend,1)} en ${per} meses sobre ${fmtARS(C0)}`;
+  // Build benchmarks (convert annuals to period)
+  const benchmarks=[
+    {n:'Inflación Argentina',ref:infAR,note:`${per} meses acumulado`},
+    {n:'Inflación USD / Internacional',ref:infUSD*per/12,note:`${infUSD}% anual → ${per}m`},
+    {n:'S&P 500 (histórico)',ref:sp*per/12,note:`${sp}% anual → ${per}m`},
+  ];
+  if(!isNaN(custom)) benchmarks.push({n:customNom,ref:custom,note:`${per} meses`});
+  $('op-rows').innerHTML=benchmarks.map(b=>{
+    const bFinal=C0*(1+b.ref/100), diff=finalOp-bFinal, diffPct=((finalOp/bFinal)-1)*100;
+    const won=diff>=0;
+    return`<div class="opp-row ${won?'winner':'loser'}">
+      <div><div class="opp-label">${b.n}</div><div class="opp-sub">${b.note}: ${b.ref.toFixed(1)}%</div></div>
+      <div><div class="opp-val" style="color:${won?'var(--success)':'var(--danger)'}">${(diff>=0?'+':'')+fmtARS(diff)}</div>
+      <div class="opp-pct" style="color:${won?'var(--success)':'var(--danger)'}">${fmtPct(diffPct,1)} vs benchmark</div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── META DE AHORRO ────────────────────────────────────────────
+let metaMode='a';
+function setMetaMode(m,btn){
+  metaMode=m;
+  $('meta-a-inputs').style.display=m==='a'?'block':'none';
+  $('meta-b-inputs').style.display=m==='b'?'block':'none';
+  $('meta-c-inputs').style.display=m==='c'?'block':'none';
+  document.querySelectorAll('#meta-mode-tabs .mt-b').forEach((b,i)=>b.classList.toggle('active',['a','b','c'][i]===m));
+  calcMeta();
+}
+function calcMeta(){
+  const meta=v('mt-meta')||10000000, C0=v('mt-k')||2000000, tna=v('mt-tna')||90;
+  const temM=Math.pow(1+tna/100/12,1)-1;
+  dc('mt');
+  if(metaMode==='a'){
+    const plazo=v('mt-plazo')||24;
+    $('mt-plazo-r').value=Math.min(plazo,120);$('mt-plazo-sv').textContent=plazo+'m';
+    // PMT = [FV - PV*(1+r)^n] * r / [(1+r)^n - 1]
+    const factor=Math.pow(1+temM,plazo);
+    const pmt=(meta-C0*factor)*temM/(factor-1);
+    const pmt_safe=Math.max(0,pmt);
+    $('mt-res-label').textContent='Ahorro mensual necesario';
+    $('mt-res-main').textContent=pmt>=0?fmtARS(pmt_safe):'Ya alcanzás la meta sin ahorrar más';
+    $('mt-res-main').className='rh '+(pmt>=0?'':'pos');
+    $('mt-diario').textContent=pmt>=0?fmtARS(pmt_safe/30,0):'—';
+    const totAp=pmt_safe*plazo;
+    $('mt-total-ap').textContent=fmtARS(totAp);
+    $('mt-int-gan').textContent=fmtARS(meta-C0-totAp>0?meta-C0-totAp:0);
+    $('mt-brecha').textContent=fmtARS(Math.max(0,meta-C0));
+    $('mt-res-sub').textContent=`Para llegar a ${fmtARS(meta)} en ${plazo} meses`;
     // Chart
-    destroyChart('ci');
-    const labels = ['Hoy', ...display.map(r => totalMeses > 24 ? `A${(r.mes/12).toFixed(0)}` : `M${r.mes}`)];
-    const dataCap = [C0, ...display.map(r => r.capital)];
-    const dataInt = [0, ...display.map(r => r.totalIntereses)];
-    charts['ci'] = new Chart($('ci-chart').getContext('2d'), {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [
-                { label: 'Capital total', data: dataCap, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.07)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 },
-                { label: 'Intereses acum.', data: dataInt, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.05)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5 }
-            ]
-        },
-        options: CHART_OPTS
-    });
-}
-
-// ────────────────────────────────────────────────────────────
-// TIPO DE CAMBIO
-// ────────────────────────────────────────────────────────────
-async function fetchFxRates() {
-    const btn = $('fx-btn');
-    btn.textContent = '⏳ Cargando...'; btn.disabled = true;
-    try {
-        const res = await fetch('https://dolarapi.com/v1/dolares');
-        const data = await res.json();
-        const m = {};
-        data.forEach(d => m[d.casa] = d);
-        const map = {
-            'fx-oficial': m.oficial?.venta,
-            'fx-blue':    m.blue?.venta,
-            'fx-mep':     m.bolsa?.venta,
-            'fx-ccl':     m.contadoconliqui?.venta,
-            'fx-tarjeta': m.tarjeta?.venta,
-            'fx-mayorista': m.mayorista?.venta,
-        };
-        for (const [id, v] of Object.entries(map)) {
-            if (v && $(id)) $(id).value = v;
-        }
-        $('fx-ts').textContent = '✓ Actualizado ' + new Date().toLocaleTimeString('es-AR');
-        calcFx();
-        btn.textContent = '🔄 Actualizar cotizaciones';
-    } catch {
-        btn.textContent = '⚠️ Error — reintentar';
-        $('fx-ts').textContent = 'No se pudo conectar. Ingresá los valores manualmente.';
-    }
-    btn.disabled = false;
-}
-
-function calcFx() {
-    const monto = val('fx-monto');
-    const moneda = str('fx-moneda');
-    if (!monto) return;
-
-    const tipos = [
-        { id: 'fx-oficial',   nombre: 'Oficial' },
-        { id: 'fx-blue',      nombre: 'Blue' },
-        { id: 'fx-mep',       nombre: 'MEP / Bolsa' },
-        { id: 'fx-ccl',       nombre: 'CCL / Cable' },
-        { id: 'fx-tarjeta',   nombre: 'Tarjeta / Turista' },
-        { id: 'fx-mayorista', nombre: 'Mayorista' },
-    ];
-    const rates = tipos.map(t => ({ nombre: t.nombre, v: parseFloat($(t.id)?.value) || null })).filter(r => r.v);
-    if (!rates.length) return;
-
-    $('fx-results').innerHTML = `<table class="fx-table">
-        <thead><tr><th>Tipo</th><th>Cotización</th><th>${moneda === 'ARS' ? 'En USD' : 'En ARS'}</th></tr></thead>
-        <tbody>${rates.map(r => {
-            const equiv = moneda === 'ARS' ? monto / r.v : monto * r.v;
-            const label = moneda === 'ARS' ? `USD ${equiv.toFixed(2)}` : fmtARS(equiv, 0);
-            return `<tr><td style="font-weight:700">${r.nombre}</td><td>$${r.v.toLocaleString('es-AR')}</td><td class="fx-highlight">${label}</td></tr>`;
-        }).join('')}</tbody>
-    </table>`;
-
-    const oficial = rates.find(r => r.nombre === 'Oficial')?.v;
-    if (oficial) {
-        $('fx-brecha').innerHTML = rates
-            .filter(r => r.nombre !== 'Oficial')
-            .map(r => {
-                const brecha = ((r.v / oficial) - 1) * 100;
-                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04)">
-                    <span style="font-size:0.88rem">${r.nombre}</span>
-                    <span class="brecha-tag">+${brecha.toFixed(1)}%</span>
-                </div>`;
-            }).join('');
-    }
-}
-
-// ────────────────────────────────────────────────────────────
-// COMPARAR INVERSIONES
-// ────────────────────────────────────────────────────────────
-function calcComparar() {
-    const C0 = val('comp-capital') || 1000000;
-    const meses = val('comp-meses') || 12;
-    $('comp-plazo-lbl').textContent = meses;
-
-    const pfTNA = val('comp-pf-tna') || 0;
-    const pfNom = str('comp-pf-nom') || 'Plazo Fijo';
-    const dHoy = val('comp-d-hoy') || 1;
-    const dFut = val('comp-d-fut') || 1;
-    const dNom = str('comp-d-nom') || 'Dólar';
-    const aRend = val('comp-a-rend') || 0;
-    const aNom = str('comp-a-nom') || 'Acciones';
-    const infMen = val('comp-inf') || 0;
-
-    const pfTEM = Math.pow(1 + pfTNA/100/12, 1) - 1;
-    const pfFinal = C0 * Math.pow(1 + pfTEM, meses);
-    const dFinal = C0 * (1 + (dFut - dHoy) / dHoy);
-    const aFinal = C0 * Math.pow(1 + aRend/100, meses);
-    const infFinal = C0 * Math.pow(1 + infMen/100, meses);
-
-    const instruments = [
-        { nom: pfNom,          final: pfFinal,  color: '#3b82f6' },
-        { nom: dNom,           final: dFinal,   color: '#f59e0b' },
-        { nom: aNom,           final: aFinal,   color: '#10b981' },
-        { nom: 'Inflación',    final: infFinal, color: '#ef4444', ref: true },
-    ];
-    const maxF = Math.max(...instruments.map(i => i.final));
-
-    $('comp-bars').innerHTML = instruments.map(inst => {
-        const pct = ((inst.final - C0) / C0) * 100;
-        const w = (inst.final / maxF) * 100;
-        return `<div class="comp-bar">
-            <div class="comp-bar-head">
-                <span class="comp-bar-name" style="color:${inst.color}">${inst.nom}</span>
-                <span class="comp-bar-val" style="color:${inst.color}">${fmtARS(inst.final)} <small style="font-weight:500;opacity:0.7;font-size:0.78rem">${fmtPct(pct,1)}</small></span>
-            </div>
-            <div class="comp-bar-track"><div class="comp-bar-fill" style="width:${w}%;background:${inst.color}99"></div></div>
-        </div>`;
+    const months=Array.from({length:plazo+1},(_,i)=>i);
+    const data=months.map(m=>{let c=C0;for(let i=0;i<m;i++){c=c*(1+temM)+pmt_safe;}return c;});
+    buildMetaChart(months.map(m=>m===0?'Hoy':`M${m}`),data,meta);
+    // Rate compare
+    const rates=[30,60,90,120,150,200];
+    $('mt-comp-title').textContent='¿Cuánto cambiaría con otras tasas?';
+    $('mt-comp').innerHTML=rates.map(r=>{const tem2=Math.pow(1+r/100/12,1)-1,f2=Math.pow(1+tem2,plazo),p2=Math.max(0,(meta-C0*f2)*tem2/(f2-1));const hl=Math.abs(r-tna)<15;return`<div class="rate-row ${hl?'highlight':''}"><span class="rate-name">TNA ${r}%</span><span class="rate-val">${fmtARS(p2)}/mes</span></div>`;}).join('');
+  } else if(metaMode==='b'){
+    const ap=v('mt-ap')||100000;
+    $('mt-ap-r').value=Math.min(ap,2000000);$('mt-ap-sv').textContent=fmtShort(ap);
+    let c=C0,meses=0;while(c<meta&&meses<600){c=c*(1+temM)+ap;meses++;}
+    $('mt-res-label').textContent='Tiempo para llegar a la meta';
+    $('mt-res-main').textContent=meses<600?fmtTime(meses/12):'No llega en 50 años';
+    $('mt-res-main').className='rh '+(meses<600?'pos':'neg');
+    $('mt-res-sub').textContent=`Ahorrando ${fmtARS(ap)}/mes con TNA ${tna}%`;
+    $('mt-diario').textContent=fmtARS(ap/30,0);$('mt-total-ap').textContent=fmtARS(ap*meses);
+    $('mt-int-gan').textContent=fmtARS(Math.max(0,meta-C0-ap*meses));$('mt-brecha').textContent=fmtARS(Math.max(0,meta-C0));
+    const displayM=Math.min(meses,72);const months=Array.from({length:displayM+1},(_,i)=>i);
+    let arr=[C0];let cur=C0;for(let i=1;i<=displayM;i++){cur=cur*(1+temM)+ap;arr.push(cur);}
+    buildMetaChart(months.map(m=>m===0?'Hoy':`M${m}`),arr,meta);
+    // Compare savings amounts
+    const aps=[ap*0.5,ap*0.75,ap,ap*1.25,ap*1.5,ap*2].filter(a=>a>0);
+    $('mt-comp-title').textContent='¿Qué pasa si cambio el ahorro mensual?';
+    $('mt-comp').innerHTML=aps.map(a=>{let c2=C0,m2=0;while(c2<meta&&m2<600){c2=c2*(1+temM)+a;m2++;}const hl=Math.abs(a-ap)<ap*0.1;return`<div class="rate-row ${hl?'highlight':''}"><span class="rate-name">${fmtARS(a)}/mes</span><span class="rate-val">${m2<600?fmtTime(m2/12):'No llega'}</span></div>`;}).join('');
+  } else {
+    const plazo=v('mt-c-plazo')||24;
+    const rates=[0,30,60,90,120,150,200,300];
+    $('mt-res-label').textContent='Comparativa de tasas de crecimiento';
+    $('mt-res-main').textContent=`Meta ${fmtARS(meta)} en ${plazo}m`;
+    $('mt-res-main').className='rh';$('mt-res-sub').textContent=`Desde ${fmtARS(C0)} de capital inicial`;
+    $('mt-diario').textContent='—';$('mt-total-ap').textContent='—';$('mt-int-gan').textContent='—';$('mt-brecha').textContent=fmtARS(meta-C0);
+    $('mt-comp-title').textContent='Ahorro mensual necesario según tasa';
+    $('mt-comp').innerHTML=rates.map(r=>{
+      const tem2=r===0?0:Math.pow(1+r/100/12,1)-1;
+      let pmt2;
+      if(r===0){pmt2=(meta-C0)/plazo;}
+      else{const f2=Math.pow(1+tem2,plazo);pmt2=Math.max(0,(meta-C0*f2)*tem2/(f2-1));}
+      const hl=Math.abs(r-tna)<15;
+      return`<div class="rate-row ${hl?'highlight':''}"><span class="rate-name">TNA ${r}% ${r===0?'(sin tasa)':''}</span><span class="rate-val">${fmtARS(pmt2)}/mes</span></div>`;
     }).join('');
-
-    $('comp-tabla').innerHTML = instruments.map(inst => {
-        const ganancia = inst.final - C0;
-        const rend = (ganancia / C0) * 100;
-        const tnaEq = (Math.pow(inst.final / C0, 12/meses) - 1) * 100;
-        const cls = ganancia >= 0 ? 'style="color:var(--success)"' : 'style="color:var(--danger)"';
-        return `<tr>
-            <td style="font-weight:700;color:${inst.color}">${inst.nom}</td>
-            <td>${fmtARS(inst.final)}</td>
-            <td ${cls}>${(ganancia >= 0 ? '+' : '') + fmtARS(ganancia)}</td>
-            <td ${cls}>${fmtPct(rend,1)}</td>
-            <td>${tnaEq.toFixed(1)}%</td>
-        </tr>`;
-    }).join('');
-
-    // Chart
-    destroyChart('comp');
-    const labels = Array.from({length: meses+1}, (_, i) => i === 0 ? 'Hoy' : `M${i}`);
-    const buildLine = (finalV, compound=false, monthRate=null) => {
-        return Array.from({length: meses+1}, (_, m) => {
-            if (m === 0) return C0;
-            return compound && monthRate != null ? C0 * Math.pow(1 + monthRate, m) : C0 + (finalV - C0) * (m / meses);
-        });
-    };
-    charts['comp'] = new Chart($('comp-chart').getContext('2d'), {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [
-                { label: pfNom,   data: buildLine(pfFinal, true, pfTEM), borderColor: '#3b82f6', tension: 0.3, pointRadius: 0, borderWidth: 2, backgroundColor:'transparent' },
-                { label: dNom,    data: buildLine(dFinal),               borderColor: '#f59e0b', tension: 0.1, pointRadius: 0, borderWidth: 2, backgroundColor:'transparent' },
-                { label: aNom,    data: buildLine(aFinal, true, aRend/100), borderColor: '#10b981', tension: 0.3, pointRadius: 0, borderWidth: 2, backgroundColor:'transparent' },
-                { label: 'Inflación', data: buildLine(infFinal, true, infMen/100), borderColor: '#ef4444', tension: 0.3, pointRadius: 0, borderWidth: 1.5, borderDash:[5,3], backgroundColor:'transparent' },
-            ]
-        },
-        options: CHART_OPTS
+    // Build chart comparing rates
+    const selectedRates=[0,60,tna,200];const labels=Array.from({length:plazo+1},(_,i)=>i===0?'Hoy':`M${i}`);
+    const datasets=selectedRates.map((r,idx)=>{
+      const t2=r===0?0:Math.pow(1+r/100/12,1)-1;
+      const f2=r===0?1:Math.pow(1+t2,plazo);
+      const p2=r===0?(meta-C0)/plazo:Math.max(0,(meta-C0*f2)*t2/(f2-1));
+      const d=[];let c2=C0;d.push(c2);for(let i=1;i<=plazo;i++){c2=c2*(r===0?1:1+t2)+p2;d.push(c2);}
+      const cols=['#64748b','#f59e0b','#3b82f6','#10b981'];
+      return{label:`TNA ${r}%`,data:d,borderColor:cols[idx],tension:0.3,pointRadius:0,borderWidth:2,backgroundColor:'transparent'};
     });
+    dc('mt');charts['mt']=new Chart($('mt-chart').getContext('2d'),{type:'line',data:{labels,datasets},options:CO});
+    return;
+  }
 }
-
-// ────────────────────────────────────────────────────────────
-// CUOTAS / FINANCIACIÓN
-// ────────────────────────────────────────────────────────────
-let cuotasSistema = 'french';
-
-function setCuotasSistema(s) {
-    cuotasSistema = s;
-    $('cuo-french-btn').classList.toggle('active', s === 'french');
-    $('cuo-aleman-btn').classList.toggle('active', s === 'aleman');
-    $('cuo-sistema-desc').textContent = s === 'french'
-        ? 'Cuota fija todos los meses. Es el sistema más común en préstamos personales, tarjetas y créditos.'
-        : 'Capital fijo por cuota, intereses decrecientes. Cuotas más altas al inicio pero paga menos intereses totales.';
-    calcCuotas();
-}
-
-function syncCuotasTNAFromMen() {
-    const men = val('cuo-tasa-men');
-    if (!men) return;
-    const tna = men * 12;
-    $('cuo-tna').value = tna.toFixed(2);
-}
-
-function syncCuotasMenFromTNA() {
-    const tna = val('cuo-tna');
-    if (!tna) return;
-    $('cuo-tasa-men').value = (tna/12).toFixed(4);
-}
-
-function calcCuotas() {
-    const montoTotal = val('cuo-monto');
-    const enganche = val('cuo-enganche') || 0;
-    const n = val('cuo-n');
-    const tasaMen = val('cuo-tasa-men') / 100;
-
-    if (!montoTotal || !n || !tasaMen) {
-        $('cuo-cuota').textContent = '—';
-        $('cuo-total').textContent = '—';
-        $('cuo-costo').textContent = '—';
-        $('cuo-cft').textContent = '—';
-        $('cuo-intereses').textContent = '—';
-        $('cuo-tabla').innerHTML = '';
-        return;
-    }
-
-    const monto = montoTotal - enganche;
-    let cuotaMensual, rows = [], totalPagado = 0, totalIntereses = 0;
-
-    if (cuotasSistema === 'french') {
-        // Sistema francés: cuota fija
-        cuotaMensual = monto * (tasaMen * Math.pow(1 + tasaMen, n)) / (Math.pow(1 + tasaMen, n) - 1);
-        let saldo = monto;
-        for (let i = 1; i <= n; i++) {
-            const interes = saldo * tasaMen;
-            const capital = cuotaMensual - interes;
-            saldo -= capital;
-            totalPagado += cuotaMensual;
-            totalIntereses += interes;
-            rows.push({ i, cuota: cuotaMensual, capital, interes, saldo: Math.max(0, saldo) });
-        }
-    } else {
-        // Sistema alemán: capital fijo
-        const capitalPorCuota = monto / n;
-        let saldo = monto;
-        for (let i = 1; i <= n; i++) {
-            const interes = saldo * tasaMen;
-            const cuota = capitalPorCuota + interes;
-            saldo -= capitalPorCuota;
-            totalPagado += cuota;
-            totalIntereses += interes;
-            rows.push({ i, cuota, capital: capitalPorCuota, interes, saldo: Math.max(0, saldo) });
-        }
-        cuotaMensual = rows[0].cuota; // primera cuota (la más alta)
-    }
-
-    const costoFinanciero = totalPagado - monto;
-    const cftTNA = ((Math.pow(totalPagado / monto, 12/n) - 1)) * 100;
-
-    $('cuo-cuota').textContent = cuotasSistema === 'aleman' ? fmtARS(rows[rows.length-1].cuota) + ' – ' + fmtARS(rows[0].cuota) : fmtARS(cuotaMensual);
-    $('cuo-total').textContent = fmtARS(totalPagado + enganche);
-    $('cuo-costo').textContent = '-' + fmtARS(costoFinanciero);
-    $('cuo-cft').textContent = cftTNA.toFixed(2) + '%';
-    $('cuo-intereses').textContent = '-' + fmtARS(totalIntereses);
-
-    // Table (limit to 60 rows)
-    const step = Math.max(1, Math.floor(rows.length / 60));
-    const display = rows.filter((_, i) => i % step === 0 || i === rows.length-1);
-    $('cuo-tabla').innerHTML = display.map(r => `<tr>
-        <td>${r.i}</td>
-        <td>${fmtARS(r.cuota)}</td>
-        <td>${fmtARS(r.capital)}</td>
-        <td style="color:var(--danger)">${fmtARS(r.interes)}</td>
-        <td>${fmtARS(r.saldo)}</td>
-    </tr>`).join('');
-}
-
-// ────────────────────────────────────────────────────────────
-// ROI / RETORNO
-// ────────────────────────────────────────────────────────────
-function calcROI() {
-    const entrada = val('roi-entrada');
-    const salida  = val('roi-salida');
-    const extra   = val('roi-extra') || 0;
-    const dur     = val('roi-dur');
-    const unidad  = str('roi-unidad');
-    const comE    = val('roi-com-e') || 0;
-    const comS    = val('roi-com-s') || 0;
-
-    if (!entrada || !salida || !dur) {
-        $('roi-pill').innerHTML = '<span class="pill flat">— ingresá compra, venta y duración</span>';
-        return;
-    }
-
-    let durMeses = dur;
-    if (unidad === 'dias') durMeses = dur / 30.44;
-    if (unidad === 'años') durMeses = dur * 12;
-
-    const costoE = entrada * comE / 100;
-    const costoS = salida * comS / 100;
-    const costos = costoE + costoS;
-    const bruta = salida - entrada + extra;
-    const neta  = bruta - costos;
-    const roi   = (bruta / entrada) * 100;
-    const tna   = (Math.pow(1 + roi/100, 12/durMeses) - 1) * 100;
-    const tem   = (Math.pow(1 + roi/100, 1/durMeses) - 1) * 100;
-    const pos   = neta >= 0;
-
-    $('roi-pill').innerHTML = `<span class="pill ${pos ? 'up' : 'down'}">${pos ? '▲' : '▼'} ${fmtARS(Math.abs(neta))}</span>`;
-    $('roi-pct').textContent = fmtPct(roi);
-    $('roi-pct').className = 'val ' + (roi >= 0 ? 'pos' : 'neg');
-    $('roi-bruta').textContent = (bruta >= 0 ? '+' : '') + fmtARS(bruta);
-    $('roi-bruta').className = 'val ' + (bruta >= 0 ? 'pos' : 'neg');
-    $('roi-tna').textContent = tna.toFixed(2) + '%';
-    $('roi-tem').textContent = tem.toFixed(4) + '%';
-    $('roi-comisiones').textContent = costos > 0 ? '-' + fmtARS(costos, 2) : '$0';
-    $('roi-neta').textContent = (neta >= 0 ? '+' : '') + fmtARS(neta);
-    $('roi-neta').className = 'val ' + (neta >= 0 ? 'pos' : 'neg');
-}
-
-function calcPrecioSalida() {
-    const entrada = val('roi-entrada');
-    const obj = val('roi-obj');
-    if (!entrada || !obj) return;
-    $('roi-precio-salida').textContent = fmtARS(entrada * (1 + obj/100), 2);
-}
-
-// ────────────────────────────────────────────────────────────
-// % RÁPIDO
-// ────────────────────────────────────────────────────────────
-let pctMode = 'a';
-
-function setPctMode(mode, btn) {
-    pctMode = mode;
-    ['a','b','c'].forEach(m => {
-        $('pct-modo-' + m).style.display = m === mode ? 'block' : 'none';
-    });
-    document.querySelectorAll('#panel-pct .mode-tab').forEach((b, i) => {
-        b.classList.toggle('active', ['a','b','c'][i] === mode);
-    });
-    $('pct-result').textContent = '—';
-    $('pct-desc').textContent = 'Ingresá los valores';
-    $('pct-extra').innerHTML = '';
-}
-
-function calcPct() {
-    if (pctMode === 'a') {
-        const x = val('pct-a-x'), y = val('pct-a-y');
-        if (!y) return;
-        const pct = (x / y) * 100;
-        $('pct-result').textContent = pct.toFixed(2) + '%';
-        $('pct-result').className = 'result-hero';
-        $('pct-desc').textContent = `${fmtARS(x,2)} es el ${pct.toFixed(2)}% de ${fmtARS(y,2)}`;
-        $('pct-extra').innerHTML = `
-            <div class="mini-card"><div class="result-label">Diferencia (Y − X)</div><div class="val">${fmtARS(y-x,2)}</div></div>
-            <div class="mini-card" style="margin-top:10px"><div class="result-label">Inverso (Y es X% de…)</div><div class="val">${fmtARS(y/x*y,2)}</div></div>`;
-    } else if (pctMode === 'b') {
-        const pct = val('pct-b-pct'), total = val('pct-b-total');
-        if (!total) return;
-        const res = total * pct / 100;
-        $('pct-result').textContent = fmtARS(res, 2);
-        $('pct-result').className = 'result-hero positive';
-        $('pct-desc').textContent = `El ${pct}% de ${fmtARS(total,2)} son ${fmtARS(res,2)}`;
-        $('pct-extra').innerHTML = `
-            <div class="mini-card"><div class="result-label">Total con ese % sumado</div><div class="val pos">${fmtARS(total + res, 2)}</div></div>
-            <div class="mini-card" style="margin-top:10px"><div class="result-label">Total con ese % restado</div><div class="val neg">${fmtARS(total - res, 2)}</div></div>`;
-    } else {
-        const a = val('pct-c-a'), b = val('pct-c-b');
-        if (!a) return;
-        const pct = ((b - a) / Math.abs(a)) * 100;
-        const pos = pct >= 0;
-        $('pct-result').textContent = fmtPct(pct, 2);
-        $('pct-result').className = 'result-hero ' + (pos ? 'positive' : 'negative');
-        $('pct-desc').textContent = `De ${fmtARS(a,2)} a ${fmtARS(b,2)}: ${fmtPct(pct,2)} de variación`;
-        $('pct-extra').innerHTML = `
-            <div class="mini-card"><div class="result-label">Diferencia absoluta</div><div class="val ${pos?'pos':'neg'}">${pos?'+':''}${fmtARS(b-a,2)}</div></div>
-            <div class="mini-card" style="margin-top:10px"><div class="result-label">Multiplicador</div><div class="val">x${(b/a).toFixed(3)}</div></div>`;
-    }
-}
-
-// ────────────────────────────────────────────────────────────
-// REGLA DEL 72
-// ────────────────────────────────────────────────────────────
-function calcR72() {
-    const tna = val('r72-tasa') || 90;
-    const cap = str('r72-cap');
-    const C0  = val('r72-capital') || 1000000;
-
-    let tea = tna;
-    if (cap === 'mensual') tea = (Math.pow(1 + tna/100/12, 12) - 1) * 100;
-
-    $('r72-tea').textContent = tea.toFixed(2) + '%';
-
-    const timeToX = x => Math.log(x) / Math.log(1 + tea/100);
-    $('r72-x2').textContent  = fmtTime(timeToX(2));
-    $('r72-x3').textContent  = fmtTime(timeToX(3));
-    $('r72-x5').textContent  = fmtTime(timeToX(5));
-    $('r72-x10').textContent = fmtTime(timeToX(10));
-
-    // Chart
-    const proyYears = Math.min(Math.max(timeToX(2) * 2.5, 3), 10);
-    const proyMeses = Math.ceil(proyYears * 12);
-    const temM = tea/100/12;
-    const labels = Array.from({length: proyMeses+1}, (_, i) => i % 12 === 0 ? `Año ${i/12}` : '');
-    const data   = Array.from({length: proyMeses+1}, (_, i) => C0 * Math.pow(1 + temM, i));
-
-    destroyChart('r72');
-    charts['r72'] = new Chart($('r72-chart').getContext('2d'), {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{ label: 'Capital', data, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.07)', fill:true, tension:0.3, pointRadius:0, borderWidth:2 }]
-        },
-        options: { ...CHART_OPTS, plugins: { legend: { display: false } } }
-    });
-
-    // Tabla de referencia
-    const refs = [30, 60, 90, 120, 150, 200, 300, 500];
-    $('r72-ref').innerHTML = refs.map(t => {
-        const teaRef = (Math.pow(1 + t/100/12, 12) - 1) * 100;
-        const t2 = Math.log(2) / Math.log(1 + teaRef/100);
-        const highlight = Math.abs(t - tna) < 20;
-        return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);${highlight?'background:rgba(59,130,246,0.06);border-radius:6px;padding:6px 8px;':''}">
-            <span style="font-size:0.82rem;${highlight?'color:var(--accent);font-weight:700':'color:var(--text-secondary)'}">TNA ${t}%</span>
-            <span style="font-family:'Outfit',sans-serif;font-size:0.85rem;font-weight:600">${fmtTime(t2)} para x2</span>
-        </div>`;
-    }).join('');
-}
-
-function calcTasaR72() {
-    const tiempo = val('r72-tiempo');
-    const unidad = str('r72-t-unidad');
-    const card = $('r72-inv-res');
-    if (!tiempo || tiempo <= 0) { card.style.display = 'none'; return; }
-    card.style.display = 'block';
-    const anos = unidad === 'meses' ? tiempo/12 : tiempo;
-    const tasaNec = (Math.pow(2, 1/anos) - 1) * 100;
-    $('r72-tasa-nec').textContent = tasaNec.toFixed(2) + '% anual';
+function buildMetaChart(labels,data,meta){
+  dc('mt');
+  charts['mt']=new Chart($('mt-chart').getContext('2d'),{type:'line',data:{labels,datasets:[
+    {label:'Capital proyectado',data,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
+    {label:'Meta',data:Array(data.length).fill(meta),borderColor:'#10b981',borderDash:[6,4],pointRadius:0,borderWidth:1.5,backgroundColor:'transparent'},
+  ]},options:CO});
 }
 </script>
 </body>
