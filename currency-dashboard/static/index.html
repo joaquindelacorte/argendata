@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Currency Exchange Rates</title>
   <style>
-    /* ── Reset & base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -31,7 +30,6 @@
       min-height: 100vh;
     }
 
-    /* ── Header ── */
     header {
       background: var(--header-bg);
       border-bottom: 1px solid var(--border);
@@ -48,239 +46,106 @@
 
     .header-left { display: flex; align-items: center; gap: 12px; }
 
-    .logo {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.3px;
-    }
+    .logo { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
     .logo span { color: var(--accent); }
 
     .badge {
-      background: var(--accent);
-      color: #fff;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 2px 7px;
-      border-radius: 20px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
+      background: var(--accent); color: #fff; font-size: 10px; font-weight: 600;
+      padding: 2px 7px; border-radius: 20px; letter-spacing: 0.5px; text-transform: uppercase;
     }
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 12px;
-      color: var(--muted);
-    }
+    .header-right { display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--muted); }
 
-    #countdown {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    #countdown { display: flex; align-items: center; gap: 6px; }
 
     .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--green);
+      width: 7px; height: 7px; border-radius: 50%; background: var(--green);
       animation: pulse 2s ease-in-out infinite;
     }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.3; }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
     #refresh-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 5px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
       transition: border-color .2s, color .2s;
     }
     #refresh-btn:hover { border-color: var(--accent); color: var(--text); }
 
-    /* ── Main layout ── */
     main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
 
-    .page-title {
-      font-size: 20px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
+    .page-title { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .page-subtitle { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
 
-    .page-subtitle {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 20px;
-    }
-
-    /* ── Stats bar ── */
-    .stats-bar {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
+    .stats-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
     .stat-chip {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-size: 12px;
-      color: var(--muted);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 14px; font-size: 12px; color: var(--muted);
     }
     .stat-chip strong { color: var(--text); margin-left: 4px; }
 
-    /* ── Table wrapper ── */
     .table-wrap {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-      overflow-x: auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; overflow-x: auto;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 720px;
-    }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
 
     thead th {
-      background: var(--header-bg);
-      color: var(--muted);
-      font-weight: 600;
-      font-size: 11px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 11px 14px;
-      text-align: right;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-      cursor: pointer;
-      user-select: none;
+      background: var(--header-bg); color: var(--muted); font-weight: 600;
+      font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;
+      padding: 11px 14px; text-align: right; border-bottom: 1px solid var(--border);
+      white-space: nowrap; cursor: pointer; user-select: none;
     }
     thead th:first-child { text-align: left; }
     thead th:hover { color: var(--text); }
     thead th.sorted { color: var(--accent); }
 
-    tbody tr {
-      border-bottom: 1px solid var(--border);
-      transition: background .15s;
-    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--hover); }
 
-    tbody tr.ars-row {
-      background: var(--ars-bg);
-      border-left: 3px solid var(--ars-border);
-    }
+    tbody tr.ars-row { background: var(--ars-bg); border-left: 3px solid var(--ars-border); }
     tbody tr.ars-row:hover { background: #0f2a50; }
 
-    td {
-      padding: 11px 14px;
-      text-align: right;
-      white-space: nowrap;
-    }
+    td { padding: 11px 14px; text-align: right; white-space: nowrap; }
     td:first-child { text-align: left; }
 
-    /* ── Flag cell ── */
-    .pair-cell {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .flag-wrap {
-      width: 24px; height: 18px;
-      border-radius: 3px;
-      overflow: hidden;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      line-height: 1;
-    }
-
-    .pair-name {
-      font-weight: 600;
-      font-size: 13px;
-    }
-
+    .pair-cell { display: flex; align-items: center; gap: 10px; }
+    .flag-wrap { width: 24px; height: 18px; border-radius: 3px; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; }
+    .pair-name { font-weight: 600; font-size: 13px; }
     .ars-badge {
-      font-size: 9px;
-      font-weight: 700;
-      background: var(--ars-border);
-      color: #7ec8ff;
-      padding: 1px 5px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.4px;
+      font-size: 9px; font-weight: 700; background: var(--ars-border); color: #7ec8ff;
+      padding: 1px 5px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.4px;
     }
 
-    /* ── Number cells ── */
     .price { font-weight: 600; font-variant-numeric: tabular-nums; }
-
     .up   { color: var(--green); }
-    .down { color: var(--red);   }
+    .down { color: var(--red); }
     .flat { color: var(--muted); }
-
     .change-val { font-variant-numeric: tabular-nums; }
-
     .arrow { font-size: 10px; margin-right: 2px; }
-
     .na { color: var(--muted); }
-
-    /* ── Updated cell ── */
     .updated-cell { color: var(--muted); font-size: 11px; }
 
-    /* ── Skeleton ── */
     .skeleton {
       background: linear-gradient(90deg, var(--border) 25%, var(--hover) 50%, var(--border) 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.4s infinite;
-      border-radius: 4px;
-      display: inline-block;
-      height: 13px;
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+      border-radius: 4px; display: inline-block; height: 13px;
     }
-    @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    /* ── Error banner ── */
     .error-banner {
-      background: #2d1515;
-      border: 1px solid #7f1d1d;
-      color: #fca5a5;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      font-size: 13px;
-      display: none;
+      background: #2d1515; border: 1px solid #7f1d1d; color: #fca5a5;
+      padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
+      font-size: 13px; display: none;
     }
 
-    /* ── Footer note ── */
-    .footnote {
-      margin-top: 16px;
-      font-size: 11px;
-      color: var(--muted);
-    }
+    .footnote { margin-top: 16px; font-size: 11px; color: var(--muted); }
 
-    /* ── Responsive ── */
     @media (max-width: 640px) {
       header { padding: 10px 14px; }
-      .logo  { font-size: 15px; }
+      .logo { font-size: 15px; }
       td, thead th { padding: 9px 10px; font-size: 12px; }
-      .header-right { font-size: 11px; }
     }
   </style>
 </head>
@@ -297,18 +162,18 @@
       <span id="countdown-text">Refreshing in 60s</span>
     </div>
     <span id="last-updated">—</span>
-    <button id="refresh-btn" onclick="loadData(true)">↻ Refresh</button>
+    <button id="refresh-btn" onclick="loadData()">↻ Refresh</button>
   </div>
 </header>
 
 <main>
   <div class="page-title">Currency Exchange Rates</div>
-  <div class="page-subtitle">Real-time delayed quotes · Data via Yahoo Finance & DolarAPI</div>
+  <div class="page-subtitle">Daily rates · fawazahmed0 Currency API &amp; DolarAPI · No backend required</div>
 
   <div class="stats-bar" id="stats-bar">
-    <div class="stat-chip skeleton" style="width:130px; height:36px;"></div>
-    <div class="stat-chip skeleton" style="width:130px; height:36px;"></div>
-    <div class="stat-chip skeleton" style="width:130px; height:36px;"></div>
+    <div class="stat-chip"><span class="skeleton" style="width:90px;display:inline-block;height:12px;"></span></div>
+    <div class="stat-chip"><span class="skeleton" style="width:70px;display:inline-block;height:12px;"></span></div>
+    <div class="stat-chip"><span class="skeleton" style="width:70px;display:inline-block;height:12px;"></span></div>
   </div>
 
   <div class="error-banner" id="error-banner"></div>
@@ -317,9 +182,8 @@
     <table id="rates-table">
       <thead>
         <tr>
-          <th data-col="label"  class="sorted">Pair ↕</th>
+          <th data-col="label" class="sorted">Pair ↑</th>
           <th data-col="price">Price</th>
-          <th data-col="day_change">Day Chg</th>
           <th data-col="day_pct">Day %</th>
           <th data-col="week_pct">Weekly %</th>
           <th data-col="month_pct">Monthly %</th>
@@ -328,32 +192,56 @@
         </tr>
       </thead>
       <tbody id="rates-body">
-        <!-- skeleton rows -->
-        <tr><td colspan="8" style="padding:30px; text-align:center; color:var(--muted);">
-          <span class="skeleton" style="width:200px;"></span>
+        <tr><td colspan="7" style="padding:40px;text-align:center;color:var(--muted);">
+          <span class="skeleton" style="width:220px;"></span>
         </td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="footnote">
-    Prices are delayed ~15 min. ARS blue, MEP and CCL rates from <a href="https://dolarapi.com" style="color:var(--accent);" target="_blank">dolarapi.com</a>.
-    Server-side cache refreshes every 5 minutes.
+    Exchange rates from <a href="https://github.com/fawazahmed0/exchange-api" target="_blank" style="color:var(--accent)">fawazahmed0/exchange-api</a> (daily, via jsDelivr CDN).
+    ARS blue/MEP/CCL from <a href="https://dolarapi.com" target="_blank" style="color:var(--accent)">dolarapi.com</a>.
   </div>
 </main>
 
 <script>
-// ── Config ──────────────────────────────────────────────────────────────────
-const REFRESH_INTERVAL = 60; // seconds
+// ── Config ───────────────────────────────────────────────────────────────────
+const REFRESH_INTERVAL = 60;
+const CDN = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api";
 
-// Auto-detect API base: use same origin if served by FastAPI, else localhost:8000
-const API_BASE = (() => {
-  const { protocol, hostname, port } = window.location;
-  // If served directly from FastAPI (port 8000) or any real server, use relative path
-  if (protocol === "http:" && port === "8000") return "";
-  // If loaded as file:// or from static host (Netlify, etc.), point to local FastAPI
-  return "http://localhost:8000";
-})();
+const PAIRS = [
+  // [key, label, flag, invert]  invert=true → price = 1/rate (e.g. EUR/USD)
+  ["eur", "EUR/USD", "eu", true],
+  ["gbp", "GBP/USD", "gb", true],
+  ["aud", "AUD/USD", "au", true],
+  ["nzd", "NZD/USD", "nz", true],
+  ["jpy", "USD/JPY", "jp", false],
+  ["cny", "USD/CNY", "cn", false],
+  ["chf", "USD/CHF", "ch", false],
+  ["cad", "USD/CAD", "ca", false],
+  ["mxn", "USD/MXN", "mx", false],
+  ["inr", "USD/INR", "in", false],
+  ["brl", "USD/BRL", "br", false],
+  ["rub", "USD/RUB", "ru", false],
+  ["try", "USD/TRY", "tr", false],
+  ["sek", "USD/SEK", "se", false],
+  ["pln", "USD/PLN", "pl", false],
+  ["nok", "USD/NOK", "no", false],
+  ["zar", "USD/ZAR", "za", false],
+  ["sgd", "USD/SGD", "sg", false],
+  ["czk", "USD/CZK", "cz", false],
+  ["huf", "USD/HUF", "hu", false],
+  ["krw", "USD/KRW", "kr", false],
+];
+
+const ARS_ENDPOINTS = [
+  ["https://dolarapi.com/v1/dolares/oficial",          "USD/ARS (Oficial)"],
+  ["https://dolarapi.com/v1/dolares/blue",             "USD/ARS (Blue)"],
+  ["https://dolarapi.com/v1/dolares/bolsa",            "USD/ARS (MEP)"],
+  ["https://dolarapi.com/v1/dolares/contadoconliqui",  "USD/ARS (CCL)"],
+];
+
 const FLAG_MAP = {
   eu:"🇪🇺", gb:"🇬🇧", au:"🇦🇺", nz:"🇳🇿", jp:"🇯🇵",
   cn:"🇨🇳", ch:"🇨🇭", ca:"🇨🇦", mx:"🇲🇽", "in":"🇮🇳",
@@ -364,35 +252,132 @@ const FLAG_MAP = {
 
 // ── State ────────────────────────────────────────────────────────────────────
 let countdown = REFRESH_INTERVAL;
-let timer     = null;
-let sortCol   = "label";
-let sortAsc   = true;
-let lastData  = [];
+let timer = null;
+let sortCol = "label";
+let sortAsc = true;
+let lastData = [];
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (n, dec = 4) =>
-  n == null ? null : Number(n).toLocaleString("en-US", {
-    minimumFractionDigits: dec,
-    maximumFractionDigits: dec,
+// ── Date helpers ─────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  return d.toISOString().split("T")[0];
+}
+
+function historicalDates() {
+  const now = new Date();
+  const d1  = new Date(now); d1.setDate(d1.getDate() - 1);
+  const d7  = new Date(now); d7.setDate(d7.getDate() - 7);
+  const d30 = new Date(now); d30.setDate(d30.getDate() - 30);
+  const ytd = new Date(now.getFullYear(), 0, 2);
+  return { d1: fmtDate(d1), d7: fmtDate(d7), d30: fmtDate(d30), ytd: fmtDate(ytd) };
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function fetchUSD(tag) {
+  // tag = "@latest" or "@2024-01-02"
+  const url = `${CDN}${tag}/v1/currencies/usd.json`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+  const json = await res.json();
+  return json.usd; // { eur: 0.91, jpy: 143.5, ... }
+}
+
+function getPrice(rates, key, invert) {
+  const r = rates?.[key];
+  if (!r || r === 0) return null;
+  const v = invert ? 1 / r : r;
+  return isFinite(v) ? v : null;
+}
+
+function pct(current, past) {
+  if (current == null || !past || past === 0) return null;
+  return +((( current - past) / past) * 100).toFixed(2);
+}
+
+// ── Build dataset ─────────────────────────────────────────────────────────────
+async function buildRates() {
+  const dates = historicalDates();
+
+  // Fetch all rate snapshots in parallel
+  const [latest, rD1, rD7, rD30, rYTD] = await Promise.allSettled([
+    fetchUSD("@latest"),
+    fetchUSD(`@${dates.d1}`),
+    fetchUSD(`@${dates.d7}`),
+    fetchUSD(`@${dates.d30}`),
+    fetchUSD(`@${dates.ytd}`),
+  ]);
+
+  function val(r) { return r.status === "fulfilled" ? r.value : null; }
+  const rNow = val(latest);
+  if (!rNow) throw new Error("Could not fetch latest rates");
+
+  const now = new Date().toISOString();
+  const rows = [];
+
+  for (const [key, label, flag, invert] of PAIRS) {
+    const price  = getPrice(rNow,    key, invert);
+    const p1d    = getPrice(val(rD1),  key, invert);
+    const p7d    = getPrice(val(rD7),  key, invert);
+    const p30d   = getPrice(val(rD30), key, invert);
+    const pYtd   = getPrice(val(rYTD), key, invert);
+
+    if (price == null) continue;
+
+    rows.push({
+      label, flag, price,
+      day_pct:   pct(price, p1d),
+      week_pct:  pct(price, p7d),
+      month_pct: pct(price, p30d),
+      ytd_pct:   pct(price, pYtd),
+      updated: now,
+      is_ars: false,
+    });
+  }
+
+  // ARS from dolarapi.com
+  const arsResults = await Promise.allSettled(
+    ARS_ENDPOINTS.map(([url]) => fetch(url).then(r => r.json()))
+  );
+
+  arsResults.forEach((res, i) => {
+    const [, label] = ARS_ENDPOINTS[i];
+    if (res.status !== "fulfilled") return;
+    const venta = parseFloat(res.value?.venta);
+    if (isNaN(venta)) return;
+    rows.push({
+      label, flag: "ar", price: venta,
+      day_pct: null, week_pct: null, month_pct: null, ytd_pct: null,
+      updated: now, is_ars: true,
+    });
   });
 
-const fmtPct = n => n == null ? null : (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
-const fmtChg = (n, dec = 4) => n == null ? null : (n >= 0 ? "+" : "") + fmt(n, dec);
+  return rows;
+}
 
-function priceDec(price) {
-  if (price == null) return 4;
-  if (price >= 10000) return 2;
-  if (price >= 100)   return 3;
+// ── Formatters ────────────────────────────────────────────────────────────────
+function priceDec(p) {
+  if (p == null)    return 4;
+  if (p >= 10000)   return 2;
+  if (p >= 1000)    return 2;
+  if (p >= 100)     return 3;
   return 4;
+}
+
+function fmtNum(n, dec) {
+  return n == null ? null : Number(n).toLocaleString("en-US", {
+    minimumFractionDigits: dec, maximumFractionDigits: dec,
+  });
+}
+
+function fmtPct(n) {
+  return n == null ? null : (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 }
 
 function relTime(iso) {
   if (!iso) return "—";
-  const d = new Date(iso);
-  const diff = Math.floor((Date.now() - d) / 1000);
-  if (diff < 60)  return diff + "s ago";
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60)   return diff + "s ago";
   if (diff < 3600) return Math.floor(diff / 60) + "m ago";
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function changeClass(n) {
@@ -400,61 +385,42 @@ function changeClass(n) {
   return n > 0 ? "up" : n < 0 ? "down" : "flat";
 }
 
-function renderCell(val, formatter, dec) {
-  if (val == null) return `<span class="na">—</span>`;
-  const cls = changeClass(val);
+function renderPct(n) {
+  if (n == null) return `<span class="na">—</span>`;
+  const cls   = changeClass(n);
   const arrow = cls === "up" ? "▲" : cls === "down" ? "▼" : "";
-  return `<span class="change-val ${cls}">
-    ${arrow ? `<span class="arrow">${arrow}</span>` : ""}${formatter(val, dec)}
-  </span>`;
+  return `<span class="change-val ${cls}">${arrow ? `<span class="arrow">${arrow}</span>` : ""}${fmtPct(n)}</span>`;
 }
 
-// ── Render ───────────────────────────────────────────────────────────────────
+// ── Row builder ───────────────────────────────────────────────────────────────
 function buildRow(r) {
-  const dec   = priceDec(r.price);
-  const flag  = FLAG_MAP[r.flag] || "🏳";
-  const isArs = r.is_ars;
-
-  const arsMarker = isArs
-    ? ` <span class="ars-badge">ARS</span>`
-    : "";
-
-  const priceTd = r.price != null
-    ? `<span class="price">${fmt(r.price, dec)}</span>`
-    : `<span class="na">N/A</span>`;
-
+  const dec  = priceDec(r.price);
+  const flag = FLAG_MAP[r.flag] || "🏳";
+  const ars  = r.is_ars ? ` <span class="ars-badge">ARS</span>` : "";
   return `
-    <tr class="${isArs ? "ars-row" : ""}">
-      <td>
-        <div class="pair-cell">
-          <div class="flag-wrap">${flag}</div>
-          <span class="pair-name">${r.label}</span>${arsMarker}
-        </div>
-      </td>
-      <td>${priceTd}</td>
-      <td>${renderCell(r.day_change, fmtChg, dec)}</td>
-      <td>${renderCell(r.day_pct, fmtPct)}</td>
-      <td>${renderCell(r.week_pct, fmtPct)}</td>
-      <td>${renderCell(r.month_pct, fmtPct)}</td>
-      <td>${renderCell(r.ytd_pct, fmtPct)}</td>
+    <tr class="${r.is_ars ? "ars-row" : ""}">
+      <td><div class="pair-cell">
+        <div class="flag-wrap">${flag}</div>
+        <span class="pair-name">${r.label}</span>${ars}
+      </div></td>
+      <td><span class="price">${fmtNum(r.price, dec) ?? "N/A"}</span></td>
+      <td>${renderPct(r.day_pct)}</td>
+      <td>${renderPct(r.week_pct)}</td>
+      <td>${renderPct(r.month_pct)}</td>
+      <td>${renderPct(r.ytd_pct)}</td>
       <td class="updated-cell">${relTime(r.updated)}</td>
     </tr>`;
 }
 
+// ── Sort & render ─────────────────────────────────────────────────────────────
 function sortData(data) {
   return [...data].sort((a, b) => {
-    let va = a[sortCol], vb = b[sortCol];
-
-    // ARS rows always at bottom regardless of sort
     if (a.is_ars !== b.is_ars) return a.is_ars ? 1 : -1;
-
+    let va = a[sortCol], vb = b[sortCol];
     if (va == null && vb == null) return 0;
     if (va == null) return 1;
     if (vb == null) return -1;
-
-    if (typeof va === "string") va = va.toLowerCase();
-    if (typeof vb === "string") vb = vb.toLowerCase();
-
+    if (typeof va === "string") { va = va.toLowerCase(); vb = vb.toLowerCase(); }
     if (va < vb) return sortAsc ? -1 : 1;
     if (va > vb) return sortAsc ?  1 : -1;
     return 0;
@@ -464,48 +430,42 @@ function sortData(data) {
 function renderTable(data) {
   const body = document.getElementById("rates-body");
   if (!data.length) {
-    body.innerHTML = `<tr><td colspan="8" style="padding:30px;text-align:center;color:var(--muted);">No data available</td></tr>`;
+    body.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--muted)">No data available</td></tr>`;
     return;
   }
   body.innerHTML = sortData(data).map(buildRow).join("");
 }
 
 function renderStats(data) {
-  const up   = data.filter(r => r.day_pct  != null && r.day_pct  > 0 && !r.is_ars).length;
-  const down = data.filter(r => r.day_pct  != null && r.day_pct  < 0 && !r.is_ars).length;
-  const total = data.filter(r => !r.is_ars).length;
-
+  const fx   = data.filter(r => !r.is_ars);
+  const up   = fx.filter(r => r.day_pct != null && r.day_pct  > 0).length;
+  const down = fx.filter(r => r.day_pct != null && r.day_pct  < 0).length;
   document.getElementById("stats-bar").innerHTML = `
-    <div class="stat-chip">Total pairs <strong>${data.length}</strong></div>
+    <div class="stat-chip">Pairs <strong>${data.length}</strong></div>
     <div class="stat-chip">Rising <strong class="up">${up}</strong></div>
     <div class="stat-chip">Falling <strong class="down">${down}</strong></div>
-    <div class="stat-chip">Unchanged <strong>${total - up - down}</strong></div>
-  `;
+    <div class="stat-chip">Neutral <strong>${fx.length - up - down}</strong></div>`;
 }
 
-// ── Fetch ────────────────────────────────────────────────────────────────────
-async function loadData(force = false) {
+// ── Main fetch ────────────────────────────────────────────────────────────────
+async function loadData() {
   const btn = document.getElementById("refresh-btn");
   btn.disabled = true;
   btn.textContent = "↻ Loading…";
-
-  hideError();
+  document.getElementById("error-banner").style.display = "none";
 
   try {
-    const res = await fetch(`${API_BASE}/api/rates`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-
-    lastData = json.data || [];
-    renderTable(lastData);
-    renderStats(lastData);
-
+    const data = await buildRates();
+    lastData = data;
+    renderTable(data);
+    renderStats(data);
     const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     document.getElementById("last-updated").textContent = "Updated " + now;
-
   } catch (err) {
-    showError("Failed to fetch rates: " + err.message);
-    if (lastData.length) renderTable(lastData); // keep stale data visible
+    const banner = document.getElementById("error-banner");
+    banner.textContent = "⚠ " + err.message;
+    banner.style.display = "block";
+    if (lastData.length) renderTable(lastData);
   } finally {
     btn.disabled = false;
     btn.textContent = "↻ Refresh";
@@ -513,45 +473,32 @@ async function loadData(force = false) {
   }
 }
 
-// ── Countdown ────────────────────────────────────────────────────────────────
+// ── Countdown ─────────────────────────────────────────────────────────────────
 function resetCountdown() {
   countdown = REFRESH_INTERVAL;
-  if (timer) clearInterval(timer);
+  clearInterval(timer);
   timer = setInterval(() => {
     countdown--;
-    document.getElementById("countdown-text").textContent =
-      `Refreshing in ${countdown}s`;
+    document.getElementById("countdown-text").textContent = `Refreshing in ${countdown}s`;
     if (countdown <= 0) loadData();
   }, 1000);
 }
 
-// ── Sort headers ─────────────────────────────────────────────────────────────
+// ── Sort headers ──────────────────────────────────────────────────────────────
 document.querySelectorAll("thead th[data-col]").forEach(th => {
   th.addEventListener("click", () => {
     const col = th.dataset.col;
-    if (sortCol === col) {
-      sortAsc = !sortAsc;
-    } else {
-      sortCol = col;
-      sortAsc = col === "label"; // default asc for label, desc for numbers
-    }
-    document.querySelectorAll("thead th").forEach(h => h.classList.remove("sorted"));
+    sortAsc = sortCol === col ? !sortAsc : (col === "label");
+    sortCol = col;
+    document.querySelectorAll("thead th").forEach(h => {
+      h.classList.remove("sorted");
+      h.textContent = h.textContent.replace(/ [↑↓↕]$/, "");
+    });
     th.classList.add("sorted");
-    th.textContent = th.textContent.replace(/ [↑↓↕]/, "") +
-      (sortCol === col ? (sortAsc ? " ↑" : " ↓") : " ↕");
+    th.textContent += sortAsc ? " ↑" : " ↓";
     renderTable(lastData);
   });
 });
-
-// ── Error helpers ─────────────────────────────────────────────────────────────
-function showError(msg) {
-  const el = document.getElementById("error-banner");
-  el.textContent = "⚠ " + msg;
-  el.style.display = "block";
-}
-function hideError() {
-  document.getElementById("error-banner").style.display = "none";
-}
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadData();
