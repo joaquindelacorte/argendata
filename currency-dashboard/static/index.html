@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Currency Exchange Rates</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c25;
+      --border:    #262c3a;
+      --text:      #e2e8f0;
+      --muted:     #8a93a8;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --ars-bg:    #0d2240;
+      --ars-border:#1e4a7a;
+      --accent:    #3b82f6;
+      --header-bg: #1a1f2e;
+      --hover:     #1e2535;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 12px; }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    .logo span { color: var(--accent); }
+
+    .badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    #countdown {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    #refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: border-color .2s, color .2s;
+    }
+    #refresh-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Main layout ── */
+    main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    .page-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .stat-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .stat-chip strong { color: var(--text); margin-left: 4px; }
+
+    /* ── Table wrapper ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    thead th {
+      background: var(--header-bg);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 11px 14px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    thead th:first-child { text-align: left; }
+    thead th:hover { color: var(--text); }
+    thead th.sorted { color: var(--accent); }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--hover); }
+
+    tbody tr.ars-row {
+      background: var(--ars-bg);
+      border-left: 3px solid var(--ars-border);
+    }
+    tbody tr.ars-row:hover { background: #0f2a50; }
+
+    td {
+      padding: 11px 14px;
+      text-align: right;
+      white-space: nowrap;
+    }
+    td:first-child { text-align: left; }
+
+    /* ── Flag cell ── */
+    .pair-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .flag-wrap {
+      width: 24px; height: 18px;
+      border-radius: 3px;
+      overflow: hidden;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .pair-name {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .ars-badge {
+      font-size: 9px;
+      font-weight: 700;
+      background: var(--ars-border);
+      color: #7ec8ff;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    /* ── Number cells ── */
+    .price { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .up   { color: var(--green); }
+    .down { color: var(--red);   }
+    .flat { color: var(--muted); }
+
+    .change-val { font-variant-numeric: tabular-nums; }
+
+    .arrow { font-size: 10px; margin-right: 2px; }
+
+    .na { color: var(--muted); }
+
+    /* ── Updated cell ── */
+    .updated-cell { color: var(--muted); font-size: 11px; }
+
+    /* ── Skeleton ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--border) 25%, var(--hover) 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 4px;
+      display: inline-block;
+      height: 13px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+      background: #2d1515;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      display: none;
+    }
+
+    /* ── Footer note ── */
+    .footnote {
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      header { padding: 10px 14px; }
+      .logo  { font-size: 15px; }
+      td, thead th { padding: 9px 10px; font-size: 12px; }
+      .header-right { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo">Currency<span>FX</span></div>
+    <span class="badge">Live</span>
+  </div>
+  <div class="header-right">
+    <div id="countdown">
+      <span class="dot"></span>
+      <span id="countdown-text">Refreshing in 60s</span>
+    </div>
+    <span id="last-updated">—</span>
+    <button id="refresh-btn" onclick="loadData(true)">↻ Refresh</button>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">Currency Exchange Rates</div>
+  <div class="page-subtitle">Real-time delayed quotes · Data via Yahoo Finance & DolarAPI</div>
+
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-chip skeleton" style="width:130px; height:36px;"></div>
+    <div class="stat-chip skeleton" style="width:130px; height:36px;"></div>
+    <div class="stat-chip skeleton" style="width:130px; height:36px;"></div>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <div class="table-wrap">
+    <table id="rates-table">
+      <thead>
+        <tr>
+          <th data-col="label"  class="sorted">Pair ↕</th>
+          <th data-col="price">Price</th>
+          <th data-col="day_change">Day Chg</th>
+          <th data-col="day_pct">Day %</th>
+          <th data-col="week_pct">Weekly %</th>
+          <th data-col="month_pct">Monthly %</th>
+          <th data-col="ytd_pct">YTD %</th>
+          <th data-col="updated">Updated</th>
+        </tr>
+      </thead>
+      <tbody id="rates-body">
+        <!-- skeleton rows -->
+        <tr><td colspan="8" style="padding:30px; text-align:center; color:var(--muted);">
+          <span class="skeleton" style="width:200px;"></span>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footnote">
+    Prices are delayed ~15 min. ARS blue, MEP and CCL rates from <a href="https://dolarapi.com" style="color:var(--accent);" target="_blank">dolarapi.com</a>.
+    Server-side cache refreshes every 5 minutes.
+  </div>
+</main>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const REFRESH_INTERVAL = 60; // seconds
+const FLAG_MAP = {
+  eu:"🇪🇺", gb:"🇬🇧", au:"🇦🇺", nz:"🇳🇿", jp:"🇯🇵",
+  cn:"🇨🇳", ch:"🇨🇭", ca:"🇨🇦", mx:"🇲🇽", "in":"🇮🇳",
+  br:"🇧🇷", ru:"🇷🇺", us:"🇺🇸", tr:"🇹🇷", se:"🇸🇪",
+  pl:"🇵🇱", "no":"🇳🇴", za:"🇿🇦", sg:"🇸🇬", cz:"🇨🇿",
+  hu:"🇭🇺", kr:"🇰🇷", ar:"🇦🇷",
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let countdown = REFRESH_INTERVAL;
+let timer     = null;
+let sortCol   = "label";
+let sortAsc   = true;
+let lastData  = [];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = (n, dec = 4) =>
+  n == null ? null : Number(n).toLocaleString("en-US", {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
+
+const fmtPct = n => n == null ? null : (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+const fmtChg = (n, dec = 4) => n == null ? null : (n >= 0 ? "+" : "") + fmt(n, dec);
+
+function priceDec(price) {
+  if (price == null) return 4;
+  if (price >= 10000) return 2;
+  if (price >= 100)   return 3;
+  return 4;
+}
+
+function relTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const diff = Math.floor((Date.now() - d) / 1000);
+  if (diff < 60)  return diff + "s ago";
+  if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function changeClass(n) {
+  if (n == null) return "flat";
+  return n > 0 ? "up" : n < 0 ? "down" : "flat";
+}
+
+function renderCell(val, formatter, dec) {
+  if (val == null) return `<span class="na">—</span>`;
+  const cls = changeClass(val);
+  const arrow = cls === "up" ? "▲" : cls === "down" ? "▼" : "";
+  return `<span class="change-val ${cls}">
+    ${arrow ? `<span class="arrow">${arrow}</span>` : ""}${formatter(val, dec)}
+  </span>`;
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function buildRow(r) {
+  const dec   = priceDec(r.price);
+  const flag  = FLAG_MAP[r.flag] || "🏳";
+  const isArs = r.is_ars;
+
+  const arsMarker = isArs
+    ? ` <span class="ars-badge">ARS</span>`
+    : "";
+
+  const priceTd = r.price != null
+    ? `<span class="price">${fmt(r.price, dec)}</span>`
+    : `<span class="na">N/A</span>`;
+
+  return `
+    <tr class="${isArs ? "ars-row" : ""}">
+      <td>
+        <div class="pair-cell">
+          <div class="flag-wrap">${flag}</div>
+          <span class="pair-name">${r.label}</span>${arsMarker}
+        </div>
+      </td>
+      <td>${priceTd}</td>
+      <td>${renderCell(r.day_change, fmtChg, dec)}</td>
+      <td>${renderCell(r.day_pct, fmtPct)}</td>
+      <td>${renderCell(r.week_pct, fmtPct)}</td>
+      <td>${renderCell(r.month_pct, fmtPct)}</td>
+      <td>${renderCell(r.ytd_pct, fmtPct)}</td>
+      <td class="updated-cell">${relTime(r.updated)}</td>
+    </tr>`;
+}
+
+function sortData(data) {
+  return [...data].sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+
+    // ARS rows always at bottom regardless of sort
+    if (a.is_ars !== b.is_ars) return a.is_ars ? 1 : -1;
+
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+
+    if (typeof va === "string") va = va.toLowerCase();
+    if (typeof vb === "string") vb = vb.toLowerCase();
+
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ?  1 : -1;
+    return 0;
+  });
+}
+
+function renderTable(data) {
+  const body = document.getElementById("rates-body");
+  if (!data.length) {
+    body.innerHTML = `<tr><td colspan="8" style="padding:30px;text-align:center;color:var(--muted);">No data available</td></tr>`;
+    return;
+  }
+  body.innerHTML = sortData(data).map(buildRow).join("");
+}
+
+function renderStats(data) {
+  const up   = data.filter(r => r.day_pct  != null && r.day_pct  > 0 && !r.is_ars).length;
+  const down = data.filter(r => r.day_pct  != null && r.day_pct  < 0 && !r.is_ars).length;
+  const total = data.filter(r => !r.is_ars).length;
+
+  document.getElementById("stats-bar").innerHTML = `
+    <div class="stat-chip">Total pairs <strong>${data.length}</strong></div>
+    <div class="stat-chip">Rising <strong class="up">${up}</strong></div>
+    <div class="stat-chip">Falling <strong class="down">${down}</strong></div>
+    <div class="stat-chip">Unchanged <strong>${total - up - down}</strong></div>
+  `;
+}
+
+// ── Fetch ────────────────────────────────────────────────────────────────────
+async function loadData(force = false) {
+  const btn = document.getElementById("refresh-btn");
+  btn.disabled = true;
+  btn.textContent = "↻ Loading…";
+
+  hideError();
+
+  try {
+    const res = await fetch("/api/rates");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    lastData = json.data || [];
+    renderTable(lastData);
+    renderStats(lastData);
+
+    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    document.getElementById("last-updated").textContent = "Updated " + now;
+
+  } catch (err) {
+    showError("Failed to fetch rates: " + err.message);
+    if (lastData.length) renderTable(lastData); // keep stale data visible
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "↻ Refresh";
+    resetCountdown();
+  }
+}
+
+// ── Countdown ────────────────────────────────────────────────────────────────
+function resetCountdown() {
+  countdown = REFRESH_INTERVAL;
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => {
+    countdown--;
+    document.getElementById("countdown-text").textContent =
+      `Refreshing in ${countdown}s`;
+    if (countdown <= 0) loadData();
+  }, 1000);
+}
+
+// ── Sort headers ─────────────────────────────────────────────────────────────
+document.querySelectorAll("thead th[data-col]").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+      sortAsc = !sortAsc;
+    } else {
+      sortCol = col;
+      sortAsc = col === "label"; // default asc for label, desc for numbers
+    }
+    document.querySelectorAll("thead th").forEach(h => h.classList.remove("sorted"));
+    th.classList.add("sorted");
+    th.textContent = th.textContent.replace(/ [↑↓↕]/, "") +
+      (sortCol === col ? (sortAsc ? " ↑" : " ↓") : " ↕");
+    renderTable(lastData);
+  });
+});
+
+// ── Error helpers ─────────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById("error-banner");
+  el.textContent = "⚠ " + msg;
+  el.style.display = "block";
+}
+function hideError() {
+  document.getElementById("error-banner").style.display = "none";
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
