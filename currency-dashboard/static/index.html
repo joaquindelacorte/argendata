@@ -345,6 +345,15 @@
 <script>
 // ── Config ──────────────────────────────────────────────────────────────────
 const REFRESH_INTERVAL = 60; // seconds
+
+// Auto-detect API base: use same origin if served by FastAPI, else localhost:8000
+const API_BASE = (() => {
+  const { protocol, hostname, port } = window.location;
+  // If served directly from FastAPI (port 8000) or any real server, use relative path
+  if (protocol === "http:" && port === "8000") return "";
+  // If loaded as file:// or from static host (Netlify, etc.), point to local FastAPI
+  return "http://localhost:8000";
+})();
 const FLAG_MAP = {
   eu:"🇪🇺", gb:"🇬🇧", au:"🇦🇺", nz:"🇳🇿", jp:"🇯🇵",
   cn:"🇨🇳", ch:"🇨🇭", ca:"🇨🇦", mx:"🇲🇽", "in":"🇮🇳",
@@ -483,7 +492,7 @@ async function loadData(force = false) {
   hideError();
 
   try {
-    const res = await fetch("/api/rates");
+    const res = await fetch(`${API_BASE}/api/rates`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
 
