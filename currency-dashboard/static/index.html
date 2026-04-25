@@ -293,6 +293,27 @@ function pct(current, past) {
   return +((( current - past) / past) * 100).toFixed(2);
 }
 
+// DXY = 50.14348112 × EUR/USD^(-0.576) × USD/JPY^(0.136) × GBP/USD^(-0.119)
+//                   × USD/CAD^(0.091) × USD/SEK^(0.042) × USD/CHF^(0.036)
+function calcDXY(rates) {
+  if (!rates) return null;
+  const eurusd = rates.eur ? 1 / rates.eur : null;
+  const usdjpy = rates.jpy || null;
+  const gbpusd = rates.gbp ? 1 / rates.gbp : null;
+  const usdcad = rates.cad || null;
+  const usdsek = rates.sek || null;
+  const usdchf = rates.chf || null;
+  if (!eurusd || !usdjpy || !gbpusd || !usdcad || !usdsek || !usdchf) return null;
+  const v = 50.14348112
+    * Math.pow(eurusd, -0.576)
+    * Math.pow(usdjpy,  0.136)
+    * Math.pow(gbpusd, -0.119)
+    * Math.pow(usdcad,  0.091)
+    * Math.pow(usdsek,  0.042)
+    * Math.pow(usdchf,  0.036);
+  return isFinite(v) ? v : null;
+}
+
 // ── Build dataset ─────────────────────────────────────────────────────────────
 async function buildRates() {
   const dates = historicalDates();
@@ -314,38 +335,89 @@ async function buildRates() {
   const rows = [];
 
   for (const [key, label, flag, invert] of PAIRS) {
-    const price  = getPrice(rNow,    key, invert);
-    const p1d    = getPrice(val(rD1),  key, invert);
-    const p7d    = getPrice(val(rD7),  key, invert);
-    const p30d   = getPrice(val(rD30), key, invert);
-    const pYtd   = getPrice(val(rYTD), key, invert);
-
+    const price = getPrice(rNow,       key, invert);
+    const p1d   = getPrice(val(rD1),   key, invert);
+    const p7d   = getPrice(val(rD7),   key, invert);
+    const p30d  = getPrice(val(rD30),  key, invert);
+    const pYtd  = getPrice(val(rYTD),  key, invert);
     if (price == null) continue;
-
     rows.push({
       label, flag, price,
       day_pct:   pct(price, p1d),
       week_pct:  pct(price, p7d),
       month_pct: pct(price, p30d),
       ytd_pct:   pct(price, pYtd),
-      updated: now,
-      is_ars: false,
+      updated: now, is_ars: false,
     });
   }
 
-  // ARS from dolarapi.com
-  const arsResults = await Promise.allSettled(
-    ARS_ENDPOINTS.map(([url]) => fetch(url).then(r => r.json()))
+  // DXY — computed from the same rate snapshots
+  const dxyNow = calcDXY(rNow);
+  if (dxyNow != null) {
+    rows.push({
+      label: "DXY", flag: "us", price: dxyNow,
+      day_pct:   pct(dxyNow, calcDXY(val(rD1))),
+      week_pct:  pct(dxyNow, calcDXY(val(rD7))),
+      month_pct: pct(dxyNow, calcDXY(val(rD30))),
+      ytd_pct:   pct(dxyNow, calcDXY(val(rYTD))),
+      updated: now, is_ars: false,
+    });
+  }
+
+  // ARS official rate — price from dolarapi.com, % changes from fawazahmed0 CDN
+  const arsOficial = await fetch("https://dolarapi.com/v1/dolares/oficial")
+    .then(r => r.json()).catch(() => null);
+  const arsVenta = arsOficial ? parseFloat(arsOficial.venta) : null;
+
+  if (arsVenta && !isNaN(arsVenta)) {
+    // Use CDN historical ARS rates for day/week/month/YTD % changes
+    const arsP1d  = val(rD1)  ? val(rD1).ars  : null;
+    const arsP7d  = val(rD7)  ? val(rD7).ars  : null;
+    const arsP30d = val(rD30) ? val(rD30).ars : null;
+    const arsPYtd = val(rYTD) ? val(rYTD).ars : null;
+    rows.push({
+      label: "USD/ARS (Oficial)", flag: "ar", price: arsVenta,
+      day_pct:   pct(arsVenta, arsP1d),
+      week_pct:  pct(arsVenta, arsP7d),
+      month_pct: pct(arsVenta, arsP30d),
+      ytd_pct:   pct(arsVenta, arsPYtd),
+      updated: now, is_ars: true,
+    });
+  }
+
+  // ARS Blue / MEP / CCL — price from dolarapi.com, % changes from argentinadatos.com
+  const ARS_EXTRA = [
+    ["https://dolarapi.com/v1/dolares/blue",            "USD/ARS (Blue)",  "blue"],
+    ["https://dolarapi.com/v1/dolares/bolsa",           "USD/ARS (MEP)",   "bolsa"],
+    ["https://dolarapi.com/v1/dolares/contadoconliqui", "USD/ARS (CCL)",   "contadoconliqui"],
+  ];
+
+  const extraResults = await Promise.allSettled(
+    ARS_EXTRA.map(([url]) => fetch(url).then(r => r.json()))
   );
 
-  arsResults.forEach((res, i) => {
-    const [, label] = ARS_ENDPOINTS[i];
+  // Fetch yesterday's blue/bolsa/ccl from argentinadatos.com for day %
+  const histBase = "https://api.argentinadatos.com/v1/cotizaciones/dolares";
+  const yesterday = dates.d1;
+  const [histBlue, histMEP, histCCL] = await Promise.allSettled([
+    fetch(`${histBase}/blue/${yesterday.replace(/-/g, "/")}`).then(r => r.json()),
+    fetch(`${histBase}/bolsa/${yesterday.replace(/-/g, "/")}`).then(r => r.json()),
+    fetch(`${histBase}/contadoconliqui/${yesterday.replace(/-/g, "/")}`).then(r => r.json()),
+  ]);
+  const histYest = [histBlue, histMEP, histCCL].map(
+    r => r.status === "fulfilled" ? parseFloat(r.value?.venta) : null
+  );
+
+  extraResults.forEach((res, i) => {
+    const [, label] = ARS_EXTRA[i];
     if (res.status !== "fulfilled") return;
     const venta = parseFloat(res.value?.venta);
     if (isNaN(venta)) return;
+    const prev = histYest[i];
     rows.push({
       label, flag: "ar", price: venta,
-      day_pct: null, week_pct: null, month_pct: null, ytd_pct: null,
+      day_pct:   (!isNaN(prev) && prev) ? pct(venta, prev) : null,
+      week_pct: null, month_pct: null, ytd_pct: null,
       updated: now, is_ars: true,
     });
   });
