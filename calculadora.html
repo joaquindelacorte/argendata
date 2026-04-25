@@ -204,6 +204,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
   <button class="tp" onclick="show('regla72',this)">⏳ Regla del 72</button>
   <button class="tp" onclick="show('oportunidad',this)">💡 Costo de oportunidad</button>
   <button class="tp" onclick="show('meta',this)">🎯 Meta de ahorro</button>
+  <button class="tp" onclick="show('deudas',this)">💳 Comparar deudas</button>
+  <button class="tp" onclick="show('curvas',this)">📉 Curva de tasas</button>
 </div>
 
 <!-- ════════════════════════════════════════════════════ -->
@@ -627,6 +629,104 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px;
 </div>
 
 <!-- ════════════════════════════════════════════════════ -->
+<!-- COMPARADOR DE DEUDAS                                 -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-deudas" class="panel">
+<div class="pl wide">
+  <div class="glass-card">
+    <div class="fg"><label class="fl">Monto a financiar (ARS)</label><input class="fi" type="number" id="deu-m" value="500000" onfocus="this.select()" oninput="calcDeudas()"></div>
+    <hr class="dv">
+    <div class="sl" style="color:var(--accent)">Opción A</div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="deu-1n" value="Banco A" oninput="calcDeudas()"></div>
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="deu-1t" value="80" onfocus="this.select()" oninput="calcDeudas()"></div>
+      <div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="deu-1c" value="12" onfocus="this.select()" oninput="calcDeudas()"></div>
+    </div>
+    <hr class="dv">
+    <div class="sl" style="color:#f59e0b">Opción B</div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="deu-2n" value="Fintech" oninput="calcDeudas()"></div>
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="deu-2t" value="120" onfocus="this.select()" oninput="calcDeudas()"></div>
+      <div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="deu-2c" value="12" onfocus="this.select()" oninput="calcDeudas()"></div>
+    </div>
+    <hr class="dv">
+    <div class="sl" style="color:var(--success)">Opción C</div>
+    <div class="fr3">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="deu-3n" value="Tarjeta crédito" oninput="calcDeudas()"></div>
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="deu-3t" value="180" onfocus="this.select()" oninput="calcDeudas()"></div>
+      <div class="fg"><label class="fl">Cuotas</label><input class="fi" type="number" id="deu-3c" value="12" onfocus="this.select()" oninput="calcDeudas()"></div>
+    </div>
+    <button class="btn-save" onclick="saveCalc('deudas')" style="margin-top:12px">💾 Guardar cálculo</button>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div class="sl">Cuota mensual por opción</div>
+      <div id="deu-bars" style="margin-top:10px"></div>
+    </div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div style="overflow-x:auto">
+        <table class="fxt"><thead><tr><th>Opción</th><th>TNA</th><th>Cuota/mes</th><th>Total pagado</th><th>Intereses</th></tr></thead><tbody id="deu-tbody"></tbody></table>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div class="rl">Elegir la mejor opción te ahorra</div>
+      <div class="rh pos" id="deu-ahorro">—</div>
+      <div class="rs" id="deu-sub">vs la más cara</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!-- CURVA DE TASAS                                       -->
+<!-- ════════════════════════════════════════════════════ -->
+<div id="panel-curvas" class="panel">
+<div class="pl wide">
+  <div class="glass-card">
+    <div class="fr">
+      <div class="fg"><label class="fl">Capital (ARS)</label><input class="fi" type="number" id="crv-k" value="1000000" onfocus="this.select()" oninput="calcCurvas()"></div>
+      <div class="fg"><label class="fl">Plazo (meses)</label><input class="fi" type="number" id="crv-p" value="24" min="1" max="120" onfocus="this.select()" oninput="calcCurvas()"></div>
+    </div>
+    <div class="tog-row">
+      <span class="tog-lbl">Mostrar rendimiento en % (desactivar = ARS)</span>
+      <label class="tog"><input type="checkbox" id="crv-pct" onchange="calcCurvas()" checked><span class="tog-tr"></span></label>
+    </div>
+    <hr class="dv">
+    <div class="sl" style="color:var(--accent)">Instrumento 1</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="crv-1n" value="Plazo Fijo" oninput="calcCurvas()"></div>
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="crv-1t" value="37" onfocus="this.select()" oninput="calcCurvas()"></div>
+    </div>
+    <div class="sl" style="color:#f59e0b">Instrumento 2</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="crv-2n" value="FCI Renta" oninput="calcCurvas()"></div>
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="crv-2t" value="70" onfocus="this.select()" oninput="calcCurvas()"></div>
+    </div>
+    <div class="sl" style="color:var(--success)">Instrumento 3</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="crv-3n" value="ON Dólar" oninput="calcCurvas()"></div>
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="crv-3t" value="120" onfocus="this.select()" oninput="calcCurvas()"></div>
+    </div>
+    <div class="sl" style="color:#a78bfa">Instrumento 4 (opcional)</div>
+    <div class="fr">
+      <div class="fg"><label class="fl">Nombre</label><input class="fi" type="text" id="crv-4n" value="" oninput="calcCurvas()"></div>
+      <div class="fg"><label class="fl">TNA (%)</label><input class="fi" type="number" id="crv-4t" value="0" onfocus="this.select()" oninput="calcCurvas()"></div>
+    </div>
+    <button class="btn-save" onclick="saveCalc('curvas')" style="margin-top:12px">💾 Guardar cálculo</button>
+  </div>
+  <div>
+    <div class="glass-card" style="margin-bottom:12px">
+      <div class="cw" style="height:240px"><canvas id="crv-chart"></canvas></div>
+    </div>
+    <div class="glass-card">
+      <div class="sl">Rendimiento en hitos clave</div>
+      <div id="crv-milestones" style="margin-top:8px;overflow-x:auto"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
 <!-- HISTORY DRAWER                                       -->
 <!-- ════════════════════════════════════════════════════ -->
 <div class="hist-drawer" id="hist-drawer">
@@ -680,7 +780,7 @@ function show(tool, btn) {
   document.querySelectorAll('.tp').forEach(b=>b.classList.remove('active'));
   $('panel-'+tool).classList.add('active');
   btn?.classList.add('active');
-  const lazy={interes:calcCI,comparar:calcComp,regla72:calcR72,cuotas:calcCu,oportunidad:calcOp,meta:calcMeta};
+  const lazy={interes:calcCI,comparar:calcComp,regla72:calcR72,cuotas:calcCu,oportunidad:calcOp,meta:calcMeta,deudas:calcDeudas,curvas:calcCurvas};
   if(lazy[tool]) lazy[tool]();
 }
 
@@ -718,7 +818,7 @@ function openPopup() {
   }
 
   // Initial calcs
-  calcCI(); calcComp(); calcR72(); calcCu(); calcOp(); calcMeta();
+  calcCI(); calcComp(); calcR72(); calcCu(); calcOp(); calcMeta(); calcDeudas(); calcCurvas();
   renderHist();
 })();
 
@@ -730,7 +830,8 @@ function setHist(h){ localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(-60))
 const TOOL_NAMES = {
   variacion:'📈 Variación %', interes:'💹 Interés compuesto', cambio:'💱 Tipo de cambio',
   comparar:'⚖️ Comparar', cuotas:'📋 Cuotas', roi:'📊 ROI',
-  pct:'🔢 % Rápido', regla72:'⏳ Regla 72', oportunidad:'💡 Costo oport.', meta:'🎯 Meta ahorro'
+  pct:'🔢 % Rápido', regla72:'⏳ Regla 72', oportunidad:'💡 Costo oport.', meta:'🎯 Meta ahorro',
+  deudas:'💳 Comparar deudas', curvas:'📉 Curva de tasas'
 };
 
 function getEntryData(tool){
@@ -745,6 +846,8 @@ function getEntryData(tool){
   else if(tool==='regla72'){ d.summary='x2 en '+$('r72-x2').textContent; d.detail=`TNA ${v('r72-t')}%`; }
   else if(tool==='oportunidad'){ d.summary='Rendimiento '+fmtPct(v('op-rend'),1); d.detail=`${fmtARS(v('op-k'))} en ${v('op-per')}m`; }
   else if(tool==='meta'){ d.summary=$('mt-res-main').textContent; d.detail=`Meta ${fmtARS(v('mt-meta'))} | Capital ${fmtARS(v('mt-k'))}`; }
+  else if(tool==='deudas'){ d.summary='Cuota '+$('deu-bars').querySelector('.cb-v')?.textContent||'—'; d.detail=`${fmtARS(v('deu-m'))} | ${s('deu-1n')} ${v('deu-1t')}% / ${s('deu-2n')} ${v('deu-2t')}% / ${s('deu-3n')} ${v('deu-3t')}%`; }
+  else if(tool==='curvas'){ d.summary=`${v('crv-p')} meses · ${[s('crv-1n'),s('crv-2n'),s('crv-3n')].filter(Boolean).join(', ')}`; d.detail=`Capital ${fmtARS(v('crv-k'))} | TNA: ${v('crv-1t')}% / ${v('crv-2t')}% / ${v('crv-3t')}%`; }
   return d;
 }
 
@@ -1104,6 +1207,111 @@ function buildMetaChart(labels,data,meta){
     {label:'Capital proyectado',data,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
     {label:'Meta',data:Array(data.length).fill(meta),borderColor:'#10b981',borderDash:[6,4],pointRadius:0,borderWidth:1.5,backgroundColor:'transparent'},
   ]},options:CO});
+}
+
+// ── Comparador de Deudas ──────────────────────────────────────
+function calcDeudas() {
+  const M = v('deu-m');
+  if (!M || M <= 0) return;
+  const COLS = ['var(--accent)','#f59e0b','var(--success)'];
+  const opts = [
+    { n: s('deu-1n')||'A', tna: v('deu-1t'), c: Math.max(1, v('deu-1c')||12), col: COLS[0] },
+    { n: s('deu-2n')||'B', tna: v('deu-2t'), c: Math.max(1, v('deu-2c')||12), col: COLS[1] },
+    { n: s('deu-3n')||'C', tna: v('deu-3t'), c: Math.max(1, v('deu-3c')||12), col: COLS[2] },
+  ].filter(o => o.tna > 0);
+  if (!opts.length) return;
+
+  const results = opts.map(o => {
+    const i = o.tna / 100 / 12;
+    const n = o.c;
+    const cuota = i === 0 ? M / n : M * i * Math.pow(1+i, n) / (Math.pow(1+i, n) - 1);
+    const total = cuota * n;
+    const intereses = total - M;
+    return { ...o, cuota, total, intereses };
+  });
+
+  const maxCuota = Math.max(...results.map(r => r.cuota));
+  const winner = results.reduce((a, b) => a.total < b.total ? a : b);
+  const maxTotal = Math.max(...results.map(r => r.total));
+
+  $('deu-bars').innerHTML = results.map(r => `
+    <div class="cb">
+      <div class="cb-h">
+        <span class="cb-n" style="color:${r.col}">${r.n} · ${r.c} cuotas</span>
+        <span class="cb-v">${fmtARS(r.cuota)}/mes</span>
+      </div>
+      <div class="cb-tr"><div class="cb-fi" style="width:${(r.cuota/maxCuota*100).toFixed(1)}%;background:${r.col}"></div></div>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-top:3px">Total: ${fmtARS(r.total)} · Intereses: ${fmtARS(r.intereses)}</div>
+    </div>`).join('');
+
+  $('deu-tbody').innerHTML = results.map(r => {
+    const isWin = r === winner;
+    return `<tr style="${isWin ? 'background:rgba(16,185,129,0.06)' : ''}">
+      <td style="color:${r.col};font-weight:700">${r.n}${isWin ? ' ✓' : ''}</td>
+      <td>${r.tna.toFixed(1)}%</td>
+      <td style="font-family:'Outfit',sans-serif;font-weight:700">${fmtARS(r.cuota)}</td>
+      <td style="font-family:'Outfit',sans-serif">${fmtARS(r.total)}</td>
+      <td style="color:var(--danger);font-family:'Outfit',sans-serif">${fmtARS(r.intereses)}</td>
+    </tr>`;
+  }).join('');
+
+  const ahorro = maxTotal - winner.total;
+  $('deu-ahorro').textContent = fmtARS(ahorro);
+  $('deu-sub').textContent = `eligiendo "${winner.n}" (${winner.tna}% TNA en ${winner.c} cuotas) vs la más cara`;
+}
+
+// ── Curva de Tasas ────────────────────────────────────────────
+function calcCurvas() {
+  const K = v('crv-k') || 1000000;
+  const plazo = Math.max(1, Math.min(120, v('crv-p') || 24));
+  const showPct = $('crv-pct').checked;
+
+  const instruments = [
+    { n: s('crv-1n'), tna: v('crv-1t'), col: 'rgba(59,130,246,1)',   bg: 'rgba(59,130,246,0.08)' },
+    { n: s('crv-2n'), tna: v('crv-2t'), col: 'rgba(245,158,11,1)',   bg: 'rgba(245,158,11,0.08)' },
+    { n: s('crv-3n'), tna: v('crv-3t'), col: 'rgba(16,185,129,1)',   bg: 'rgba(16,185,129,0.08)' },
+    { n: s('crv-4n'), tna: v('crv-4t'), col: 'rgba(167,139,250,1)',  bg: 'rgba(167,139,250,0.08)' },
+  ].filter(i => i.tna > 0 && i.n);
+
+  const labels = Array.from({length: plazo+1}, (_, i) => i === 0 ? 'Hoy' : `M${i}`);
+
+  const datasets = instruments.map(inst => {
+    const tm = inst.tna / 100 / 12;
+    const data = Array.from({length: plazo+1}, (_, m) => {
+      const val = K * Math.pow(1+tm, m);
+      return showPct ? +((val/K - 1) * 100).toFixed(3) : val;
+    });
+    return { label: `${inst.n} (${inst.tna}%)`, data, borderColor: inst.col, backgroundColor: inst.bg,
+             borderWidth: 2.5, pointRadius: 0, tension: 0.3, fill: false };
+  });
+
+  dc('crv-chart');
+  const copts = JSON.parse(JSON.stringify(CO));
+  copts.scales.y.ticks.callback = showPct ? n => n.toFixed(0)+'%' : n => '$'+fmt(n);
+  copts.scales.x.ticks.maxTicksLimit = 10;
+  charts['crv-chart'] = new Chart($('crv-chart'), { type:'line', data:{labels, datasets}, options: copts });
+
+  // Milestone table
+  const milestones = [1,3,6,12,24,36,48,60].filter(m => m <= plazo);
+  if (!milestones.includes(plazo)) milestones.push(plazo);
+
+  if (!instruments.length) { $('crv-milestones').innerHTML='<p style="color:var(--text-muted);font-size:.82rem">Ingresá al menos un instrumento con TNA > 0</p>'; return; }
+
+  const thead = '<thead><tr><th>Instrumento</th>'+milestones.map(m=>`<th>${m}m</th>`).join('')+'</tr></thead>';
+  const tbody = '<tbody>'+instruments.map(inst => {
+    const tm = inst.tna / 100 / 12;
+    const cells = milestones.map(m => {
+      const val = K * Math.pow(1+tm, m);
+      const pct = (val/K - 1) * 100;
+      return `<td>
+        <div style="font-family:'Outfit',sans-serif;font-weight:700;color:${inst.col}">${showPct ? fmtPct(pct,1) : fmtARS(val)}</div>
+        ${showPct ? '' : `<div style="font-size:0.7rem;color:var(--text-muted)">${fmtPct(pct,1)}</div>`}
+      </td>`;
+    }).join('');
+    return `<tr><td><span style="color:${inst.col};font-weight:700">${inst.n}</span><br><span style="font-size:0.7rem;color:var(--text-muted)">TNA ${inst.tna}%</span></td>${cells}</tr>`;
+  }).join('')+'</tbody>';
+
+  $('crv-milestones').innerHTML = `<table class="fxt">${thead}${tbody}</table>`;
 }
 </script>
 </body>
